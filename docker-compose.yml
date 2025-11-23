@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    container_name: tisa-labs-db
+    restart: always
+    environment:
+      POSTGRES_USER: tisa_admin
+      POSTGRES_PASSWORD: TisaLabs2025!Secure
+      POSTGRES_DB: tisa_labs
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -1,0 +1,138 @@
+// server\prisma\schema_old_tisa_labs.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole @default(TECHNICIAN)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  samples     Sample[]
+  tests       Test[]
+  results     Result[]
+  createdTests TestTemplate[] @relation("CreatedBy")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  VIEWER
+}
+
+model Sample {
+  id            String       @id @default(uuid())
+  sampleId      String       @unique
+  patientName   String?
+  patientId     String?
+  sampleType    SampleType
+  collectionDate DateTime
+  receivedDate  DateTime     @default(now())
+  status        SampleStatus @default(RECEIVED)
+  priority      Priority     @default(NORMAL)
+  notes         String?
+  createdById   String
+  createdBy     User         @relation(fields: [createdById], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  tests Test[]
+}
+
+enum SampleType {
+  BLOOD
+  URINE
+  TISSUE
+  SWAB
+  SALIVA
+  OTHER
+}
+
+enum SampleStatus {
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  ARCHIVED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model TestTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  description String?
+  category    String
+  methodology String?
+  normalRange String?
+  unit        String?
+  turnaroundTime Int?
+  price       Float?
+  isActive    Boolean  @default(true)
+  createdById String
+  createdBy   User     @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tests Test[]
+}
+
+model Test {
+  id             String     @id @default(uuid())
+  sampleId       String
+  sample         Sample     @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  templateId     String
+  template       TestTemplate @relation(fields: [templateId], references: [id])
+  status         TestStatus @default(PENDING)
+  assignedToId   String?
+  assignedTo     User?      @relation(fields: [assignedToId], references: [id])
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  results Result[]
+}
+
+enum TestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+model Result {
+  id          String   @id @default(uuid())
+  testId      String
+  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  value       String
+  unit        String?
+  normalRange String?
+  isAbnormal  Boolean  @default(false)
+  notes       String?
+  verifiedById String?
+  verifiedBy  User?    @relation(fields: [verifiedById], references: [id])
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
