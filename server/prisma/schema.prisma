@@ -1,7 +1,3 @@
-// server\prisma\schema.prisma
-// AI for Inclusive Learning Platform - Database Schema
-// This schema supports personalized, accessible education for all learners
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,221 +7,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USER MANAGEMENT
-// ============================================
-
-enum UserRole {
-  STUDENT
-  TEACHER
-  PARENT
-  ADMIN
-  CONTENT_CREATOR
-}
-
-enum LearningStyle {
-  VISUAL
-  AUDITORY
-  KINESTHETIC
-  READING_WRITING
-  MIXED
-}
-
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  firstName String
-  lastName  String
-  role      UserRole @default(STUDENT)
-  avatar    String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Student-specific fields
-  learningStyle LearningStyle?
-  gradeLevel    String?
-  dateOfBirth   DateTime?
-  parentId      String?
-  parent        User?          @relation("ParentChildren", fields: [parentId], references: [id])
-  children      User[]         @relation("ParentChildren")
-
-  // Relationships
-  accessibilitySettings AccessibilitySettings?
-  enrollments           Enrollment[]
-  submissions           Submission[]
-  progress              Progress[]
-  achievements          Achievement[]
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  password              String
+  firstName             String
+  lastName              String
+  role                  UserRole               @default(STUDENT)
+  avatar                String?
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  learningStyle         LearningStyle?
+  gradeLevel            String?
+  dateOfBirth           DateTime?
+  parentId              String?
   aiInteractions        AIInteraction[]
-  messages              Message[]              @relation("SentMessages")
-  receivedMessages      Message[]              @relation("ReceivedMessages")
+  accessibilitySettings AccessibilitySettings?
+  achievements          Achievement[]
+  assessmentResults     AssessmentResult[]
+  chatSessions          ChatSession[]          @relation("UserChatSessions")
   createdCourses        Course[]               @relation("CourseCreator")
   teachingCourses       Course[]               @relation("CourseTeacher")
-  studyGroups           StudyGroupMember[]
-  notifications         Notification[]
-  assessmentResults     AssessmentResult[]
   courseReviews         CourseReview[]
-  chatSessions          ChatSession[]          @relation("UserChatSessions")
+  enrollments           Enrollment[]
+  receivedMessages      Message[]              @relation("ReceivedMessages")
+  messages              Message[]              @relation("SentMessages")
+  notifications         Notification[]
+  progress              Progress[]
+  studyGroups           StudyGroupMember[]
+  submissions           Submission[]
+  parent                User?                  @relation("ParentChildren", fields: [parentId], references: [id])
+  children              User[]                 @relation("ParentChildren")
 
   @@index([email])
   @@index([role])
 }
 
-// ============================================
-// ACCESSIBILITY
-// ============================================
-
 model AccessibilitySettings {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Visual
-  fontSize      Int     @default(16)
-  fontFamily    String  @default("Arial")
-  highContrast  Boolean @default(false)
-  colorScheme   String  @default("default") // default, dark, high-contrast, dyslexia
-  reducedMotion Boolean @default(false)
-
-  // Audio
-  textToSpeechEnabled Boolean @default(false)
-  ttsSpeed            Float   @default(1.0)
-  ttsVoice            String  @default("default")
-
-  // Input
-  speechToTextEnabled Boolean @default(false)
-  keyboardOnly        Boolean @default(false)
-
-  // Content
-  captionsEnabled     Boolean @default(true)
-  transcriptsEnabled  Boolean @default(true)
-  signLanguageEnabled Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ============================================
-// COURSES & CONTENT
-// ============================================
-
-enum CourseLevel {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
-  EXPERT
-}
-
-enum CourseStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  fontSize            Int      @default(16)
+  fontFamily          String   @default("Arial")
+  highContrast        Boolean  @default(false)
+  colorScheme         String   @default("default")
+  reducedMotion       Boolean  @default(false)
+  textToSpeechEnabled Boolean  @default(false)
+  ttsSpeed            Float    @default(1.0)
+  ttsVoice            String   @default("default")
+  speechToTextEnabled Boolean  @default(false)
+  keyboardOnly        Boolean  @default(false)
+  captionsEnabled     Boolean  @default(true)
+  transcriptsEnabled  Boolean  @default(true)
+  signLanguageEnabled Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Course {
-  id          String       @id @default(uuid())
+  id          String         @id @default(uuid())
   title       String
   description String
   thumbnail   String?
   level       CourseLevel
-  status      CourseStatus @default(DRAFT)
-  duration    Int? // in minutes
-  price       Float?       @default(0)
+  status      CourseStatus   @default(DRAFT)
+  duration    Int?
+  price       Float?         @default(0)
   tags        String[]
-
-  creatorId String
-  creator   User    @relation("CourseCreator", fields: [creatorId], references: [id])
-  teacherId String?
-  teacher   User?   @relation("CourseTeacher", fields: [teacherId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  lessons     Lesson[]
-  enrollments Enrollment[]
+  creatorId   String
+  teacherId   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  creator     User           @relation("CourseCreator", fields: [creatorId], references: [id])
+  teacher     User?          @relation("CourseTeacher", fields: [teacherId], references: [id])
   reviews     CourseReview[]
+  enrollments Enrollment[]
+  lessons     Lesson[]
 
   @@index([status])
   @@index([creatorId])
   @@index([teacherId])
 }
 
-enum LessonType {
-  VIDEO
-  TEXT
-  AUDIO
-  INTERACTIVE
-  QUIZ
-  ASSIGNMENT
-}
-
 model Lesson {
-  id       String @id @default(uuid())
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
+  id          String     @id @default(uuid())
+  courseId    String
   title       String
   description String?
   type        LessonType
-  content     String // JSON content
+  content     String
   videoUrl    String?
   audioUrl    String?
   transcript  String?
-  duration    Int? // in minutes
+  duration    Int?
   order       Int
-
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relationships
-  resources Resource[]
-  progress  Progress[]
+  isPublished Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress    Progress[]
+  resources   Resource[]
 
   @@index([courseId])
   @@index([order])
 }
 
 model Resource {
-  id       String @id @default(uuid())
-  lessonId String
-  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-
-  title String
-  type  String // pdf, video, audio, link, image
-  url   String
-  size  Int? // in bytes
-
+  id        String   @id @default(uuid())
+  lessonId  String
+  title     String
+  type      String
+  url       String
+  size      Int?
   createdAt DateTime @default(now())
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@index([lessonId])
 }
 
-// ============================================
-// ENROLLMENT & PROGRESS
-// ============================================
-
-enum EnrollmentStatus {
-  ACTIVE
-  COMPLETED
-  DROPPED
-  PAUSED
-}
-
 model Enrollment {
-  id       String @id @default(uuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
+  id             String           @id @default(uuid())
+  userId         String
+  courseId       String
   status         EnrollmentStatus @default(ACTIVE)
-  progress       Float            @default(0) // percentage
+  progress       Float            @default(0)
   enrolledAt     DateTime         @default(now())
   completedAt    DateTime?
   lastAccessedAt DateTime?
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
   @@index([userId])
@@ -233,90 +144,60 @@ model Enrollment {
 }
 
 model Progress {
-  id       String @id @default(uuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId String
-  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-
-  completed    Boolean @default(false)
-  timeSpent    Int     @default(0) // in seconds
-  lastPosition Int? // for video/audio playback position
-  attempts     Int     @default(0)
+  id           String    @id @default(uuid())
+  userId       String
+  lessonId     String
+  completed    Boolean   @default(false)
+  timeSpent    Int       @default(0)
+  lastPosition Int?
+  attempts     Int       @default(0)
   score        Float?
-
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  updatedAt   DateTime  @updatedAt
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+  lesson       Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
   @@index([userId])
   @@index([lessonId])
 }
 
-// ============================================
-// ASSIGNMENTS & ASSESSMENTS
-// ============================================
-
-enum AssignmentType {
-  ESSAY
-  MULTIPLE_CHOICE
-  SHORT_ANSWER
-  PROJECT
-  CODING
-  PRESENTATION
-}
-
-enum SubmissionStatus {
-  DRAFT
-  SUBMITTED
-  GRADED
-  RETURNED
-}
-
 model Assignment {
-  id       String  @id @default(uuid())
-  courseId String
-  lessonId String?
-
+  id                  String         @id @default(uuid())
+  courseId            String
+  lessonId            String?
   title               String
   description         String
   type                AssignmentType
   maxScore            Float
   dueDate             DateTime?
   allowLateSubmission Boolean        @default(false)
-
-  instructions String // JSON format
-  rubric       String? // JSON format
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  submissions Submission[]
+  instructions        String
+  rubric              String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  submissions         Submission[]
 
   @@index([courseId])
 }
 
 model Submission {
-  id           String     @id @default(uuid())
+  id           String           @id @default(uuid())
   assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  content     String // JSON format
-  attachments String[] // URLs
-  status      SubmissionStatus @default(DRAFT)
-
-  score    Float?
-  feedback String?
-  gradedBy String?
-  gradedAt DateTime?
-
-  submittedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  content      String
+  attachments  String[]
+  status       SubmissionStatus @default(DRAFT)
+  score        Float?
+  feedback     String?
+  gradedBy     String?
+  gradedAt     DateTime?
+  submittedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, userId])
   @@index([userId])
@@ -324,24 +205,19 @@ model Submission {
 }
 
 model Assessment {
-  id       String  @id @default(uuid())
-  courseId String
-  lessonId String?
-
+  id           String             @id @default(uuid())
+  courseId     String
+  lessonId     String?
   title        String
   description  String?
-  timeLimit    Int? // in minutes
+  timeLimit    Int?
   passingScore Float
   maxAttempts  Int?
-
-  questions String // JSON array of questions
-
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relationships
-  results AssessmentResult[]
+  questions    String
+  isPublished  Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  results      AssessmentResult[]
 
   @@index([courseId])
 }
@@ -349,111 +225,69 @@ model Assessment {
 model AssessmentResult {
   id           String     @id @default(uuid())
   assessmentId String
-  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   userId       String
+  score        Float
+  answers      String
+  timeSpent    Int
+  passed       Boolean
+  attempt      Int        @default(1)
+  completedAt  DateTime   @default(now())
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  score     Float
-  answers   String // JSON array
-  timeSpent Int // in seconds
-  passed    Boolean
-  attempt   Int     @default(1)
-
-  completedAt DateTime @default(now())
 
   @@index([userId])
   @@index([assessmentId])
 }
 
-// ============================================
-// AI TUTOR & INTERACTIONS
-// ============================================
-
-enum AIInteractionType {
-  QUESTION
-  EXPLANATION
-  EXAMPLE
-  HINT
-  FEEDBACK
-  TRANSLATION
-  SUMMARY
-}
-
 model AIInteraction {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id          String            @id @default(uuid())
+  userId      String
   type        AIInteractionType
-  context     String? // course/lesson context
+  context     String?
   userMessage String
   aiResponse  String
   helpful     Boolean?
-
-  createdAt DateTime @default(now())
+  createdAt   DateTime          @default(now())
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
 }
 
-// ============================================
-// GAMIFICATION & ACHIEVEMENTS
-// ============================================
-
-enum AchievementType {
-  COURSE_COMPLETION
-  STREAK
-  PERFECT_SCORE
-  EARLY_BIRD
-  NIGHT_OWL
-  HELPFUL_PEER
-  MILESTONE
-}
-
 model Achievement {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id          String          @id @default(uuid())
+  userId      String
   type        AchievementType
   title       String
   description String
   icon        String
   points      Int             @default(0)
-
-  earnedAt DateTime @default(now())
+  earnedAt    DateTime        @default(now())
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
-// ============================================
-// COLLABORATION
-// ============================================
-
 model StudyGroup {
-  id          String  @id @default(uuid())
+  id          String             @id @default(uuid())
   name        String
   description String?
   courseId    String?
-  maxMembers  Int     @default(10)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  members  StudyGroupMember[]
-  messages GroupMessage[]
+  maxMembers  Int                @default(10)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  messages    GroupMessage[]
+  members     StudyGroupMember[]
 }
 
 model StudyGroupMember {
-  id      String     @id @default(uuid())
-  groupId String
-  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  userId  String
-  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  role     String   @default("member") // member, moderator, admin
-  joinedAt DateTime @default(now())
+  id       String     @id @default(uuid())
+  groupId  String
+  userId   String
+  role     String     @default("member")
+  joinedAt DateTime   @default(now())
+  group    StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
   @@index([groupId])
@@ -461,36 +295,28 @@ model StudyGroupMember {
 }
 
 model GroupMessage {
-  id      String     @id @default(uuid())
-  groupId String
-  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  userId  String
-
+  id          String     @id @default(uuid())
+  groupId     String
+  userId      String
   content     String
   attachments String[]
-
-  createdAt DateTime @default(now())
+  createdAt   DateTime   @default(now())
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([groupId])
   @@index([createdAt])
 }
 
-// ============================================
-// COMMUNICATION
-// ============================================
-
 model Message {
-  id         String @id @default(uuid())
+  id         String   @id @default(uuid())
   senderId   String
-  sender     User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiverId String
-  receiver   User   @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  subject String?
-  content String
-  isRead  Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  subject    String?
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([senderId])
   @@index([receiverId])
@@ -498,53 +324,42 @@ model Message {
 }
 
 model Notification {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  title   String
-  message String
-  type    String // info, success, warning, error
-  link    String?
-  isRead  Boolean @default(false)
-
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
 }
 
-// ============================================
-// REVIEWS & FEEDBACK
-// ============================================
-
 model CourseReview {
-  id       String @id @default(uuid())
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  rating  Int // 1-5
-  comment String?
-
+  id        String   @id @default(uuid())
+  courseId  String
+  userId    String
+  rating    Int
+  comment   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, userId])
   @@index([courseId])
   @@index([userId])
 }
 
-// ============================================
-// UNIVERSITY PROGRAMS (FOR AI KNOWLEDGE & ADMIN)
-// ============================================
 model UniversityProgram {
   id              String            @id @default(uuid())
   title           String            @unique
   abbreviation    String?
-  college         String // e.g., "College of Science"
+  college         String
   isActive        Boolean           @default(true)
   order           Int               @default(0)
   createdAt       DateTime          @default(now())
@@ -555,18 +370,14 @@ model UniversityProgram {
   @@index([isActive])
 }
 
-// ============================================
-// AI TUTOR - CHAT SESSIONS (Private per user)
-// ============================================
 model ChatSession {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation("UserChatSessions", fields: [userId], references: [id], onDelete: Cascade)
-
+  id        String   @id @default(uuid())
+  userId    String
   title     String
   messages  Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation("UserChatSessions", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([updatedAt])
@@ -590,24 +401,110 @@ model Subject {
 }
 
 model FacultySubject {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   facultyId String
   subjectId String
-
-  faculty Faculty @relation(fields: [facultyId], references: [id])
-  subject Subject @relation(fields: [subjectId], references: [id])
+  faculty   Faculty @relation(fields: [facultyId], references: [id])
+  subject   Subject @relation(fields: [subjectId], references: [id])
 }
 
 model CurriculumEntry {
   id            String            @id @default(cuid())
   programId     String
-  program       UniversityProgram @relation(fields: [programId], references: [id])
   yearLevel     Int
   semester      Int
   courseCode    String
   subjectName   String
-  prerequisites String[]          @default([])
   units         Int
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+  prerequisites String[]          @default([])
+  program       UniversityProgram @relation(fields: [programId], references: [id])
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  PARENT
+  ADMIN
+  CONTENT_CREATOR
+}
+
+enum LearningStyle {
+  VISUAL
+  AUDITORY
+  KINESTHETIC
+  READING_WRITING
+  MIXED
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  AUDIO
+  INTERACTIVE
+  QUIZ
+  ASSIGNMENT
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  PAUSED
+}
+
+enum AssignmentType {
+  ESSAY
+  MULTIPLE_CHOICE
+  SHORT_ANSWER
+  PROJECT
+  CODING
+  PRESENTATION
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+enum AIInteractionType {
+  QUESTION
+  EXPLANATION
+  EXAMPLE
+  HINT
+  FEEDBACK
+  TRANSLATION
+  SUMMARY
+}
+
+enum AchievementType {
+  COURSE_COMPLETION
+  STREAK
+  PERFECT_SCORE
+  EARLY_BIRD
+  NIGHT_OWL
+  HELPFUL_PEER
+  MILESTONE
 }

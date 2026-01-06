@@ -5,6 +5,7 @@ import {
   createChatSession,
   getChatSession,
   updateChatSession,
+  renameChatSession,
   deleteChatSession,
 } from '../controllers/chat-session.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
@@ -17,6 +18,7 @@ router.get('/', listChatSessions);
 router.post('/', createChatSession);
 router.get('/:id', getChatSession);
 router.put('/:id', updateChatSession);
+router.put('/:id/rename', renameChatSession);
 router.delete('/:id', deleteChatSession);
 
 export default router;

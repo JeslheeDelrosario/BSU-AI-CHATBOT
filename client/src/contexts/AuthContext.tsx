@@ -51,10 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    window.location.href = '/login';
+  const logout = async () => {
+    try {
+      // Call server logout endpoint to clean up empty chats
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+      window.location.href = '/login';
+    }
   };
 
   return (

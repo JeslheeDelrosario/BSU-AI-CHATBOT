@@ -1,4 +1,4 @@
-// server\src\controllers\ai-tutor.controller.ts
+// server/src/controllers/ai-tutor.controller.ts
 import { Response } from 'express';
 import { PrismaClient, AIInteractionType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 
 const prisma = new PrismaClient();
 
-// Initialize OpenAI client with explicit apiKey from env
+// Initialize OpenAI client
 let openai: OpenAI;
 try {
   if (!process.env.OPENAI_API_KEY) {
@@ -17,43 +17,290 @@ try {
   });
 } catch (error) {
   console.error('Failed to initialize OpenAI client:', error);
-  
 }
 
-// Real AI response function using OpenAI
-
-const generateAIResponse = async (userMessage: string, context?: string): Promise<string> => {
+// Enhanced AI response generator with last conversation context
+const generateAIResponse = async (
+  userMessage: string, 
+  context?: string,
+  lastInteraction?: {userMessage: string; aiResponse: string} | null
+): Promise<string> => {
   try {
-    // OFFICIAL BSU COS PROGRAM LIST — LOCKED & ACCURATE
-    const BSU_COS_PROGRAMS = `
-You are TISA, the official AI Tutor of Bulacan State University – College of Science (BSU COS).
+    // COMPREHENSIVE TISA SYSTEM PROMPT
+    const TISA_SYSTEM_PROMPT = `
+# YOU ARE TISA - The Intelligent Student Assistant
 
-When asked about programs, courses, or offerings in the College of Science, ALWAYS reply with this exact official list (never add, remove, or rephrase any item):
+You are TISA, the official AI Tutor and Academic Guide for Bulacan State University – College of Science (BSU COS).
 
-Official Undergraduate Programs – College of Science:
-• Bachelor of Science in Mathematics with Specialization in Applied Statistics
-• Bachelor of Science in Mathematics with Specialization in Business Applications
-• Bachelor of Science in Mathematics with Specialization in Computer Science
-• Bachelor of Science in Biology
-• Bachelor of Science in Environmental Science
-• Bachelor of Science in Food Technology
-• Bachelor of Science in Medical Technology / Medical Laboratory Science
+## YOUR CORE IDENTITY & MISSION
+- **Name**: TISA (The Intelligent Student Assistant)
+- **Role**: Academic advisor, tutor, and student support companion
+- **Tone**: Warm, encouraging, professional, and student-centered
+- **Purpose**: Help students succeed academically and navigate university life
 
-Always say: "These are the official programs offered by BSU College of Science as of 2025."
-    `.trim();
+## CRITICAL: CONVERSATION CONTINUITY RULES
 
+**ALWAYS REMEMBER THE LAST CONVERSATION**
+- You will receive the user's LAST message and YOUR LAST response
+- Use this context to understand what the conversation is about
+- Don't ask redundant questions if you already know the context
+- When users give short answers (like "2nd year", "yes", "that one"), understand them based on the last conversation
 
-    
+**ASK CLARIFYING QUESTIONS WHEN NEEDED**
+When the user's message is unclear or ambiguous, ALWAYS ask for clarification:
+- If they just say a year without context: "Are you asking about [last program mentioned]?"
+- If they use vague terms: "Could you clarify what you mean by..."
+- If multiple interpretations exist: "Do you mean... or ...?"
+- If it's a new topic: Ask what specifically they want to know
 
-    // Detect if user is asking about COS programs
+**Example of CORRECT behavior with context:**
+
+Last User: "What are the subjects in Computer Science?"
+Last TISA: "Which year level would you like to know about? (1st, 2nd, 3rd, or 4th year)"
+Current User: "1st year"
+Current TISA: [provides 1st year CS subjects - understands from context]
+
+Last User: "Tell me about 1st year CS subjects"
+Last TISA: [provided 1st year CS subjects]
+Current User: "2nd year"
+Current TISA: [provides 2nd year CS subjects - knows they mean Computer Science]
+
+Last User: "What programs do you offer?"
+Last TISA: [listed all programs]
+Current User: "Biology"
+Current TISA: "Great choice! What would you like to know about BS Biology? I can tell you about:
+• Curriculum and subjects
+• Career opportunities
+• Faculty members
+• Admission requirements"
+
+**Example of asking clarifying questions:**
+
+User: "Tell me about the subjects"
+TISA: "I'd be happy to help! Could you clarify:
+• Which program are you interested in? (Computer Science, Biology, etc.)
+• Which year level?"
+
+Last User: "What are biology subjects?"
+Last TISA: "Which year level..."
+Current User: "first"
+TISA: [Shows 1st year Biology - understands "first" means "first year" from context]
+
+User: "What about that one?"
+TISA: "I want to make sure I help you correctly. Which one are you referring to? Could you be more specific?"
+
+**When there's NO last conversation:**
+- Treat the message as a fresh start
+- Ask necessary questions to understand their needs
+- Be welcoming and helpful
+
+**When there IS a last conversation:**
+- Use it to understand the current message
+- Continue naturally without repeating questions
+- Only ask for clarification if truly ambiguous
+
+## OFFICIAL BSU COLLEGE OF SCIENCE PROGRAMS (2025)
+
+When students ask about programs, courses, or degree offerings, provide this official list:
+
+### Undergraduate Programs:
+1. **Bachelor of Science in Mathematics with Specialization in Applied Statistics**
+   - Focus: Statistical analysis, data science, research methods
+   - Career paths: Data analyst, statistician, research analyst, actuarial science
+
+2. **Bachelor of Science in Mathematics with Specialization in Business Applications**
+   - Focus: Business analytics, financial modeling, operations research
+   - Career paths: Business analyst, financial analyst, management consultant
+
+3. **Bachelor of Science in Mathematics with Specialization in Computer Science**
+   - Focus: Algorithms, software development, computational mathematics
+   - Career paths: Software developer, systems analyst, IT consultant
+
+4. **Bachelor of Science in Biology**
+   - Focus: Life sciences, ecology, molecular biology, genetics
+   - Career paths: Biologist, research scientist, environmental consultant, educator
+
+5. **Bachelor of Science in Environmental Science**
+   - Focus: Environmental conservation, sustainability, climate science
+   - Career paths: Environmental specialist, conservation officer, sustainability consultant
+
+6. **Bachelor of Science in Food Technology**
+   - Focus: Food processing, quality control, food safety, product development
+   - Career paths: Food technologist, quality assurance manager, product developer
+
+7. **Bachelor of Science in Medical Technology / Medical Laboratory Science**
+   - Focus: Clinical laboratory procedures, diagnostics, pathology
+   - Career paths: Medical technologist, laboratory supervisor, clinical researcher
+
+## COMMUNICATION GUIDELINES
+
+### Language & Tone:
+- Use clear, professional English
+- Be encouraging and supportive
+- Avoid jargon unless explaining technical concepts
+- Show empathy for student struggles
+- Be conversational and friendly
+
+### Response Structure:
+- Start with a brief, direct answer when possible
+- Provide detailed explanation when needed
+- Use bullet points for lists and clarity
+- Ask clarifying questions when unsure
+- End with encouragement or offer to help further
+
+### Formatting:
+- Use **bold** for emphasis on key terms
+- Use bullet points (•) for lists
+- Use numbered lists for sequential steps
+- Use line breaks for readability
+- Keep paragraphs short (2-3 sentences)
+
+## RESPONSE PATTERNS
+
+### For Initial Program Inquiries:
+1. List the official program name
+2. Provide 2-3 sentence description
+3. Mention 3-4 career paths
+4. Ask what specific info they need (curriculum, admission, etc.)
+
+### For Curriculum Questions Without Year:
+1. Identify the program (from context or ask)
+2. Ask which year level they want
+3. Be specific: "Which year? 1st, 2nd, 3rd, or 4th?"
+
+### For Follow-up Curriculum Questions:
+1. Use last conversation to identify program
+2. Provide the requested year's subjects
+3. Ask if they want to see other years
+
+### For Vague Questions:
+1. Reference what you know from last conversation
+2. Ask specific clarifying questions
+3. Offer multiple-choice options when possible
+
+### For Study Help:
+1. Ask what specific topic or concept they need help with
+2. Once clarified, break it down simply
+3. Provide examples and study strategies
+
+## HANDLING DIFFERENT SCENARIOS
+
+### When Context is Clear (from last conversation):
+"Based on our previous discussion about [topic], here's what you need to know..."
+
+### When Context is Unclear:
+"I want to make sure I give you the right information. Are you asking about [option A] or [option B]?"
+
+### When User Gives Incomplete Info:
+"Could you help me understand better? Are you asking about:
+• [Option 1]
+• [Option 2]
+• [Option 3]"
+
+### When Switching Topics:
+"I see you're interested in [new topic] now. What would you like to know about it?"
+
+### When User Seems Frustrated:
+"I'm here to help! Let me ask you a couple of quick questions so I can give you exactly what you need..."
+
+## EXAMPLE CONVERSATIONS
+
+**Conversation 1: Clear Context**
+User: "What are the Computer Science subjects?"
+TISA: "I'd be happy to show you the Computer Science curriculum! Which year level interests you? (1st, 2nd, 3rd, or 4th year)"
+
+User: "1st year"
+TISA: "Here are the subjects for BS Mathematics with Specialization in Computer Science - Year 1, 1st Semester:
+[lists subjects]
+Would you like to see 2nd semester or move to 2nd year?"
+
+User: "2nd year"
+TISA: [Shows 2nd year - knows it's still CS from context]
+
+**Conversation 2: Clarifying Question**
+User: "Tell me about the subjects"
+TISA: "I'd be happy to help! To give you the right information, I need to know:
+• Which program? (Computer Science, Biology, Medical Technology, etc.)
+• Which year level? (1st, 2nd, 3rd, or 4th)"
+
+User: "Biology first year"
+TISA: [Shows 1st year Biology subjects]
+
+User: "second year"
+TISA: [Shows 2nd year Biology - remembers context]
+
+**Conversation 3: Vague Follow-up**
+Last: User asked about Computer Science 1st year
+User: "what about the next one?"
+TISA: "Do you mean:
+• 2nd semester of 1st year Computer Science?
+• 2nd year Computer Science?
+
+Let me know and I'll show you the subjects!"
+
+**Conversation 4: Topic Change**
+Last: Discussing Biology
+User: "What about Food Tech?"
+TISA: "Switching to Food Technology - great! What would you like to know?
+• Curriculum (which year?)
+• Career opportunities
+• Faculty members
+• Admission requirements"
+
+## KNOWLEDGE BOUNDARIES
+
+### What You Should NOT Do:
+- ❌ Make up information
+- ❌ Ignore context from previous conversation
+- ❌ Provide vague answers when you could ask clarifying questions
+- ❌ Assume what the user means without asking
+- ❌ Give long responses when a simple clarifying question would work better
+
+### What You SHOULD Do:
+- ✅ Use the last conversation to understand context
+- ✅ Ask specific clarifying questions when unsure
+- ✅ Provide clear, direct answers when you understand
+- ✅ Offer multiple-choice options for clarity
+- ✅ Acknowledge when you're making an assumption based on context
+
+## REMEMBER:
+- The last conversation is your key to understanding
+- When in doubt, ask a clarifying question
+- Make clarifying questions specific and helpful
+- Use context to avoid redundant questions
+- Be conversational and student-friendly
+- Every interaction should feel natural and helpful
+
+Stay positive, accurate, contextually aware, and never afraid to ask for clarification! 🎓
+
+${context ? `\n\n## CURRENT DATABASE CONTEXT:\n${context}` : ''}
+
+${lastInteraction ? `\n\n## LAST CONVERSATION:
+**Last User Message**: ${lastInteraction.userMessage}
+**Your Last Response**: ${lastInteraction.aiResponse}
+
+Use this to understand the current user's message in context.` : '\n\n## LAST CONVERSATION:\nThis is a new conversation - no previous context available.'}
+`.trim();
+
     const lowerMsg = userMessage.toLowerCase();
 
-    // --- Faculty questions ---
-    // Detect if the user asks about a specific role in COS
+    // Build messages for OpenAI
+    const messages: Array<{role: 'user' | 'assistant', content: string}> = [
+      { role: 'system' as any, content: TISA_SYSTEM_PROMPT }
+    ];
+
+    // Add only the last interaction if available
+    if (lastInteraction) {
+      messages.push({ role: 'user', content: lastInteraction.userMessage });
+      messages.push({ role: 'assistant', content: lastInteraction.aiResponse });
+    }
+
+    // Add current user message
+    messages.push({ role: 'user', content: userMessage });
+
+    // Detect faculty inquiries
     const facultyRoles = [
-      'Associate Dean',
-      'Dean',
-      'Chairperson',
+      'Dean', 'Associate Dean', 'Chairperson',
       'Department Head, Science Department',
       'Department Head, Mathematics Department',
       'Program Chair, BS Mathematics',
@@ -62,26 +309,20 @@ Always say: "These are the official programs offered by BSU College of Science a
       'Program Chair, BS Environmental Science',
       'Program Chair, BS Medical Technology',
       'College Extension and Services Unit (CESU) Head',
-      'College Extension and Services Unit (CESU)',
       'College Research Development Unit (CRDU) Head',
-      'College Research Development Unit (CRDU)',
       'Student Internship Program Coordinator',
-      'College Clerk',
-      'Laboratory Technician',
+      'College Clerk', 'Laboratory Technician',
       'Medical Laboratory Technician',
       'Computer Laboratory Technician',
-      'Professor, Science',
-      'Professor, Mathematics',
+      'Professor, Science', 'Professor, Mathematics',
       'Faculty (Part-Time), Science',
       'Faculty (Part-Time), Mathematics',
-      'Assistant Professor',
-      'Instructor',
-      'Lecturer'
+      'Assistant Professor', 'Instructor', 'Lecturer'
     ];
 
-    // Check if the message contains any of the roles
     for (const role of facultyRoles) {
-      if (lowerMsg.includes(role.toLowerCase().replace(/,/g, '').replace(/\s+/g, ' '))) {
+      const normalizedRole = role.toLowerCase().replace(/,/g, '').replace(/\s+/g, ' ');
+      if (lowerMsg.includes(normalizedRole)) {
         const facultyList = await prisma.faculty.findMany({
           where: { 
             position: role,
@@ -91,140 +332,169 @@ Always say: "These are the official programs offered by BSU College of Science a
         });
 
         if (facultyList.length === 0) {
-          return `There are currently no ${role}s listed for the College of Science.`;
+          return `I don't have information about the ${role} for the College of Science at the moment. I recommend checking with the COS office directly or visiting the official BSU website for the most current faculty information.`;
         }
 
         const names = facultyList.map(f => `${f.firstName} ${f.lastName}`).join(', ');
+        const plural = facultyList.length > 1;
+        
+        return `The ${role}${plural ? 's' : ''} of the College of Science ${plural ? 'are' : 'is'} **${names}**.
 
-        return `The ${role}s of the College of Science is ${names}.`;
+Would you like to know more about their office hours or how to contact them?`;
       }
     }
 
-    const programs = await prisma.universityProgram.findMany({ where: { college: 'College of Science', isActive: true } });
-  let programMatch = programs.find(p => lowerMsg.includes(p.title.toLowerCase()) || (p.abbreviation && lowerMsg.includes(p.abbreviation.toLowerCase())));
-  if (!programMatch) programMatch = programs.find(p => p.title.toLowerCase().includes('computer science')); // default fallback
-  
-  const yearMatch = lowerMsg.match(/(\d+)(st|nd|rd|th)?\s*year/)?.[1];
-  const semesterMatch = lowerMsg.includes('2nd') || lowerMsg.includes('second') ? 2 : 1;
-
-  if (programMatch && yearMatch) {
-    const yearLevel = parseInt(yearMatch);
-
-    const curriculum = await prisma.curriculumEntry.findMany({
-      where: { programId: programMatch.id, semester: semesterMatch, yearLevel },
-      orderBy: { courseCode: 'asc' },
+    // Detect curriculum inquiries with context awareness
+    const programs = await prisma.universityProgram.findMany({ 
+      where: { college: 'College of Science', isActive: true } 
     });
-
-    if (curriculum.length > 0) {
-      const formattedList = curriculum
-        .map(c => `${c.courseCode} (${c.subjectName}) - ${c.units} Units`)
-        .join('\n');
-      return `For the ${programMatch.title} (${programMatch.abbreviation ?? ''}), the subjects for the ${semesterMatch}${semesterMatch===1?'st':'nd'} semester of Year ${yearLevel} are as follows:\n\n${formattedList}\n\nThese courses are designed to provide a strong foundational knowledge in the program.`;
-    } else {
-      return `Sorry, I could not find the subjects for ${programMatch.title} Year ${yearLevel}, Semester ${semesterMatch}.`;
-    }
-  }
-
-    // --- Curriculum questions ---
-    // if (lowerMsg.includes('1st sem') || lowerMsg.includes('first semester') || lowerMsg.includes('2nd sem') || lowerMsg.includes('second semester')) {
-    //   // Detect program, default to BSCS if not mentioned
-    //   const programName = lowerMsg.includes('bscs') ? 'Computer Science' : 'Computer Science'; // expand if more programs
-
-    //   const semester = lowerMsg.includes('2nd') || lowerMsg.includes('second') ? 2 : 1;
-
-    //   const entries = await prisma.curriculumEntry.findMany({
-    //     where: {
-    //       program: { title: { contains: programName } },
-    //       semester,
-    //     },
-    //     orderBy: { yearLevel: 'asc' }
-    //   });
-
-    //   if (entries.length === 0) {
-    //     return `Sorry, I couldn't find the ${semester} semester subjects for ${programName}.`;
-    //   }
-
-    //   const list = entries.map(c => {
-    //     const pre = c.prerequisites.length > 0 ? ` (Prerequisites: ${c.prerequisites.join(', ')})` : '';
-    //     return `${c.courseCode} - ${c.subjectName}${pre}`;
-    //   }).join('\n• ');
-
-    //   return `Here are the ${semester}${semester===1?'st':'nd'} semester subjects for ${programName}:\n• ${list}`;
-    // }
-
     
+    // Check if user is asking about a specific program in current message
+    let programMatch = programs.find(p => 
+      lowerMsg.includes(p.title.toLowerCase()) || 
+      (p.abbreviation && lowerMsg.includes(p.abbreviation.toLowerCase()))
+    );
 
-    const isAskingAboutCOS = 
+    // If no program found in current message, check last conversation
+    if (!programMatch && lastInteraction) {
+      const lastUserMsg = lastInteraction.userMessage.toLowerCase();
+      const lastBotMsg = lastInteraction.aiResponse.toLowerCase();
+      
+      // Check both user's last message and bot's last response for program mentions
+      programMatch = programs.find(p => 
+        lastUserMsg.includes(p.title.toLowerCase()) || 
+        (p.abbreviation && lastUserMsg.includes(p.abbreviation.toLowerCase())) ||
+        lastBotMsg.includes(p.title.toLowerCase()) ||
+        (p.abbreviation && lastBotMsg.includes(p.abbreviation.toLowerCase()))
+      );
+    }
+    
+    const yearMatch = lowerMsg.match(/(\d+)(st|nd|rd|th)?\s*year/)?.[1];
+    const semesterMatch = lowerMsg.includes('2nd') || lowerMsg.includes('second') ? 2 : 1;
+
+    if (programMatch && yearMatch) {
+      const yearLevel = parseInt(yearMatch);
+
+      const curriculum = await prisma.curriculumEntry.findMany({
+        where: { programId: programMatch.id, semester: semesterMatch, yearLevel },
+        orderBy: { courseCode: 'asc' },
+      });
+
+      if (curriculum.length > 0) {
+        const totalUnits = curriculum.reduce((sum, c) => sum + c.units, 0);
+        const formattedList = curriculum
+          .map(c => `• **${c.courseCode}** - ${c.subjectName} (${c.units} ${c.units === 1 ? 'unit' : 'units'})${c.prerequisites.length > 0 ? `\n  Prerequisites: ${c.prerequisites.join(', ')}` : ''}`)
+          .join('\n\n');
+        
+        const semesterName = semesterMatch === 1 ? '1st' : '2nd';
+        
+        return `Here are the subjects for **${programMatch.title}** - Year ${yearLevel}, ${semesterName} Semester:
+
+${formattedList}
+
+**Total Units:** ${totalUnits}
+
+These courses will help build your foundation in ${programMatch.title}. ${yearLevel < 4 ? 'Would you like to see year ' + (yearLevel + 1) + ' as well?' : 'This completes your undergraduate curriculum!'}`;
+      } else {
+        return `I couldn't find curriculum information for ${programMatch.title} Year ${yearLevel}, Semester ${semesterMatch}. 
+
+This might be because:
+• The curriculum is still being finalized
+• This year level doesn't exist for this program
+• The information needs to be updated
+
+I recommend contacting the COS Registrar's Office for the most current curriculum details.`;
+      }
+    }
+
+    // Detect general COS program inquiries
+    const isAskingAboutPrograms = 
       lowerMsg.includes('college of science') ||
-      lowerMsg.includes('cos') ||
+      lowerMsg.includes('cos programs') ||
       lowerMsg.includes('course offerings') ||
-      lowerMsg.includes('programs') && lowerMsg.includes('science') ||
+      lowerMsg.includes('what programs') ||
       lowerMsg.includes('what are the courses') ||
       lowerMsg.includes('bsu cos') ||
       lowerMsg.includes('offered programs') ||
+      lowerMsg.includes('what courses') ||
+      lowerMsg.includes('available programs') ||
+      lowerMsg.includes('list of programs') ||
       lowerMsg.includes('degrees');
 
-    // Instant correct answer — works even if OpenAI is down
-    if (isAskingAboutCOS) {
-      return `**Bulacan State University – College of Science**
+    if (isAskingAboutPrograms) {
+      return `**Welcome to BSU College of Science!** 🎓
 
-      Here are the official undergraduate programs as of 2025:
+Here are our official undergraduate programs as of 2025:
 
-      • Bachelor of Science in Mathematics with Specialization in Applied Statistics  
-      • Bachelor of Science in Mathematics with Specialization in Business Applications  
-      • Bachelor of Science in Mathematics with Specialization in Computer Science  
-      • BS Biology  
-      • BS Environmental Science  
-      • BS Food Technology  
-      • BS Medical Technology / Medical Laboratory Science  
+**Mathematics Programs:**
+• BS Mathematics with Specialization in **Applied Statistics**
+• BS Mathematics with Specialization in **Business Applications**
+• BS Mathematics with Specialization in **Computer Science**
 
-      Which program interests you? I can provide details on curriculum, admission, or career paths.`;
+**Science Programs:**
+• **BS Biology** - Life sciences and research
+• **BS Environmental Science** - Sustainability and conservation
+• **BS Food Technology** - Food processing and quality control
+• **BS Medical Technology / Medical Laboratory Science** - Clinical diagnostics
+
+Each program offers unique opportunities and career paths!
+
+**Which program interests you?** I can tell you about:
+✓ Curriculum and subjects
+✓ Career opportunities
+✓ Admission requirements
+✓ Faculty and facilities`;
     }
 
-    // Normal AI behavior with BSU COS knowledge baked in
-    const systemPrompt = `${BSU_COS_PROGRAMS}
-
-    You are TISA, a clear, professional, and encouraging AI tutor for Bulacan State University students.
-    Use proper English at all times. Format answers with Markdown for readability.
-    Keep responses concise (under 200 words) and educational.
-
-    ${context ? `\n\nCurrent Context: ${context}` : ''}`;
-
+    // Call OpenAI with enhanced system prompt and last conversation context
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
-      ],
-      max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS || '500'),
+      messages: messages as any,
+      max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS || '800'),
       temperature: 0.7,
     });
 
-    return completion.choices[0].message.content || 'Sorry, I could not generate a response. Please try again.';
+    return completion.choices[0].message.content || 
+      'I apologize, but I had trouble generating a response. Could you rephrase your question? I\'m here to help!';
+
   } catch (error: any) {
     console.error('OpenAI API Error:', error);
 
-    // Fallback — still answers COS questions correctly even if API fails
-    if (userMessage.toLowerCase().includes('college of science') || 
-        userMessage.toLowerCase().includes('cos') || 
-        userMessage.toLowerCase().includes('Kurso') || 
-        userMessage.toLowerCase().includes('programs')) {
+    // Comprehensive fallback responses
+    const lowerMsg = userMessage.toLowerCase();
+    
+    if (lowerMsg.includes('college of science') || 
+        lowerMsg.includes('cos') || 
+        lowerMsg.includes('programs') ||
+        lowerMsg.includes('courses')) {
       return `**BSU College of Science – Official Programs (2025)**
 
-      • BS Mathematics with Specialization in Applied Statistics  
-      • BS Mathematics with Specialization in Business Applications  
-      • BS Mathematics with Specialization in Computer Science  
-      • BS Biology  
-      • BS Environmental Science  
-      • BS Food Technology  
-      • BS Medical Technology / Medical Laboratory Science`;
+**Mathematics:**
+• BS Mathematics with Specialization in Applied Statistics
+• BS Mathematics with Specialization in Business Applications
+• BS Mathematics with Specialization in Computer Science
+
+**Sciences:**
+• BS Biology
+• BS Environmental Science
+• BS Food Technology
+• BS Medical Technology / Medical Laboratory Science
+
+For more information, please visit the COS office or contact the registrar.`;
     }
 
-    return 'The AI service is temporarily unavailable. Please try again later.';
+    return `I'm experiencing a temporary service interruption, but I'm still here to help! 
+
+For urgent inquiries, please:
+• Visit the COS office directly
+• Email the department
+• Check the official BSU website
+
+I'll be back to full functionality soon. Thank you for your patience! 🙏`;
   }
 };
 
-// server/src/controllers/ai-tutor.controller.ts
+// Main controller function with last conversation context only
 export const askAITutor = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -235,56 +505,106 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    if (!message) {
-      res.status(400).json({ error: 'Message is required' });
+    if (!message || message.trim().length === 0) {
+      res.status(400).json({ error: 'Message cannot be empty' });
       return;
     }
 
     let contextInfo = '';
 
-    // 1️⃣ Fetch all programs
+    // Fetch ONLY the last interaction for this user
+    const lastInteraction = await prisma.aIInteraction.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        userMessage: true,
+        aiResponse: true,
+        createdAt: true,
+      }
+    });
+
+    // Fetch all active programs
     const programs = await prisma.universityProgram.findMany({
       where: { college: 'College of Science', isActive: true },
     });
 
-    // 2️⃣ Detect program from message
+    // Detect program from current message OR last conversation
     let program: any = null;
     const msgLower = message.toLowerCase();
+    
+    // First check current message
     for (const p of programs) {
-      if (msgLower.includes(p.title.toLowerCase()) || (p.abbreviation && msgLower.includes(p.abbreviation.toLowerCase()))) {
+      if (msgLower.includes(p.title.toLowerCase()) || 
+          (p.abbreviation && msgLower.includes(p.abbreviation.toLowerCase()))) {
         program = p;
         break;
       }
     }
 
-    if (program) {
-      contextInfo += `Program: ${program.title} (${program.abbreviation}).\n`;
+    // If not found, check last conversation
+    if (!program && lastInteraction) {
+      const lastUserMsg = lastInteraction.userMessage.toLowerCase();
+      const lastBotMsg = lastInteraction.aiResponse.toLowerCase();
+      
+      for (const p of programs) {
+        if (lastUserMsg.includes(p.title.toLowerCase()) || 
+            (p.abbreviation && lastUserMsg.includes(p.abbreviation.toLowerCase())) ||
+            lastBotMsg.includes(p.title.toLowerCase()) ||
+            (p.abbreviation && lastBotMsg.includes(p.abbreviation.toLowerCase()))) {
+          program = p;
+          break;
+        }
+      }
+    }
 
-      // 3️⃣ Fetch relevant curriculum
+    if (program) {
+      contextInfo += `## Program Information\n`;
+      contextInfo += `**Program**: ${program.title} (${program.abbreviation || 'N/A'})\n`;
+      if (program.description) {
+        contextInfo += `**Description**: ${program.description}\n`;
+      }
+      contextInfo += '\n';
+
+      // Fetch curriculum for the detected program
       const curriculum = await prisma.curriculumEntry.findMany({
         where: { programId: program.id },
         orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }],
       });
+      
       if (curriculum.length > 0) {
-        contextInfo += `Curriculum:\n${curriculum.map(c =>
-          `• ${c.courseCode} (${c.subjectName}), Year ${c.yearLevel}, Sem ${c.semester}, Units ${c.units}, Prerequisites: ${c.prerequisites.join(', ') || 'None'}`
-        ).join('\n')}\n`;
+        contextInfo += `## Available Curriculum Data\n`;
+        const groupedByYear = curriculum.reduce((acc, c) => {
+          const key = `Year ${c.yearLevel}`;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(c);
+          return acc;
+        }, {} as Record<string, any[]>);
+
+        for (const [year, courses] of Object.entries(groupedByYear)) {
+          contextInfo += `**${year}**: ${courses.length} courses available\n`;
+        }
+        contextInfo += '\n';
       }
     }
 
-    // 4️⃣ Fetch relevant faculty
-    const faculty = await prisma.faculty.findMany({
+    // Fetch faculty information (summary only)
+    const facultyCount = await prisma.faculty.count({
       where: { college: 'College of Science' },
     });
 
-    if (faculty.length > 0) {
-      contextInfo += `Faculty Members:\n${faculty.map(f => `• ${f.position}: ${f.firstName} ${f.lastName}`).join('\n')}\n`;
+    if (facultyCount > 0) {
+      contextInfo += `## Faculty Information\n`;
+      contextInfo += `${facultyCount} faculty members available in the College of Science\n\n`;
     }
 
-    // 5️⃣ Generate AI response with filtered context
-    const aiResponse = await generateAIResponse(message, contextInfo || undefined);
+    // Generate AI response with context and ONLY last interaction
+    const aiResponse = await generateAIResponse(
+      message, 
+      contextInfo || undefined,
+      lastInteraction || null
+    );
 
-    // 6️⃣ Save interaction
+    // Save interaction to database
     const interaction = await prisma.aIInteraction.create({
       data: {
         userId,
@@ -298,21 +618,23 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
     res.json({
       response: aiResponse,
       interactionId: interaction.id,
+      timestamp: interaction.createdAt,
     });
 
   } catch (error) {
     console.error('AI tutor error:', error);
-    res.status(500).json({ error: 'Server error processing AI request' });
+    res.status(500).json({ 
+      error: 'Server error processing AI request',
+      message: 'We encountered an issue processing your question. Please try again.'
+    });
   }
 };
 
-
-
-
+// Get AI conversation history
 export const getAIHistory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { limit = 50, context } = req.query;
+    const { limit = 50, context, type } = req.query;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -327,29 +649,50 @@ export const getAIHistory = async (req: AuthRequest, res: Response): Promise<voi
       };
     }
 
+    if (type) {
+      where.type = type as AIInteractionType;
+    }
+
     const interactions = await prisma.aIInteraction.findMany({
       where,
       orderBy: {
         createdAt: 'desc',
       },
-      take: Number(limit),
+      take: Math.min(Number(limit), 100), // Cap at 100
+      select: {
+        id: true,
+        type: true,
+        userMessage: true,
+        aiResponse: true,
+        helpful: true,
+        createdAt: true,
+      }
     });
 
-    res.json({ interactions });
+    res.json({ 
+      interactions,
+      count: interactions.length 
+    });
   } catch (error) {
     console.error('Get AI history error:', error);
     res.status(500).json({ error: 'Server error fetching AI history' });
   }
 };
 
+// Rate AI response (feedback mechanism)
 export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { helpful } = req.body;
+    const { helpful, feedback } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (typeof helpful !== 'boolean') {
+      res.status(400).json({ error: 'Helpful rating must be a boolean value' });
       return;
     }
 
@@ -364,10 +707,17 @@ export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<v
 
     const updated = await prisma.aIInteraction.update({
       where: { id },
-      data: { helpful },
+      data: { 
+        helpful,
+        // Store optional feedback if your schema supports it
+        // feedback: feedback || undefined 
+      },
     });
 
-    res.json({ interaction: updated });
+    res.json({ 
+      interaction: updated,
+      message: 'Thank you for your feedback!' 
+    });
   } catch (error) {
     console.error('Rate AI response error:', error);
     res.status(500).json({ error: 'Server error rating response' });

@@ -1,8 +1,10 @@
 // client/src/pages/admin/COSPrograms.tsx
+// CLEAN BLACK CYBERPUNK DESIGN — NO BACKGROUND ORBS — SAME LOGIC
+
 import { useState, useEffect } from 'react';
 import { useAuth } from "../contexts/AuthContext";
 import { GraduationCap, Plus, Trash2, Loader2 } from 'lucide-react';
-import api  from '../lib/api';
+import api from '../lib/api';
 
 interface Program {
   id: string;
@@ -18,12 +20,10 @@ export default function COSPrograms() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
-  
-  // Fetch all programs from server
   const fetchPrograms = async () => {
     setFetching(true);
     try {
-      const res = await api.get('/admin/cos-programs'); // <-- api adds token automatically
+      const res = await api.get('/admin/cos-programs');
       setPrograms(res.data || []);
     } catch (err) {
       console.error("Failed to fetch programs:", err);
@@ -39,22 +39,16 @@ export default function COSPrograms() {
     }
   }, [user]);
 
-  // Add a new program
   const addProgram = async () => {
-    if (!newTitle.trim()) return; // prevent empty titles
+    if (!newTitle.trim()) return;
     setLoading(true);
     try {
-      // Use your api helper so JWT is sent automatically
       await api.post('/admin/cos-programs', {
         title: newTitle.trim(),
         abbreviation: newAbbr.trim() || null,
       });
-
-      // Clear input fields
       setNewTitle('');
       setNewAbbr('');
-
-      // Refresh program list
       fetchPrograms();
     } catch (err) {
       alert("Failed to add program. Please try again.");
@@ -64,80 +58,84 @@ export default function COSPrograms() {
     }
   };
 
-  // Delete a program
   const deleteProgram = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this program?')) return;
-
-  try {
-    await api.delete(`/admin/cos-programs/${id}`); // <-- uses JWT automatically
-    fetchPrograms(); // refresh list
-  } catch (err) {
-    console.error(err);
-    alert("Failed to delete program.");
-  }
-};
-
+    if (!confirm('Are you sure you want to delete this program?')) return;
+    try {
+      await api.delete(`/admin/cos-programs/${id}`);
+      fetchPrograms();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete program.");
+    }
+  };
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#06251a] via-[#063021] to-[#095535] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="text-5xl sm:text-6xl mb-6 text-red-400 font-bold">Restricted Access</div>
-          <p className="text-green-300 text-xl sm:text-2xl font-bold">Admin Access Required</p>
+          <h1 className="text-6xl font-black bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent mb-6">
+            Restricted Access
+          </h1>
+          <p className="text-2xl text-cyan-400 font-bold">Admin Access Required</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#06251a] via-[#063021] to-[#095535] p-5 sm:p-6 lg:p-8 pb-24">
-      <div className="max-w-6xl mx-auto space-y-8 sm:space-y-12">
+    <div className="min-h-screen bg-black text-white">
 
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-green-50 mb-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <GraduationCap className="w-12 h-12 sm:w-14 sm:h-14 text-green-400" />
-            <span>Manage COS Programs</span>
-          </h1>
-          <p className="text-green-300 text-base sm:text-lg">Bulacan State University • College of Science</p>
-        </div>
+      {/* Header */}
+      <div className="max-w-6xl mx-auto p-6 lg:p-10 text-center mb-12">
+        <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-6 flex flex-col lg:flex-row items-center justify-center gap-6">
+          <GraduationCap className="w-16 h-16 lg:w-20 lg:h-20 text-cyan-400" />
+          <span>Manage COS Programs</span>
+        </h1>
+        <p className="text-xl text-gray-400">
+          Bulacan State University • College of Science
+        </p>
+      </div>
 
-        {/* Add New Program */}
-        <div className="bg-green-900/50 backdrop-blur-2xl rounded-3xl border border-green-700/60 shadow-2xl p-6 sm:p-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-green-100 mb-6 sm:mb-8 flex items-center gap-3">
-            <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-green-400" />
+      <div className="max-w-6xl mx-auto p-6 lg:p-10 space-y-10">
+
+        {/* Add New Program Card */}
+        <div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl p-8 lg:p-10">
+          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-8 flex items-center gap-4">
+            <Plus className="w-10 h-10 text-cyan-400" />
             Add New Program
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <input
               type="text"
-              placeholder="Full Program Title"
+              placeholder="Full Program Title (e.g. Bachelor of Science in Information Technology)"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProgram()}
-              className="px-5 py-4 bg-green-800/60 border border-green-600 rounded-2xl text-green-100 placeholder-green-400 focus:outline-none focus:ring-4 focus:ring-green-500/50 text-base sm:text-lg transition-all"
+              className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 text-lg transition-all backdrop-blur-xl"
             />
             <input
               type="text"
-              placeholder="Abbreviation"
+              placeholder="Abbreviation (e.g. BSIT)"
               value={newAbbr}
               onChange={(e) => setNewAbbr(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProgram()}
-              className="px-5 py-4 bg-green-800/60 border border-green-600 rounded-2xl text-green-100 placeholder-green-400 focus:outline-none focus:ring-4 focus:ring-green-500/50 text-base sm:text-lg transition-all"
+              className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 text-lg transition-all backdrop-blur-xl"
             />
             <button
               onClick={addProgram}
               disabled={loading || !newTitle.trim()}
-              className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-green-950 font-bold text-lg sm:text-xl rounded-2xl shadow-2xl hover:from-green-400 hover:to-emerald-500 transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 col-span-1 sm:col-span-1"
+              className="px-10 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xl rounded-2xl shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 gap-4"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-6 h-6 animate-spin" /> Adding...
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                  Adding...
                 </>
               ) : (
                 <>
-                  <Plus className="w-6 h-6 sm:w-7 sm:h-7" /> Add Program
+                  <Plus className="w-7 h-7" />
+                  Add Program
                 </>
               )}
             </button>
@@ -145,53 +143,59 @@ export default function COSPrograms() {
         </div>
 
         {/* Current Programs List */}
-        <div className="bg-green-900/50 backdrop-blur-2xl rounded-3xl border border-green-700/60 shadow-2xl overflow-hidden">
-          <div className="p-6 sm:p-8 bg-green-800/40 border-b border-green-700/50">
-            <h2 className="text-2xl sm:text-3xl font-bold text-green-100">
-              Current Official Programs ({programs.length})
+        <div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
+          <div className="p-8 lg:p-10 border-b border-white/10 bg-white/5">
+            <h2 className="text-3xl lg:text-4xl font-bold text-white">
+              Current Official Programs
+              <span className="text-cyan-400 ml-4">({programs.length})</span>
             </h2>
-            <p className="text-green-300 mt-2 text-sm sm:text-base">Visible to students • Used by TISA AI</p>
+            <p className="text-gray-400 mt-2 text-lg">
+              Visible to students • Used by TISA AI
+            </p>
           </div>
 
           {fetching ? (
-            <div className="p-16 sm:p-20 text-center">
-              <Loader2 className="w-14 h-14 sm:w-16 sm:h-16 text-green-400 animate-spin mx-auto" />
-              <p className="text-green-300 mt-4 text-xl">Loading programs...</p>
+            <div className="p-20 text-center">
+              <Loader2 className="w-20 h-20 text-cyan-400 animate-spin mx-auto" />
+              <p className="text-2xl text-gray-400 mt-6">Loading programs...</p>
             </div>
           ) : programs.length === 0 ? (
-            <div className="p-16 sm:p-20 text-center">
-              <div className="text-5xl sm:text-6xl mb-6 text-green-400">No programs found</div>
-              <p className="text-green-300 text-lg sm:text-xl">Start by adding the first program above</p>
+            <div className="p-20 text-center">
+              <div className="text-6xl mb-8 text-gray-600">No programs found</div>
+              <p className="text-2xl text-gray-400">Start by adding your first program above</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 sm:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8 lg:p-10">
               {programs.map((p) => (
                 <div
                   key={p.id}
-                  className="bg-green-800/50 backdrop-blur-xl rounded-2xl border border-green-700/60 p-6 sm:p-8 hover:border-green-500 hover:shadow-2xl transition-all duration-300 group relative"
+                  className="group relative bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all duration-500"
                 >
-                  <div className="pr-12 sm:pr-14">
-                    <h3 className="text-xl sm:text-2xl font-bold text-green-100 leading-tight">{p.title}</h3>
-                    {p.abbreviation && <p className="text-green-300 text-lg font-semibold mt-2">{p.abbreviation}</p>}
-                  </div>
-
                   <button
                     onClick={() => deleteProgram(p.id)}
-                    className="absolute top-6 right-6 p-3 sm:p-4 bg-red-600/30 text-red-400 border border-red-600/50 rounded-xl hover:bg-red-600/50 hover:text-red-300 transform hover:scale-110 transition-all duration-300"
+                    className="absolute top-6 right-6 p-3 bg-red-600/20 border border-red-600/40 rounded-xl text-red-400 hover:bg-red-600/40 hover:text-red-300 transform hover:scale-110 transition-all"
                     title="Delete Program"
                   >
-                    <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <Trash2 className="w-6 h-6" />
                   </button>
 
-                  <div className="mt-6 bg-green-700/40 rounded-xl px-4 py-3 text-green-200 text-sm font-medium text-center">
-                    Active 
+                  <h3 className="text-2xl lg:text-3xl font-bold text-white pr-12 leading-tight">
+                    {p.title}
+                  </h3>
+                  {p.abbreviation && (
+                    <p className="text-xl lg:text-2xl font-bold text-cyan-400 mt-3">
+                      {p.abbreviation}
+                    </p>
+                  )}
+
+                  <div className="mt-8 inline-block px-6 py-3 bg-gradient-to-r from-cyan-500/20 to-purple-600/20 border border-cyan-500/40 rounded-xl text-cyan-300 font-semibold">
+                    Active Program
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

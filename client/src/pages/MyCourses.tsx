@@ -24,89 +24,103 @@ export default function MyCourses() {
   };
 
   if (loading) {
-    // MODIFIED: Green spinner + full dark background
     return (
-      <div className="flex justify-center items-center h-64 bg-gradient-to-b from-[#06251a] to-[#095535]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-20 h-20 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    // MODIFIED: Full dark green gradient + generous spacing
-    <div className="min-h-screen bg-gradient-to-b from-[#06251a] via-[#063021] to-[#095535] p-6 space-y-10">
+    <div className="py-16 lg:py-20">
 
-      {/* MODIFIED: Page Title */}
-      <div className="text-center">
-        <h1 className="text-4xl md:text-5xl font-bold text-green-50 mb-3">
+      {/* Page Title */}
+      <div className="text-center mb-16">
+        <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
           My Courses
         </h1>
-        <p className="text-green-300 text-lg">
-          Continue your learning journey
+        <p className="text-xl md:text-2xl text-gray-300 font-light tracking-wide">
+          Pick up where you left off — your learning journey continues.
         </p>
       </div>
 
       {enrollments.length === 0 ? (
-        // MODIFIED: Beautiful empty state with glass effect
-        <div className="text-center py-20">
-          <div className="inline-flex items-center justify-center w-28 h-28 bg-green-800/40 backdrop-blur-xl rounded-full mb-8 shadow-2xl">
-            <BookOpen className="w-14 h-14 text-green-400" />
+        // Beautiful Empty State
+        <div className="text-center py-24 max-w-2xl mx-auto">
+          <div className="inline-flex items-center justify-center w-32 h-32 bg-white/5 backdrop-blur-2xl rounded-full border border-white/10 mb-10 shadow-2xl">
+            <BookOpen className="w-20 h-20 text-cyan-400" />
           </div>
-          <p className="text-green-300 text-xl mb-8">
-            You haven't enrolled in any courses yet.
+          <h2 className="text-3xl font-bold text-white mb-6">
+            No courses enrolled yet
+          </h2>
+          <p className="text-gray-400 text-lg mb-10">
+            Start your learning journey with our AI-powered courses.
           </p>
           <Link
             to="/courses"
-            className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-green-950 font-bold text-lg rounded-xl shadow-2xl hover:from-green-400 hover:to-emerald-500 transform hover:scale-105 transition-all duration-300"
+            className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-2xl hover:from-cyan-400 hover:to-purple-500 transform hover:scale-105 transition-all duration-300"
           >
-            Browse Courses
+            <BookOpen className="w-6 h-6" />
+            Browse All Courses
           </Link>
         </div>
       ) : (
-        // MODIFIED: Grid with perfectly equal height cards
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        // Course Grid
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 max-w-7xl mx-auto px-6">
           {enrollments.map((enrollment) => (
             <Link
               key={enrollment.id}
               to={`/courses/${enrollment.course.id}`}
-              className="group block h-full"   // ← Ensures link takes full height
+              className="group block h-full"
             >
-              {/* MODIFIED: Glass card with equal height using flex col */}
-              <div className="h-full bg-green-900/40 backdrop-blur-xl rounded-2xl border border-green-700/50 shadow-xl overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:border-green-500 group-hover:shadow-2xl flex flex-col">
-                
-                {/* Title Section */}
-                <div className="p-6 border-b border-green-700/30">
-                  <h3 className="text-xl font-bold text-green-50 line-clamp-2 group-hover:text-green-200 transition-colors">
-                    {enrollment.course.title}
-                  </h3>
+              <div className="h-full bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:shadow-cyan-500/30 hover:border-cyan-500/50 flex flex-col">
+
+                {/* Course Header - Now with BookOpen */}
+                <div className="h-48 relative flex items-center justify-center bg-gradient-to-br from-cyan-600/30 via-purple-600/20 to-indigo-700/30">
+                  <div className="absolute inset-0 bg-black/30"></div>
+                  <div className="relative z-10 p-8 bg-black/50 backdrop-blur-xl rounded-3xl shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                    <BookOpen className="w-20 h-20 text-cyan-400 drop-shadow-2xl" />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                 </div>
 
-                {/* Content Area - Takes remaining space */}
-                <div className="p-6 space-y-5 flex-1 flex flex-col justify-between">
+                {/* Content */}
+                <div className="p-7 flex-1 flex flex-col justify-between">
                   <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-green-300">Progress</span>
-                      <span className="font-bold text-green-100">
-                        {Math.round(enrollment.progress)}%
-                      </span>
-                    </div>
-                    {/* MODIFIED: Smooth green gradient progress bar */}
-                    <div className="w-full bg-green-800/50 rounded-full h-4 overflow-hidden shadow-inner">
-                      <div
-                        className="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out shadow-lg"
-                        style={{ width: `${enrollment.progress}%` }}
-                      />
+                    <h3 className="text-xl font-bold text-white mb-4 line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                      {enrollment.course.title}
+                    </h3>
+
+                    {/* Progress Section */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Progress</span>
+                        <span className="font-bold text-cyan-300">
+                          {Math.round(enrollment.progress)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden shadow-inner">
+                        <div
+                          className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
+                          style={{ width: `${enrollment.progress}%` }}
+                        >
+                          <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Lessons Count */}
-                  <div className="flex items-center gap-3 text-green-200">
-                    <TrendingUp className="w-5 h-5 text-green-400" />
+                  <div className="mt-6 flex items-center gap-3 text-gray-300">
+                    <TrendingUp className="w-5 h-5 text-purple-400" />
                     <span className="text-sm font-medium">
                       {enrollment.course._count?.lessons || 0} lessons
                     </span>
                   </div>
                 </div>
+
+                {/* Hover Shine Effect */}
+                <div className="absolute inset-0 -z-10 bg-gradient-to-tr from-cyan-500/0 via-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 translate-x-full group-hover:translate-x-0 transition-transform duration-1000 pointer-events-none"></div>
               </div>
             </Link>
           ))}

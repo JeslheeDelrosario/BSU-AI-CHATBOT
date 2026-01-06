@@ -1,3 +1,4 @@
+// server\src\controllers\auth.controller.ts
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
@@ -22,6 +23,7 @@ interface LoginBody {
   password: string;
 }
 
+// USER SIGNUP
 export const register = async (req: Request<object, object, RegisterBody>, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -86,6 +88,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
   }
 };
 
+// USER LOGIN
 export const login = async (req: Request<object, object, LoginBody>, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -114,11 +117,19 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
-
     if (!isValidPassword) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
+
+    // ✅ CREATE NEW CHAT SESSION AUTOMATICALLY ON LOGIN
+    await prisma.chatSession.create({
+      data: {
+        userId: user.id,
+        title: "New Chat",
+        messages: [],
+      },
+    });
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
@@ -145,6 +156,33 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
   }
 };
 
+
+// USER LOGOUT - Clean up empty chats
+export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    // Delete all empty chat sessions (no messages)
+    await prisma.chatSession.deleteMany({
+      where: {
+        userId,
+        messages: { equals: [] },
+      },
+    });
+
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Server error during logout' });
+  }
+};
+
+// USER DATA
 export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
