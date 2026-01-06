@@ -19,9 +19,9 @@
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Student** | student1@ailearning.com | student123 | - not active
-| **Teacher** | teacher@ailearning.com | teacher123 | - not active
-| **Admin** | admin@ailearning.com | admin123 | - active
+| **Student** | student1@ailearning.com | student123 | - not active |
+| **Teacher** | teacher@ailearning.com | teacher123 | - not active |
+| **Admin** | admin@ailearning.com | admin123 | - active |
 
 ---
 
