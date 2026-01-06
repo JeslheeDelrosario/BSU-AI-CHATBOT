@@ -17,11 +17,11 @@
 
 ### Login Credentials
 
-| Role | Email | Password |
+| Role | Email | Password | Active / Not Active
 |------|-------|----------|
-| **Student** | student1@ailearning.com | student123 | - not active |
-| **Teacher** | teacher@ailearning.com | teacher123 | - not active |
-| **Admin** | admin@ailearning.com | admin123 | - active |
+| **Student** | student1@ailearning.com | student123 | Not active |
+| **Teacher** | teacher@ailearning.com | teacher123 | Not active |
+| **Admin** | admin@ailearning.com | admin123 | Active |
 
 ---
 
