@@ -65,7 +65,7 @@ export default function Dashboard() {
         <h1 className="text-4xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
           Welcome back, {user?.firstName}!
         </h1>
-        <p className="text-xl lg:text-2xl text-gray-300 mt-4 font-light tracking-wide">
+        <p className="text-xl lg:text-2xl text-slate-700 dark:text-gray-300 mt-4 font-light tracking-wide">
           {isStudent
             ? "Ready to level up your knowledge today?"
             : "Monitoring the future of learning — in real time."}
@@ -109,29 +109,29 @@ export default function Dashboard() {
                         <Play className="w-6 h-6 text-cyan-400" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-white truncate">{p.lesson.title}</p>
-                        <p className="text-sm text-gray-400">{p.completed ? 'Completed' : 'In Progress'}</p>
+                        <p className="font-medium text-slate-900 dark:text-white truncate">{p.lesson.title}</p>
+                        <p className="text-sm text-slate-600 dark:text-gray-400">{p.completed ? 'Completed' : 'In Progress'}</p>
                       </div>
                     </div>
                     {p.score && <span className="text-cyan-400 font-bold text-lg ml-4">{Math.round(p.score)}%</span>}
                   </div>
                 ))
               ) : (
-                <p className="text-center text-gray-500 py-12">No recent activity yet</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">No recent activity yet</p>
               )
             ) : (
               stats?.recentEnrollments?.length ? (
                 stats.recentEnrollments.slice(0, 6).map((e: any, i: number) => (
                   <div key={i} className="p-5 bg-white/5 rounded-2xl border border-white/10">
-                    <p className="font-medium text-white">{e.user.firstName} {e.user.lastName}</p>
-                    <p className="text-sm text-gray-400 truncate">{e.course.title}</p>
+                    <p className="font-medium text-slate-900 dark:text-white">{e.user.firstName} {e.user.lastName}</p>
+                    <p className="text-sm text-slate-600 dark:text-gray-400 truncate">{e.course.title}</p>
                     <p className="text-xs text-cyan-400 mt-1">
                       {new Date(e.enrolledAt).toLocaleDateString('en-PH')}
                     </p>
                   </div>
                 ))
               ) : (
-                <p className="text-center text-gray-500 py-12">No recent enrollments</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">No recent enrollments</p>
               )
             )}
           </div>
@@ -149,21 +149,21 @@ export default function Dashboard() {
                   <div key={i} className="flex items-center gap-5 p-5 bg-gradient-to-r from-purple-900/30 to-pink-900/20 rounded-2xl border border-purple-500/30">
                     <div className="text-4xl">{a.icon}</div>
                     <div className="flex-1">
-                      <p className="font-bold text-white">{a.title}</p>
-                      <p className="text-sm text-gray-400">{a.description}</p>
+                      <p className="font-bold text-slate-900 dark:text-white">{a.title}</p>
+                      <p className="text-sm text-slate-600 dark:text-gray-400">{a.description}</p>
                     </div>
                     <Award className="w-8 h-8 text-purple-400" />
                   </div>
                 ))
               ) : (
-                <p className="text-center text-gray-500 py-12">Keep learning to unlock achievements!</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">Keep learning to unlock achievements!</p>
               )
             ) : (
               stats?.courseStats?.length ? (
                 stats.courseStats.map((c: any, i: number) => (
                   <div key={i} className="p-5 bg-white/5 rounded-2xl border border-white/10">
-                    <p className="font-bold text-white">{c.title}</p>
-                    <div className="flex gap-4 mt-3 text-sm text-gray-400">
+                    <p className="font-bold text-slate-900 dark:text-white">{c.title}</p>
+                    <div className="flex gap-4 mt-3 text-sm text-slate-600 dark:text-gray-400">
                       <span>{c._count.enrollments} students</span>
                       <span>•</span>
                       <span>{c._count.lessons} lessons</span>
@@ -171,7 +171,7 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <p className="text-center text-gray-500 py-12">No course data yet</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">No course data yet</p>
               )
             )}
           </div>
@@ -191,21 +191,21 @@ export default function Dashboard() {
                 className="group p-8 bg-gradient-to-br from-cyan-500/10 to-blue-600/10 rounded-3xl border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/20 transition-all text-center shadow-xl hover:shadow-cyan-500/30 transform hover:scale-105"
               >
                 <BookOpen className="w-16 h-16 mx-auto mb-4 text-cyan-400 group-hover:scale-110 transition" />
-                <p className="text-xl font-bold text-white">Browse Courses</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">Browse Courses</p>
               </Link>
               <Link
                 to="/ai-tutor"
                 className="group p-8 bg-gradient-to-br from-purple-500/10 to-pink-600/10 rounded-3xl border border-purple-500/30 hover:border-purple-400 hover:bg-purple-500/20 transition-all text-center shadow-xl hover:shadow-purple-500/30 transform hover:scale-105"
               >
                 <Brain className="w-16 h-16 mx-auto mb-4 text-purple-400 group-hover:scale-110 transition" />
-                <p className="text-xl font-bold text-white">AI Tutor</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">AI Tutor</p>
               </Link>
               <Link
                 to="/my-courses"
                 className="group p-8 bg-gradient-to-br from-indigo-500/10 to-purple-600/10 rounded-3xl border border-indigo-500/30 hover:border-indigo-400 hover:bg-indigo-500/20 transition-all text-center shadow-xl hover:shadow-indigo-500/30 transform hover:scale-105"
               >
                 <Trophy className="w-16 h-16 mx-auto mb-4 text-indigo-400 group-hover:scale-110 transition" />
-                <p className="text-xl font-bold text-white">My Courses</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">My Courses</p>
               </Link>
             </div>
           </div>
@@ -223,8 +223,8 @@ function StatCard({ icon, label, value, gradient }: { icon: React.ReactNode; lab
         <div className={`p-5 rounded-2xl mb-4 bg-gradient-to-br ${gradient} shadow-lg group-hover:scale-110 transition-transform`}>
           {icon}
         </div>
-        <p className="text-sm text-gray-400 font-medium">{label}</p>
-        <p className="text-3xl lg:text-4xl font-black text-white mt-2">{value}</p>
+        <p className="text-sm text-slate-600 dark:text-gray-400 font-medium">{label}</p>
+        <p className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white mt-2">{value}</p>
       </div>
     </div>
   );
