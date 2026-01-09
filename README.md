@@ -17,11 +17,11 @@
 
 ### Login Credentials
 
-| Role | Email | Password |
-|------|-------|----------|
-| **Student** | student1@ailearning.com | student123 |
-| **Teacher** | teacher@ailearning.com | teacher123 |
-| **Admin** | admin@ailearning.com | admin123 |
+| Role | Email | Password | Active / Not Active
+|------|-------|----------|------|
+| **Student** | student1@ailearning.com | student123 | Not active |
+| **Teacher** | teacher@ailearning.com | teacher123 | Not active |
+| **Admin** | admin@ailearning.com | admin123 | Active |
 
 ---
 
@@ -49,11 +49,51 @@
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React 18, TypeScript, Vite, TailwindCSS
-- **Backend:** Node.js, Express, TypeScript
-- **Database:** PostgreSQL 16, Prisma ORM
-- **Authentication:** JWT + bcrypt
-- **AI:** Ready for OpenAI/Claude integration
+**Monorepo & Language**
+
+- **Monorepo:** Root scripts use `concurrently` to run client and server
+- **Language:** **TypeScript** across frontend and backend 
+
+**Frontend (client)**
+
+- **Framework:** React 18 + TypeScript
+- **Bundler / Dev Server:** Vite (with `@vitejs/plugin-react`)
+- **Styling:** Tailwind CSS (+ `@tailwindcss/typography`, `tailwindcss-animate`) with PostCSS & Autoprefixer
+- **Routing:** `react-router-dom`
+- **HTTP / Data:** `axios`
+- **UI primitives:** Radix UI packages (`@radix-ui/*`)
+- **Markdown / Content:** `react-markdown`, `remark-gfm`
+- **Charts / Visualization:** `recharts`
+- **Utilities & Icons:** `clsx`, `date-fns`, `lucide-react`
+- **Dev tooling:** ESLint, TypeScript, Vite
+
+**Backend (server)**
+
+- **Runtime / Framework:** Node.js + Express + TypeScript
+- **ORM / DB tools:** Prisma (migrations & seeds)
+- **Database:** PostgreSQL (SQL dumps present)
+- **Authentication & Security:** `jsonwebtoken` (JWT), `bcryptjs`
+- **Validation / Middleware:** `express-validator`, `cors`, `morgan`, `dotenv`
+- **AI integrations:** `openai` and `@anthropic-ai/sdk`
+- **Dev tooling:** `nodemon`, `ts-node`, `prisma` CLI
+
+**Database & Migrations**
+
+- Prisma migration files under `server/prisma/migrations/`
+- SQL dumps: `server/tisa_labs.sql`, `server/tisa_labs_utf8.sql`
+
+**Deployment 
+
+- unknown
+
+**Notable versions (from package files)**
+
+- React 18.x, Vite 5.x, TypeScript 5.3.x, Prisma 5.17.x
+
+**Notes / Suggestions**
+
+- No test framework detected — consider adding Jest or Vitest for unit/CI testing
+- AI capabilities are integrated (OpenAI / Anthropic) — API keys are managed via environment variables
 
 ---
 
@@ -65,7 +105,7 @@
 - ✅ Backend API: 100%
 - ✅ Frontend UI: 80%
 - ✅ Sample Data: 100%
-- ⏳ AI Integration: 0% (placeholder ready)
+- ⏳ AI Integration: 70%?
 
 ---
 
