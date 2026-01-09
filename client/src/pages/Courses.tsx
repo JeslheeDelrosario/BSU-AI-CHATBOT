@@ -32,14 +32,14 @@ export default function Courses() {
   }
 
   return (
-    <div className="py-16 lg:py-20">
+    <div className="py-8 lg:py-10">
 
-      {/* Hero Header */}
-      <div className="text-center mb-16">
-        <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-6">
+     {/* Hero Header */}
+      <div className="text-center mb-12 lg:mb-14 px-6">
+        <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 pb-1 md:pb-2 leading-tight md:leading-snug inline-block">
           Explore Courses
         </h1>
-        <p className="text-xl md:text-2xl text-gray-300 font-light tracking-wide max-w-4xl mx-auto">
+        <p className="text-xl md:text-2xl text-slate-700 dark:text-gray-300 font-light tracking-wide max-w-4xl mx-auto">
           Unlock the future of learning — AI-powered, personalized, and built for you.
         </p>
       </div>
@@ -61,10 +61,10 @@ export default function Courses() {
 
               {/* Card Content */}
               <div className="p-7">
-                <h3 className="text-xl font-bold text-white mb-3 line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 line-clamp-2 group-hover:text-cyan-400 transition-colors">
                   {course.title}
                 </h3>
-                <p className="text-gray-400 text-sm leading-relaxed line-clamp-3 mb-6">
+                <p className="text-slate-600 dark:text-gray-400 text-sm leading-relaxed line-clamp-3 mb-6">
                   {course.description}
                 </p>
 
@@ -72,13 +72,13 @@ export default function Courses() {
                 <div className="flex items-center justify-between text-sm mb-5">
                   <span className="flex items-center gap-2 text-cyan-400">
                     <Clock className="w-5 h-5" />
-                    <span className="text-gray-300">
+                    <span className="text-slate-700 dark:text-gray-300">
                       {course.duration ? `${Math.floor(course.duration / 60)}h` : 'Self-paced'}
                     </span>
                   </span>
                   <span className="flex items-center gap-2 text-purple-400">
                     <Users className="w-5 h-5" />
-                    <span className="text-gray-300">
+                    <span className="text-slate-700 dark:text-gray-300">
                       {course._count?.enrollments || 0} learners
                     </span>
                   </span>
@@ -108,9 +108,9 @@ export default function Courses() {
       {/* Empty State */}
       {courses.length === 0 && (
         <div className="text-center py-32">
-          <BookOpen className="w-24 h-24 mx-auto text-gray-600 mb-8" />
-          <p className="text-2xl text-gray-500">No courses available yet.</p>
-          <p className="text-gray-600 mt-4">New courses are being prepared!</p>
+          <BookOpen className="w-24 h-24 mx-auto text-slate-400 dark:text-gray-600 mb-8" />
+          <p className="text-2xl text-slate-700 dark:text-gray-500">No courses available yet.</p>
+          <p className="text-slate-600 dark:text-gray-600 mt-4">New courses are being prepared!</p>
         </div>
       )}
     </div>

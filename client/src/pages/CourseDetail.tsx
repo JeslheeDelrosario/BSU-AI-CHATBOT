@@ -83,29 +83,29 @@ export default function CourseDetail() {
             {course.level}
           </span>
 
-          <h1 className="text-4xl lg:text-6xl font-black text-white mb-5 leading-tight">  {/* Reduced mb-6 → mb-5 */}
+          <h1 className="text-4xl lg:text-6xl font-black text-slate-900 dark:text-white mb-5 leading-tight">  {/* Reduced mb-6 → mb-5 */}
             {course.title}
           </h1>
-          <p className="text-xl text-gray-300 leading-relaxed mb-7 max-w-4xl">  {/* Reduced mb-8 → mb-7 */}
+          <p className="text-xl text-slate-700 dark:text-gray-300 leading-relaxed mb-7 max-w-4xl">  {/* Reduced mb-8 → mb-7 */}
             {course.description}
           </p>
 
-          <div className="flex flex-wrap items-center gap-8 text-gray-400">
+          <div className="flex flex-wrap items-center gap-8 text-slate-600 dark:text-gray-400">
             <span className="flex items-center gap-3">
               <Clock className="w-6 h-6 text-cyan-400" />
-              <span className="text-white font-medium">
+              <span className="text-slate-900 dark:text-white font-medium">
                 {Math.floor((course.duration || 0) / 60)} hours
               </span>
             </span>
             <span className="flex items-center gap-3">
               <Users className="w-6 h-6 text-purple-400" />
-              <span className="text-white font-medium">
+              <span className="text-slate-900 dark:text-white font-medium">
                 {course._count?.enrollments || 0} learners
               </span>
             </span>
             <span className="flex items-center gap-3">
               <BookOpen className="w-6 h-6 text-indigo-400" />
-              <span className="text-white font-medium">
+              <span className="text-slate-900 dark:text-white font-medium">
                 {course._count?.lessons || 0} lessons
               </span>
             </span>
@@ -171,10 +171,10 @@ export default function CourseDetail() {
                           )}
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-white">
+                          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                             {index + 1}. {lesson.title}
                           </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-400 mt-2">
+                          <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-gray-400 mt-2">
                             <span className="capitalize font-medium">{lesson.type.toLowerCase()}</span>
                             <span>•</span>
                             <span>{lesson.duration} min</span>
@@ -193,7 +193,7 @@ export default function CourseDetail() {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-gray-500 py-16 text-lg">
+              <p className="text-center text-slate-600 dark:text-gray-500 py-16 text-lg">
                 No lessons available yet. Check back soon!
               </p>
             )}
@@ -215,10 +215,10 @@ export default function CourseDetail() {
                   {course.teacher.firstName[0]}{course.teacher.lastName[0]}
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-white">
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">
                     {course.teacher.firstName} {course.teacher.lastName}
                   </p>
-                  <p className="text-gray-400 capitalize">{course.teacher.role}</p>
+                  <p className="text-slate-600 dark:text-gray-400 capitalize">{course.teacher.role}</p>
                 </div>
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function CourseDetail() {
                 "Get real-time help from your personal AI Tutor",
                 "Earn certificates and unlock achievements"
               ].map((item, i) => (
-                <li key={i} className="flex items-start gap-4 text-gray-300">
+                <li key={i} className="flex items-start gap-4 text-slate-700 dark:text-gray-300">
                   <CheckCircle className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-0.5" />
                   <span className="leading-relaxed">{item}</span>
                 </li>

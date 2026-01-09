@@ -344,66 +344,156 @@ Would you like to know more about their office hours or how to contact them?`;
       }
     }
 
-    // Detect curriculum inquiries with context awareness
+    // Detect curriculum inquiries with context awareness, robust matching and disambiguation
     const programs = await prisma.universityProgram.findMany({ 
       where: { college: 'College of Science', isActive: true } 
     });
-    
-    // Check if user is asking about a specific program in current message
-    let programMatch = programs.find(p => 
-      lowerMsg.includes(p.title.toLowerCase()) || 
-      (p.abbreviation && lowerMsg.includes(p.abbreviation.toLowerCase()))
-    );
 
-    // If no program found in current message, check last conversation
-    if (!programMatch && lastInteraction) {
-      const lastUserMsg = lastInteraction.userMessage.toLowerCase();
-      const lastBotMsg = lastInteraction.aiResponse.toLowerCase();
-      
-      // Check both user's last message and bot's last response for program mentions
-      programMatch = programs.find(p => 
-        lastUserMsg.includes(p.title.toLowerCase()) || 
-        (p.abbreviation && lastUserMsg.includes(p.abbreviation.toLowerCase())) ||
-        lastBotMsg.includes(p.title.toLowerCase()) ||
-        (p.abbreviation && lastBotMsg.includes(p.abbreviation.toLowerCase()))
-      );
+    const normalize = (s: string) => s?.toString().toLowerCase().replace(/[^a-z0-9\s]/g, '').trim() || '';
+
+    // Extra abbreviation aliases (common variants users might type)
+    const abbrAliases: Record<string, string> = {
+      'bs bio': 'biology',
+      'bs envi sci': 'environmental science',
+      'bs envisci': 'environmental science',
+      'bs ft': 'food technology',
+      'bsm as': 'applied statistics',
+      'bsm cs': 'computer science',
+      'bsm ba': 'business applications',
+      'bs med lab sci': 'medical laboratory science',
+      'bs mt': 'medical technology'
+    };
+
+    // Return an array of program candidates (may be empty)
+    const findProgramCandidates = (text: string) => {
+      const t = normalize(text);
+      const candidates: any[] = [];
+
+      for (const p of programs) {
+        const title = normalize(p.title);
+        const abbr = p.abbreviation ? normalize(p.abbreviation) : '';
+
+        if (abbr && (t === abbr || t.includes(abbr) || abbr.includes(t))) {
+          candidates.push(p);
+          continue;
+        }
+
+        if (t.includes(title) || title.includes(t)) {
+          candidates.push(p);
+          continue;
+        }
+
+        // check alias abbreviations
+        for (const [alias, keyword] of Object.entries(abbrAliases)) {
+          if (t.includes(alias) && title.includes(keyword)) {
+            candidates.push(p);
+            break;
+          }
+        }
+
+        // keyword-based matches (helpful for shorter user phrasing)
+        const keywords = ['computer science', 'food technology', 'environmental science', 'medical technology', 'biology', 'mathematics', 'business applications', 'applied statistics', 'medical laboratory'];
+        for (const kw of keywords) {
+          if (title.includes(kw) && t.includes(kw)) {
+            candidates.push(p);
+            break;
+          }
+        }
+
+        // token overlap heuristic - require >=2 tokens to reduce false positives
+        const titleTokens = title.split(/\s+/).filter(tok => tok.length > 2);
+        const tokenMatches = titleTokens.filter(tok => t.includes(tok));
+        if (tokenMatches.length >= 2) candidates.push(p);
+      }
+
+      // deduplicate
+      return Array.from(new Set(candidates));
+    };
+
+    // Find candidates in current or last messages
+    let candidates = findProgramCandidates(lowerMsg);
+    if (candidates.length === 0 && lastInteraction) {
+      candidates = findProgramCandidates(lastInteraction.userMessage) || findProgramCandidates(lastInteraction.aiResponse);
     }
-    
-    const yearMatch = lowerMsg.match(/(\d+)(st|nd|rd|th)?\s*year/)?.[1];
-    const semesterMatch = lowerMsg.includes('2nd') || lowerMsg.includes('second') ? 2 : 1;
 
-    if (programMatch && yearMatch) {
-      const yearLevel = parseInt(yearMatch);
+    // If multiple candidates, ask a clarifying question listing options
+    if (candidates.length > 1) {
+      const options = candidates.map((c, i) => `${i+1}. ${c.title}${c.abbreviation ? ` (${c.abbreviation})` : ''}`).join('\n');
+      return `I found a few programs that might match your question:\n${options}\n\nWhich one do you mean? Please reply with the number or program name (for example, "1" or "${candidates[0].title}").`;
+    }
+
+    // If exactly one candidate, select it
+    let programMatch: any | null = candidates.length === 1 ? candidates[0] : null;
+
+    // If we didn't detect a program but user asked about programs generally, don't force a program match here
+
+    // Improved year extraction (numeric and worded years)
+    const wordToNumber: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4 };
+
+    const yearMatches: number[] = [];
+    const numYearRegex = /(\d+)(st|nd|rd|th)?\s*year/gi;
+    let m: RegExpExecArray | null;
+    while ((m = numYearRegex.exec(lowerMsg))) {
+      yearMatches.push(parseInt(m[1], 10));
+    }
+    const wordYearRegex = /\b(first|second|third|fourth)\s*year\b/gi;
+    while ((m = wordYearRegex.exec(lowerMsg))) {
+      yearMatches.push(wordToNumber[m[1].toLowerCase()]);
+    }
+
+    const targetYear = yearMatches.length > 0 ? yearMatches[yearMatches.length - 1] : null;
+
+    // Only treat '2nd'/'second' as a semester when used with 'semester' or 'sem'
+    let targetSem: number | null = null;
+    const semMatchNum = lowerMsg.match(/(\d+)(st|nd|rd|th)?\s*\bsem(?:ester)?\b/);
+    const semWordMatch = lowerMsg.match(/\b(first|second)\s*\bsem(?:ester)?\b/);
+    if (semMatchNum) targetSem = parseInt(semMatchNum[1], 10);
+    else if (semWordMatch) targetSem = wordToNumber[semWordMatch[1].toLowerCase()];
+
+    // If we found exactly one program but no year specified, ask a clarifying question
+    if (programMatch && !targetYear) {
+      return `Do you want curriculum details for **${programMatch.title}**? Which year level are you asking about — 1st, 2nd, 3rd, or 4th year? You can also specify a semester (e.g., "2nd semester").`;
+    }
+
+    if (programMatch && targetYear) {
+      const yearLevel = targetYear;
+      const whereClause: any = { programId: programMatch.id, yearLevel };
+      if (targetSem) whereClause.semester = targetSem;
 
       const curriculum = await prisma.curriculumEntry.findMany({
-        where: { programId: programMatch.id, semester: semesterMatch, yearLevel },
-        orderBy: { courseCode: 'asc' },
+        where: whereClause,
+        orderBy: [{ semester: 'asc' }, { courseCode: 'asc' }],
       });
 
       if (curriculum.length > 0) {
-        const totalUnits = curriculum.reduce((sum, c) => sum + c.units, 0);
-        const formattedList = curriculum
-          .map(c => `• **${c.courseCode}** - ${c.subjectName} (${c.units} ${c.units === 1 ? 'unit' : 'units'})${c.prerequisites.length > 0 ? `\n  Prerequisites: ${c.prerequisites.join(', ')}` : ''}`)
-          .join('\n\n');
+        // Group entries by semester and compute totals
+        const grouped: Record<number, any[]> = {};
+        for (const c of curriculum) {
+          const sem = c.semester || 1;
+          grouped[sem] = grouped[sem] || [];
+          grouped[sem].push(c);
+        }
+
+        const responseParts: string[] = [];
+        let grandTotal = 0;
+
+        for (const sem of Object.keys(grouped).sort((a, b) => Number(a) - Number(b))) {
+          const entries = grouped[Number(sem)];
+          const totalUnits = entries.reduce((sum, e) => sum + e.units, 0);
+          grandTotal += totalUnits;
+
+          const formattedList = entries
+            .map(e => `• **${e.courseCode}** - ${e.subjectName} (${e.units} ${e.units === 1 ? 'unit' : 'units'})${e.prerequisites && e.prerequisites.length > 0 ? `\n  Prerequisites: ${e.prerequisites.join(', ')}` : ''}`)
+            .join('\n\n');
+
+          responseParts.push(`**Year ${yearLevel} — ${Number(sem) === 1 ? '1st' : '2nd'} Semester**:\n\n${formattedList}\n\n**Total Units (sem ${sem}):** ${totalUnits}`);
+        }
         
-        const semesterName = semesterMatch === 1 ? '1st' : '2nd';
-        
-        return `Here are the subjects for **${programMatch.title}** - Year ${yearLevel}, ${semesterName} Semester:
+        const contextNote = targetSem ? '' : '\n\n(Showing both semesters for the year you asked about)';
 
-${formattedList}
-
-**Total Units:** ${totalUnits}
-
-These courses will help build your foundation in ${programMatch.title}. ${yearLevel < 4 ? 'Would you like to see year ' + (yearLevel + 1) + ' as well?' : 'This completes your undergraduate curriculum!'}`;
+        return `Here are the subjects for **${programMatch.title}** - Year ${yearLevel}:${contextNote}\n\n${responseParts.join('\n\n')}\n\n**Grand Total Units for Year ${yearLevel}:** ${grandTotal}\n\nWould you like the same breakdown for another year?`;
       } else {
-        return `I couldn't find curriculum information for ${programMatch.title} Year ${yearLevel}, Semester ${semesterMatch}. 
-
-This might be because:
-• The curriculum is still being finalized
-• This year level doesn't exist for this program
-• The information needs to be updated
-
-I recommend contacting the COS Registrar's Office for the most current curriculum details.`;
+        return `I couldn't find curriculum information for **${programMatch.title}** Year ${yearLevel}${targetSem ? `, Semester ${targetSem}` : ''}. \n\nThis might be because the curriculum is not yet in the system or needs updating. I can contact the COS Registrar or show nearby years if you'd like.`;
       }
     }
 
