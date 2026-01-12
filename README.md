@@ -284,10 +284,11 @@ curl -X POST http://localhost:5000/api/auth/login \
 ```
 TISA-Labs/
 ├── client/          # React frontend
-├── server/          # Express backend
+├── server/         # Express backend
 ├── PROJECT.md       # Platform specification
 ├── CREDENTIALS.md   # All credentials
 └── README.md        # This file
+
 ```
 
 ---
