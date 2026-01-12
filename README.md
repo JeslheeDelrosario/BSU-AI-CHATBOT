@@ -47,9 +47,9 @@
 
 🛠️ Admin Pages (College of Science)
 
-AdminCOSPrograms – Manage COS programs
-AdminFaculty – Manage faculty members
-AdminCurriculum – Manage curriculum structure
+- AdminCOSPrograms – Manage COS programs
+- AdminFaculty – Manage faculty members
+- AdminCurriculum – Manage curriculum structure
 
 🎨 Shared UI & Layout
 
@@ -60,7 +60,92 @@ AdminCurriculum – Manage curriculum structure
 
 - React Router v6
 
-Public and private route configuration (App.tsx)
+🧠 Backend (Server)
+
+🔐 Authentication
+
+- JWT-based authentication middleware (authenticateToken)
+- Auth routes and controllers (login, signup, etc.)
+
+🤖 AI Tutor Service (TISA)
+
+Endpoints
+- POST /api/ai-tutor/ask – Ask the AI tutor with conversation continuity and curriculum awareness
+- GET /api/ai-tutor/history – Fetch user-specific AI interaction history
+- POST /api/ai-tutor/:id/rate – Rate AI responses (helpful / not helpful)
+
+AI Logic
+- Context-aware prompt engineering for TISA (The Intelligent Student Assistant)
+- Uses previous interactions for continuity
+- Clarifies ambiguous queries
+- Answers program, curriculum, and faculty-related questions
+- Integrates OpenAI via API key
+- Graceful fallback behavior if AI API is not configured
+- Grounds responses using Prisma/PostgreSQL data:
+-- Programs
+-- Curriculum
+-- Faculty
+
+📚 Core Application Modules
+
+- Courses
+- Lessons
+- Dashboard
+- Chat sessions
+
+Routes & Controllers
+- Courses (course.routes.ts, course.controller.ts)
+- Lessons (lesson.routes.ts, lesson.controller.ts)
+- Dashboard (dashboard.routes.ts, dashboard.controller.ts)
+- Chat Sessions (chat-session.routes.ts, chat-session.controller.ts)
+
+🛠️ Admin Management (College of Science)
+
+- Curriculum routes (adminCurriculum.routes.ts)
+- Faculty routes (adminFaculty.routes.ts)
+- Admin root routes (adminRoutes.ts)
+
+🗄️ Data Layer
+
+- Prisma ORM (schema.prisma)
+- Database migrations and seed scripts
+- PostgreSQL setup with initial seed data
+
+⚙️ Other Backend Components
+- Express server bootstrap (index.ts)
+- Environment configuration for development and production
+
+🌟 Platform-Level Capabilities
+🤖 AI-Powered Personalization
+- TISA AI assistant with:
+- Conversation continuity
+- COS program knowledge
+- Curriculum breakdown by year and semester
+- Faculty lookup by role
+- AI interaction history
+- Feedback loop for improving AI responses
+
+📖 Learning Workflows
+- Course browsing
+- Enrollment management (MyCourses)
+- Lesson viewing
+- Personalized user dashboard
+- User account and settings management
+
+🧑‍💼 Admin Operations (COS-Focused)
+- Program management
+- Curriculum management
+- Faculty management
+
+♿ Accessibility & UI
+- TailwindCSS-based design system
+- Accessibility considerations (WCAG-focused, per README)
+
+🚀 Deployment & DevOps
+- Frontend: Vite + React + TypeScript
+- Backend: Node.js + Express + TypeScript
+- Environment variables and production-ready configuration
+- Public and private route configuration (App.tsx)
 
 - ✅ **AI-Powered Personalization** - Adaptive learning paths
 - ✅ **Accessibility First** - WCAG 2.1 AAA compliance
