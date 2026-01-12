@@ -36,14 +36,14 @@
 
 👤 Core User-Facing Pages
 
-Landing – Public entry page
-Dashboard – Personalized overview after login
-Courses – Browse and list available courses
-CourseDetail – Detailed course information
-MyCourses – Enrolled courses management
-LessonViewer – View individual lessons
-Settings – User account and preferences
-AI Tutor – Interactive AI assistant interface
+- Landing – Public entry page
+- Dashboard – Personalized overview after login
+- Courses – Browse and list available courses
+- CourseDetail – Detailed course information
+- MyCourses – Enrolled courses management
+- LessonViewer – View individual lessons
+- Settings – User account and preferences
+- AI Tutor – Interactive AI assistant interface
 
 🛠️ Admin Pages (College of Science)
 
