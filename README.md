@@ -27,6 +27,41 @@
 
 ## 🚀 Features
 
+🎨 Frontend (Client)
+🔐 Authentication & Access Control
+
+- Login and Signup pages
+- AuthProvider context for authentication state
+- PrivateRoute for protecting authenticated routes
+
+👤 Core User-Facing Pages
+
+Landing – Public entry page
+Dashboard – Personalized overview after login
+Courses – Browse and list available courses
+CourseDetail – Detailed course information
+MyCourses – Enrolled courses management
+LessonViewer – View individual lessons
+Settings – User account and preferences
+AI Tutor – Interactive AI assistant interface
+
+🛠️ Admin Pages (College of Science)
+
+AdminCOSPrograms – Manage COS programs
+AdminFaculty – Manage faculty members
+AdminCurriculum – Manage curriculum structure
+
+🎨 Shared UI & Layout
+
+- App layout wrapper (navigation, shell)
+- TailwindCSS styling setup
+
+🧭 Routing
+
+- React Router v6
+
+Public and private route configuration (App.tsx)
+
 - ✅ **AI-Powered Personalization** - Adaptive learning paths
 - ✅ **Accessibility First** - WCAG 2.1 AAA compliance
 - ✅ **Multi-Modal Content** - Video, audio, interactive lessons
