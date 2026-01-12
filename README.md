@@ -60,6 +60,8 @@
 
 - React Router v6
 
+--
+
 🧠 Backend (Server)
 
 🔐 Authentication
@@ -146,14 +148,6 @@ Routes & Controllers
 - Backend: Node.js + Express + TypeScript
 - Environment variables and production-ready configuration
 - Public and private route configuration (App.tsx)
-
-- ✅ **AI-Powered Personalization** - Adaptive learning paths
-- ✅ **Accessibility First** - WCAG 2.1 AAA compliance
-- ✅ **Multi-Modal Content** - Video, audio, interactive lessons
-- ✅ **AI Teaching Assistant** - 24/7 support for students
-- ✅ **Progress Tracking** - Comprehensive analytics
-- ✅ **Collaborative Learning** - Study groups and peer tutoring
-- ✅ **Gamification** - Achievements and badges
 
 ---
 
