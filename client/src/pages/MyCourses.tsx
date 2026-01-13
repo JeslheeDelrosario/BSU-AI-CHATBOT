@@ -32,14 +32,14 @@ export default function MyCourses() {
   }
 
   return (
-    <div className="py-16 lg:py-20">
+    <div className="py-8 lg:py-10">
 
       {/* Page Title */}
-      <div className="text-center mb-16">
-        <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+      <div className="text-center mb-12 lg:mb-14 px-6">
+        <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 pb-2 md:pb-3 leading-tight md:leading-snug">
           My Courses
         </h1>
-        <p className="text-xl md:text-2xl text-gray-300 font-light tracking-wide">
+        <p className="text-xl md:text-2xl text-slate-700 dark:text-gray-300 font-light tracking-wide">
           Pick up where you left off — your learning journey continues.
         </p>
       </div>
@@ -50,10 +50,10 @@ export default function MyCourses() {
           <div className="inline-flex items-center justify-center w-32 h-32 bg-white/5 backdrop-blur-2xl rounded-full border border-white/10 mb-10 shadow-2xl">
             <BookOpen className="w-20 h-20 text-cyan-400" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-6">
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
             No courses enrolled yet
           </h2>
-          <p className="text-gray-400 text-lg mb-10">
+          <p className="text-slate-700 dark:text-gray-400 text-lg mb-10">
             Start your learning journey with our AI-powered courses.
           </p>
           <Link
@@ -87,15 +87,15 @@ export default function MyCourses() {
                 {/* Content */}
                 <div className="p-7 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-4 line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 line-clamp-2 group-hover:text-cyan-300 transition-colors">
                       {enrollment.course.title}
                     </h3>
 
                     {/* Progress Section */}
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Progress</span>
-                        <span className="font-bold text-cyan-300">
+                        <span className="text-slate-600 dark:text-gray-400">Progress</span>
+                        <span className="font-bold text-cyan-500 dark:text-cyan-300">
                           {Math.round(enrollment.progress)}%
                         </span>
                       </div>
@@ -111,7 +111,7 @@ export default function MyCourses() {
                   </div>
 
                   {/* Lessons Count */}
-                  <div className="mt-6 flex items-center gap-3 text-gray-300">
+                  <div className="mt-6 flex items-center gap-3 text-slate-700 dark:text-gray-300">
                     <TrendingUp className="w-5 h-5 text-purple-400" />
                     <span className="text-sm font-medium">
                       {enrollment.course._count?.lessons || 0} lessons

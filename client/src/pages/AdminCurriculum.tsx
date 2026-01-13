@@ -1,17 +1,36 @@
 // client/src/pages/AdminCurriculum.tsx
-// SEARCHABLE YEAR LEVEL + FULL BLACK CYBERPUNK DESIGN
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from "../contexts/AuthContext";
 import {
-  BookOpen,
-  Plus,
-  Trash2,
-  Edit2,
-  X,
-  Check,
-  Loader2
+  BookOpen, Plus, Trash2, Edit2, X, Check, Loader2,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
+
+type SemesterType = 1 | 2 | 3;
+
+interface CurriculumEntry {
+  id: string;
+  courseCode: string;
+  subjectName: string;
+  yearLevel: number;
+  semester: SemesterType;
+  units: number;
+  prerequisites: string[];
+}
+
+const YEAR_LABELS = {
+  1: "1st Year",
+  2: "2nd Year",
+  3: "3rd Year",
+  4: "4th Year",
+  // you can add 5 if needed later
+};
+
+const SEMESTER_LABELS = {
+  1: "1st Semester",
+  2: "2nd Semester",
+  3: "Mid-Year",
+};
 
 export default function AdminCurriculum() {
   const { user } = useAuth();
@@ -19,45 +38,32 @@ export default function AdminCurriculum() {
 
   const [programs, setPrograms] = useState<any[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<string>('');
-  const [curriculum, setCurriculum] = useState<any[]>([]);
+  const [curriculum, setCurriculum] = useState<CurriculumEntry[]>([]);
   const [fetching, setFetching] = useState(true);
+
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [yearDropdownOpen, setYearDropdownOpen] = useState(false); 
-  const [semesterDropdownOpen, setSemesterDropdownOpen] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
-
-
+  const [filterYear, setFilterYear] = useState<number | 'all'>('all');
+  const [filterSemester, setFilterSemester] = useState<SemesterType | 'all'>('all');
 
   const [form, setForm] = useState({
     courseCode: '',
     subjectName: '',
     yearLevel: 1,
-    semester: 1,
+    semester: 1 as SemesterType,
     units: 3,
     prerequisites: [] as string[]
   });
 
-  // Year Level Options
-  const yearOptions = [
-    { value: 1, label: "1st Year" },
-    { value: 2, label: "2nd Year" },
-    { value: 3, label: "3rd Year" },
-    { value: 4, label: "4th Year" }
-  ];
+  // Which years are currently expanded
+  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([1,2,3,4]));
 
-  const filteredYears = yearOptions.filter(year =>
-    year.label.toLowerCase().includes(
-      yearOptions.find(y => y.value === form.yearLevel)?.label.toLowerCase() || ""
-    )
-  );
-
-  useEffect(() => {
-    if (user?.role === 'ADMIN') fetchInitialData();
-  }, [user]);
-
-  const fetchInitialData = async () => {
-    setFetching(true);
+ // ==================================================================
+  // Fetch programs on mount
+  // ==================================================================
+  const fetchPrograms = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/cos-programs', {
         headers: { Authorization: `Bearer ${token}` }
@@ -67,16 +73,17 @@ export default function AdminCurriculum() {
       if (data.length > 0) setSelectedProgram(data[0].id);
     } catch (err) {
       console.error("Failed to load programs:", err);
-    } finally {
-      setFetching(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    if (selectedProgram) fetchCurriculum(selectedProgram);
-  }, [selectedProgram]);
+    if (user?.role === 'ADMIN') fetchPrograms();
+  }, [user, fetchPrograms]);
 
-  const fetchCurriculum = async (programId: string) => {
+  // ==================================================================
+  // Fetch curriculum when program changes
+  // ==================================================================
+  const fetchCurriculum = useCallback(async (programId: string) => {
     setFetching(true);
     try {
       const res = await fetch(`/api/admin/curriculum/${programId}`, {
@@ -90,29 +97,92 @@ export default function AdminCurriculum() {
     } finally {
       setFetching(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (selectedProgram) fetchCurriculum(selectedProgram);
+  }, [selectedProgram, fetchCurriculum]);
+
+  // ──────────────────────────────────────────────────────────────
+  // Computed: group curriculum by year → semester
+  // ──────────────────────────────────────────────────────────────
+  const groupedCurriculum = useMemo(() => {
+    const groups: Record<number, Record<SemesterType, CurriculumEntry[]>> = {};
+
+    let filtered = [...curriculum];
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.courseCode.toLowerCase().includes(q) ||
+        item.subjectName.toLowerCase().includes(q) ||
+        item.prerequisites.some(p => p.toLowerCase().includes(q))
+      );
+    }
+
+    // Apply year filter
+    if (filterYear !== 'all') {
+      filtered = filtered.filter(item => item.yearLevel === filterYear);
+    }
+
+    // Apply semester filter
+    if (filterSemester !== 'all') {
+      filtered = filtered.filter(item => item.semester === filterSemester);
+    }
+
+    // Group
+    filtered.forEach(item => {
+      if (!groups[item.yearLevel]) {
+        groups[item.yearLevel] = { 1: [], 2: [], 3: [] };
+      }
+      groups[item.yearLevel][item.semester].push(item);
+    });
+
+    return groups;
+  }, [curriculum, searchQuery, filterYear, filterSemester]);
+
+  // Calculate units
+  const calculateUnits = (entries: CurriculumEntry[]) =>
+    entries.reduce((sum, item) => sum + item.units, 0);
 
   const handleSave = async () => {
-    if (!form.courseCode || !form.subjectName || !selectedProgram) return;
+    if (!form.courseCode.trim() || !form.subjectName.trim() || !selectedProgram) return;
+
+    // Optional: warn about mid-year in early years
+    if (form.semester === 3 && form.yearLevel <= 2) {
+      if (!window.confirm(
+        "Mid-Year subjects are uncommon in 1st and 2nd year.\nDo you want to continue?"
+      )) {
+        return;
+      }
+    }
+
     try {
-      const url = editingId ? `/api/admin/curriculum/${editingId}` : `/api/admin/curriculum`;
+      const payload = {
+        programId: selectedProgram,
+        courseCode: form.courseCode.trim().toUpperCase(),
+        subjectName: form.subjectName.trim(),
+        yearLevel: form.yearLevel,
+        semester: form.semester,
+        units: form.units,
+        prerequisites: form.prerequisites
+      };
+
+      const url = editingId
+        ? `/api/admin/curriculum/${editingId}`
+        : `/api/admin/curriculum`;
       const method = editingId ? 'PUT' : 'POST';
+
       await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          programId: selectedProgram,
-          courseCode: form.courseCode.trim(),
-          subjectName: form.subjectName.trim(),
-          yearLevel: form.yearLevel,
-          semester: form.semester,
-          units: form.units,
-          prerequisites: form.prerequisites
-        })
+        body: JSON.stringify(payload)
       });
+
       resetForm();
       fetchCurriculum(selectedProgram);
     } catch (err) {
@@ -121,7 +191,7 @@ export default function AdminCurriculum() {
   };
 
   const deleteEntry = async (id: string) => {
-    if (!confirm("Remove this subject from the curriculum?")) return;
+    if (!window.confirm("Remove this subject?")) return;
     try {
       await fetch(`/api/admin/curriculum/${id}`, {
         method: 'DELETE',
@@ -129,11 +199,11 @@ export default function AdminCurriculum() {
       });
       fetchCurriculum(selectedProgram);
     } catch (err) {
-      alert("Failed to remove subject.");
+      alert("Failed to delete entry.");
     }
   };
 
-  const startEdit = (entry: any) => {
+  const startEdit = (entry: CurriculumEntry) => {
     setEditingId(entry.id);
     setForm({
       courseCode: entry.courseCode,
@@ -141,7 +211,7 @@ export default function AdminCurriculum() {
       yearLevel: entry.yearLevel,
       semester: entry.semester,
       units: entry.units,
-      prerequisites: entry.prerequisites || []
+      prerequisites: [...entry.prerequisites]
     });
     setIsAdding(true);
   };
@@ -149,7 +219,6 @@ export default function AdminCurriculum() {
   const resetForm = () => {
     setIsAdding(false);
     setEditingId(null);
-    setYearDropdownOpen(false);
     setForm({
       courseCode: '',
       subjectName: '',
@@ -160,357 +229,372 @@ export default function AdminCurriculum() {
     });
   };
 
-  const selectedProgramName = programs.find(p => p.id === selectedProgram)?.title || 'Select Program';
-
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <div className="text-center">
-          <h1 className="text-6xl font-black bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent mb-6">
-            Access Denied
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-600">
+            ACCESS DENIED
           </h1>
-          <p className="text-2xl text-cyan-400 font-bold">Admin Only</p>
+          <p className="text-2xl text-cyan-400">Admin access required</p>
         </div>
       </div>
     );
   }
 
-  // 🔍 Filter curriculum results
-  const filteredCurriculum = curriculum.filter((item) => {
-    const q = searchQuery.toLowerCase();
-
-    return (
-      item.courseCode.toLowerCase().includes(q) ||
-      item.subjectName.toLowerCase().includes(q) ||
-      (item.prerequisites || []).join(", ").toLowerCase().includes(q) ||
-      String(item.yearLevel).includes(q) ||
-      (item.semester === 1 ? "1st sem" : "2nd sem").toLowerCase().includes(q)
-    );
-  });
-
+  const selectedProgramName = programs.find(p => p.id === selectedProgram)?.title || '';
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-7xl mx-auto p-6 lg:p-10 space-y-10">
 
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-6">
+        <div className="text-center">
+          <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-3">
             Curriculum Management
           </h1>
-          <p className="text-xl text-gray-400">
-            Manage subjects, prerequisites, and semesters per program
+          <p className="text-xl text-muted-foreground">
+            {selectedProgramName ? `${selectedProgramName} Curriculum` : 'Select a program to begin'}
           </p>
         </div>
 
         {/* Program Selector */}
-        {/* PROGRAM SELECTOR — GOD-TIER CYBERPUNK DESIGN */}
-<div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-cyan-500/30 shadow-2xl p-8 ring-2 ring-cyan-500/20 hover:ring-cyan-400/40 transition-all duration-500">
-  <label className="text-xl font-bold text-cyan-300 tracking-wider mb-6 block">
-    SELECT PROGRAM
-  </label>
+        <div className="bg-card/70 backdrop-blur-xl rounded-2xl border border-border p-6 shadow-xl">
+          <label className="block text-lg font-semibold mb-3">Program</label>
+          <select
+            value={selectedProgram}
+            onChange={e => setSelectedProgram(e.target.value)}
+            className="w-full px-5 py-4 bg-background border border-border rounded-xl focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all"
+          >
+            <option value="">Select Program...</option>
+            {programs.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.title} {p.abbreviation ? `(${p.abbreviation})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
 
-  <div className="relative group">
-    {/* Custom Styled Select */}
-    <select
-      value={selectedProgram}
-      onChange={e => setSelectedProgram(e.target.value)}
-      className="appearance-none w-full px-10 py-7 bg-black/40 border-2 border-cyan-500/50 rounded-2xl text-cyan-100 text-xl font-medium tracking-wide
-                 focus:outline-none focus:border-cyan-300 focus:ring-4 focus:ring-cyan-500/30 
-                 transition-all duration-300 backdrop-blur-2xl cursor-pointer
-                 hover:border-cyan-300 hover:bg-black/60"
-    >
-      <option value="" className="bg-black text-gray-400">
-        Choose a program...
-      </option>
-      {programs.map(p => (
-        <option key={p.id} value={p.id} className="bg-black text-cyan-100 py-4">
-          {p.title} {p.abbreviation && `• ${p.abbreviation}`}
-        </option>
-      ))}
-    </select>
-
-    {/* Neon Arrow + Glow Effect */}
-    <div className="absolute inset-y-0 right-0 flex items-center pr-10 pointer-events-none">
-      <svg className="w-8 h-8 text-cyan-400 drop-shadow-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M19 9l-7 7-7-7" />
-      </svg>
-    </div>
-
-    {/* Floating Glow Line Underneath */}
-    <div className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
-  </div>
-
-  {/* Optional: Program count badge */}
-  {programs.length > 0 && (
-    <div className="mt-4 text-right">
-      <span className="text-sm text-cyan-400/70 font-medium">
-        {programs.length} program{programs.length !== 1 ? 's' : ''} available
-      </span>
-    </div>
-  )}
-</div>
-
-        {/* Add/Edit Form */}
+        {/* Filters */}
         {selectedProgram && (
-          <div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl p-8 lg:p-10">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl lg:text-4xl font-bold text-white flex items-center gap-4">
-                <BookOpen className="w-10 h-10 text-cyan-400" />
-                {editingId ? 'Edit' : 'Add New'} Subject
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card/50 backdrop-blur-lg rounded-2xl border border-border p-6">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Search</label>
+              <input
+                type="text"
+                placeholder="Code, subject name, prerequisite..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Year Level</label>
+              <select
+                value={filterYear}
+                onChange={e => setFilterYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+              >
+                <option value="all">All Years</option>
+                {[1,2,3,4].map(y => (
+                  <option key={y} value={y}>{YEAR_LABELS[y as keyof typeof YEAR_LABELS]}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Semester</label>
+              <select
+                value={filterSemester}
+                onChange={e => setFilterSemester(e.target.value === 'all' ? 'all' : Number(e.target.value) as SemesterType)}
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+              >
+                <option value="all">All Semesters</option>
+                <option value={1}>1st Semester</option>
+                <option value={2}>2nd Semester</option>
+                <option value={3}>Mid-Year</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Add / Edit Form */}
+        {selectedProgram && (
+          <div className="bg-card/70 backdrop-blur-xl rounded-2xl border border-border p-6 lg:p-8 shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <BookOpen className="w-7 h-7 text-cyan-400" />
+                {editingId ? 'Edit Subject' : 'Add New Subject'}
               </h2>
+
               {isAdding && (
-                <button onClick={resetForm} className="text-gray-400 hover:text-white">
-                  <X className="w-8 h-8" />
+                <button
+                  onClick={resetForm}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={28} />
                 </button>
               )}
             </div>
 
-            {isAdding && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <input
-                  type="text"
-                  placeholder="Course Code (e.g. IT 101)"
-                  value={form.courseCode}
-                  onChange={e => setForm({ ...form, courseCode: e.target.value.toUpperCase() })}
-                  className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all backdrop-blur-xl"
-                />
-                <input
-                  type="text"
-                  placeholder="Subject Name"
-                  value={form.subjectName}
-                  onChange={e => setForm({ ...form, subjectName: e.target.value })}
-                  className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all backdrop-blur-xl"
-                />
-
-                {/* SEARCHABLE YEAR LEVEL */}
-                <div className="relative">
+            {isAdding ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {/* Course Code */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Course Code</label>
                   <input
-                    type="text"
-                    placeholder="Year Level (e.g. 2nd Year)"
-                    value={yearOptions.find(y => y.value === form.yearLevel)?.label || ''}
+                    value={form.courseCode}
+                    onChange={e => setForm({ ...form, courseCode: e.target.value.toUpperCase() })}
+                    placeholder="e.g. CS 101"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  />
+                </div>
+
+                {/* Subject Name */}
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium mb-1.5">Subject Name</label>
+                  <input
+                    value={form.subjectName}
+                    onChange={e => setForm({ ...form, subjectName: e.target.value })}
+                    placeholder="e.g. Introduction to Computing"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  />
+                </div>
+
+                {/* Year Level */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Year Level</label>
+                  <select
+                    value={form.yearLevel}
+                    onChange={e => setForm({ ...form, yearLevel: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  >
+                    {[1,2,3,4].map(y => (
+                      <option key={y} value={y}>
+                        {YEAR_LABELS[y as keyof typeof YEAR_LABELS]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Semester */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Semester</label>
+                  <select
+                    value={form.semester}
+                    onChange={e => setForm({ ...form, semester: Number(e.target.value) as SemesterType })}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  >
+                    <option value={1}>1st Semester</option>
+                    <option value={2}>2nd Semester</option>
+                    <option value={3}>Mid-Year</option>
+                  </select>
+                </div>
+
+                {/* Units */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Units</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={form.units}
+                    onChange={e => setForm({ ...form, units: Number(e.target.value) || 3 })}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  />
+                </div>
+
+                {/* Prerequisites */}
+                <div className="lg:col-span-3">
+                  <label className="block text-sm font-medium mb-1.5">Prerequisites (comma separated)</label>
+                  <input
+                    value={form.prerequisites.join(', ')}
                     onChange={e => {
-                      const match = yearOptions.find(y => 
-                        y.label.toLowerCase().includes(e.target.value.toLowerCase())
-                      );
-                      if (match) setForm({ ...form, yearLevel: match.value });
+                      const arr = e.target.value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(Boolean);
+                      setForm({ ...form, prerequisites: arr });
                     }}
-                    onFocus={() => setYearDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setYearDropdownOpen(false), 200)}
-                    className="w-full px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 pr-16 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all backdrop-blur-xl cursor-pointer"
+                    placeholder="e.g. CS 101, MATH 101"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
                   />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
-                    <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-
-                  {yearDropdownOpen && (
-                    <div className="absolute top-full mt-2 w-full bg-black/90 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-2xl z-50">
-                      {yearOptions.map(year => (
-                        <button
-                          key={year.value}
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => {
-                            setForm({ ...form, yearLevel: year.value });
-                            setYearDropdownOpen(false);
-                          }}
-                          className="w-full px-8 py-5 text-left text-white hover:bg-purple-500/20 hover:text-purple-300 transition-all first:rounded-t-2xl last:rounded-b-2xl"
-                        >
-                          {year.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-               {/* SEARCHABLE SEMESTER SELECTOR */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Semester (e.g. 1st Semester)"
-                    value={
-                      form.semester === 1
-                        ? "1st Semester"
-                        : form.semester === 2
-                        ? "2nd Semester"
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const value = e.target.value.toLowerCase();
-                      
-                      // Match 1st
-                      if (value.includes("1") || value.includes("first") || value.includes("1st")) {
-                        setForm({ ...form, semester: 1 });
-                      }
-                      // Match 2nd
-                      if (value.includes("2") || value.includes("second") || value.includes("2nd")) {
-                        setForm({ ...form, semester: 2 });
-                      }
-                    }}
-                    onFocus={() => setSemesterDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setSemesterDropdownOpen(false), 200)}
-                    className="w-full px-8 py-6 bg-white/5 border border-white/20 rounded-2xl 
-                              text-white placeholder-gray-500 pr-16 
-                              focus:outline-none focus:border-cyan-500 focus:ring-4 
-                              focus:ring-cyan-500/20 transition-all backdrop-blur-xl cursor-pointer"
-                  />
-
-                  {/* Neon Arrow */}
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
-                    <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-
-                  {/* Dropdown Options */}
-                  {semesterDropdownOpen && (
-                    <div className="absolute top-full mt-2 w-full bg-black/90 backdrop-blur-3xl 
-                                    border border-white/20 rounded-2xl shadow-2xl z-50">
-                      <button
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setForm({ ...form, semester: 1 });
-                          setSemesterDropdownOpen(false);
-                        }}
-                        className="w-full px-8 py-5 text-left text-white hover:bg-cyan-500/20 
-                                  hover:text-cyan-300 transition-all first:rounded-t-2xl"
-                      >
-                        1st Semester
-                      </button>
-
-                      <button
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setForm({ ...form, semester: 2 });
-                          setSemesterDropdownOpen(false);
-                        }}
-                        className="w-full px-8 py-5 text-left text-white hover:bg-cyan-500/20 
-                                  hover:text-cyan-300 transition-all last:rounded-b-2xl"
-                      >
-                        2nd Semester
-                      </button>
-                    </div>
-                  )}
+                {/* Save Button */}
+                <div className="col-span-full flex justify-end gap-4 mt-4">
+                  <button
+                    onClick={resetForm}
+                    className="px-6 py-3 border border-border rounded-xl hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={!form.courseCode.trim() || !form.subjectName.trim()}
+                    className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-xl font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Check size={20} />
+                    {editingId ? 'Update Subject' : 'Add Subject'}
+                  </button>
                 </div>
-
-
-                <input
-                  type="number"
-                  min={1}
-                  max={6}
-                  value={form.units}
-                  onChange={e => setForm({ ...form, units: Number(e.target.value) || 3 })}
-                  placeholder="Units"
-                  className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all backdrop-blur-xl"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Prerequisites (e.g. IT 101, MATH 201)"
-                  value={form.prerequisites.join(', ')}
-                  onChange={e => setForm({
-                    ...form,
-                    prerequisites: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                  })}
-                  className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all backdrop-blur-xl"
-                />
-
-                <button
-                  onClick={handleSave}
-                  className="col-span-full lg:col-span-1 px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xl rounded-2xl shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all flex items-center justify-center gap-4"
-                >
-                  <Check className="w-7 h-7" />
-                  {editingId ? 'Update Subject' : 'Add Subject'}
-                </button>
               </div>
-            )}
-
-            {!isAdding && (
+            ) : (
               <button
                 onClick={() => setIsAdding(true)}
-                className="px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xl rounded-2xl shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all flex items-center gap-4"
+                className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-xl font-medium hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20"
               >
-                <Plus className="w-7 h-7" /> Add Subject
+                <Plus size={22} />
+                Add New Subject
               </button>
             )}
           </div>
         )}
 
-        {/* Curriculum Table */}
+        {/* Curriculum Content */}
         {selectedProgram && (
-          <div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-8 lg:p-10 border-b border-white/10 bg-white/5">
-              <h2 className="text-3xl lg:text-4xl font-bold text-white">
-                Curriculum • {selectedProgramName}
-              </h2>
-              <p className="text-gray-400 mt-2">Total Subjects: {curriculum.length}</p>
-            </div>
-            {/* 🔍 Search Bar inside curriculum table */}
-            <div className="p-8 lg:p-10 border-b border-white/10 bg-black/30 backdrop-blur-2xl">
-              <input
-                type="text"
-                placeholder="Search subjects (code, name, prerequisites, year, sem...)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-10 py-6 bg-black/40 border-2 border-cyan-500/40 
-                          rounded-2xl text-white placeholder-cyan-300/40
-                          focus:outline-none focus:border-cyan-300 
-                          focus:ring-4 focus:ring-cyan-500/20 transition-all"
-              />
-            </div>
-
-
+          <div className="space-y-6">
             {fetching ? (
-              <div className="p-20 text-center">
-                <Loader2 className="w-20 h-20 text-cyan-400 animate-spin mx-auto" />
+              <div className="flex justify-center py-20">
+                <Loader2 className="w-12 h-12 animate-spin text-cyan-500" />
               </div>
-            ) : curriculum.length === 0 ? (
-              <div className="p-20 text-center text-gray-500">
-                <p className="text-4xl mb-6">No subjects added yet</p>
-                <p className="text-xl">Click "Add Subject" to begin</p>
+            ) : Object.keys(groupedCurriculum).length === 0 ? (
+              <div className="text-center py-20 text-muted-foreground">
+                <p className="text-2xl mb-3">No subjects found</p>
+                <p>Try adjusting filters or add your first subject</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left p-6 text-cyan-300 font-semibold">Code</th>
-                      <th className="text-left p-6 text-cyan-300 font-semibold">Subject</th>
-                      <th className="text-center p-6 text-cyan-300 font-semibold">Year</th>
-                      <th className="text-center p-6 text-cyan-300 font-semibold">Sem</th>
-                      <th className="text-center p-6 text-cyan-300 font-semibold">Units</th>
-                      <th className="text-left p-6 text-cyan-300 font-semibold">Prerequisites</th>
-                      <th className="text-right p-6 text-cyan-300 font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCurriculum.map((c: any) => (
+              Object.entries(groupedCurriculum)
+                .sort(([a], [b]) => Number(a) - Number(b))
+                .map(([yearStr, semesters]) => {
+                  const year = Number(yearStr);
+                  const yearTotal = 
+                    calculateUnits(semesters[1]) +
+                    calculateUnits(semesters[2]) +
+                    calculateUnits(semesters[3]);
 
-                      <tr key={c.id} className="border-b border-white/10 hover:bg-white/5 transition-all">
-                        <td className="p-6 text-white font-mono font-bold">{c.courseCode}</td>
-                        <td className="p-6 text-white">{c.subjectName}</td>
-                        <td className="p-6 text-center text-purple-400 font-bold">
-                          {c.yearLevel}{c.yearLevel === 1 ? 'st' : c.yearLevel === 2 ? 'nd' : c.yearLevel === 3 ? 'rd' : 'th'} Year
-                        </td>
-                        <td className="p-6 text-center text-cyan-400">{c.semester === 1 ? '1st' : '2nd'} Sem</td>
-                        <td className="p-6 text-center text-white font-bold">{c.units}</td>
-                        <td className="p-6 text-gray-300 text-sm">
-                          {(c.prerequisites || []).join(', ') || '—'}
-                        </td>
-                        <td className="p-6 text-right space-x-3">
-                          <button onClick={() => startEdit(c)} className="p-3 bg-blue-600/20 border border-blue-600/40 rounded-xl text-blue-400 hover:bg-blue-600/40">
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button onClick={() => deleteEntry(c.id)} className="p-3 bg-red-600/20 border border-red-600/40 rounded-xl text-red-400 hover:bg-red-600/40">
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  const isExpanded = expandedYears.has(year);
+
+                  return (
+                    <div
+                      key={year}
+                      className="bg-card/60 backdrop-blur-xl rounded-2xl border border-border overflow-hidden shadow-xl"
+                    >
+                      {/* Year Header */}
+                      <button
+                        onClick={() => {
+                          const newSet = new Set(expandedYears);
+                          if (newSet.has(year)) {
+                            newSet.delete(year);
+                          } else {
+                            newSet.add(year);
+                          }
+                          setExpandedYears(newSet);
+                        }}
+                        className="w-full px-6 py-5 flex items-center justify-between bg-gradient-to-r from-slate-900/40 to-slate-800/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          {isExpanded ? (
+                            <ChevronDown className="w-7 h-7 text-cyan-400" />
+                          ) : (
+                            <ChevronRight className="w-7 h-7 text-cyan-400" />
+                          )}
+                          <h3 className="text-2xl font-bold">
+                            {YEAR_LABELS[year as keyof typeof YEAR_LABELS]}
+                          </h3>
+                          <span className="text-lg text-cyan-300 font-medium">
+                            ({yearTotal} units)
+                          </span>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="p-6 space-y-8">
+                          {[1, 2, 3].map(sem => {
+                            const entries = semesters[sem as SemesterType] || [];
+                            if (entries.length === 0) return null;
+
+                            const semTotal = calculateUnits(entries);
+
+                            return (
+                              <div key={sem} className="space-y-4">
+                                <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                                  <h4 className="text-xl font-semibold text-cyan-300">
+                                    {SEMESTER_LABELS[sem as keyof typeof SEMESTER_LABELS]}
+                                  </h4>
+                                  <span className="text-lg font-medium">
+                                    {semTotal} units
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                                  {entries.map(entry => (
+                                    <div
+                                      key={entry.id}
+                                      className="bg-background/70 border border-border/70 rounded-xl p-5 hover:border-cyan-500/50 transition-all group"
+                                    >
+                                      <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                          <div className="font-mono font-bold text-lg text-cyan-300">
+                                            {entry.courseCode}
+                                          </div>
+                                          <div className="text-base font-medium mt-0.5">
+                                            {entry.subjectName}
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="text-xl font-bold text-purple-300">
+                                            {entry.units}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">units</div>
+                                        </div>
+                                      </div>
+
+                                      {/* Prerequisites */}
+                                      {entry.prerequisites.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                          {entry.prerequisites.map((pre, i) => (
+                                            <span
+                                              key={i}
+                                              className="px-2.5 py-1 bg-purple-950/60 text-purple-300 text-xs rounded-md border border-purple-700/40"
+                                            >
+                                              {pre}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="text-sm text-muted-foreground mt-3 italic">
+                                          No prerequisites
+                                        </div>
+                                      )}
+
+                                      {/* Actions */}
+                                      <div className="flex justify-end gap-3 mt-4 opacity-70 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          onClick={() => startEdit(entry)}
+                                          className="p-2 rounded-lg bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 transition-colors"
+                                        >
+                                          <Edit2 size={18} />
+                                        </button>
+                                        <button
+                                          onClick={() => deleteEntry(entry.id)}
+                                          className="p-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 transition-colors"
+                                        >
+                                          <Trash2 size={18} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
             )}
           </div>
         )}

@@ -82,14 +82,14 @@ export default function LessonViewer() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-slate-600 dark:text-gray-600 hover:text-slate-900 dark:hover:text-gray-900"
         >
           <ArrowLeft className="w-5 h-5" />
           Back
         </button>
         
         {progress?.completed && (
-          <span className="flex items-center gap-2 text-green-600 font-medium">
+          <span className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
             <CheckCircle className="w-5 h-5" />
             Completed
           </span>
@@ -148,11 +148,11 @@ export default function LessonViewer() {
 
           {/* Lesson Content */}
           <div className="prose max-w-none">
-            <div className="text-gray-700 leading-relaxed">
+            <div className="text-slate-900 dark:text-gray-700 leading-relaxed">
               {lesson.content ? (
                 <div dangerouslySetInnerHTML={{ __html: lesson.content.replace(/\n/g, '<br/>') }} />
               ) : (
-                <p className="text-gray-500 italic">No content available for this lesson yet.</p>
+                <p className="text-slate-600 dark:text-gray-500 italic">No content available for this lesson yet.</p>
               )}
             </div>
           </div>
@@ -160,7 +160,7 @@ export default function LessonViewer() {
           {/* Resources */}
           {lesson.resources && lesson.resources.length > 0 && (
             <div className="mt-8 pt-8 border-t">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resources</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-900 mb-4">Resources</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {lesson.resources.map((resource: any) => (
                   <a
@@ -172,8 +172,8 @@ export default function LessonViewer() {
                   >
                     <FileText className="w-5 h-5 text-indigo-600" />
                     <div>
-                      <p className="font-medium text-gray-900">{resource.title}</p>
-                      <p className="text-sm text-gray-500 capitalize">{resource.type.toLowerCase()}</p>
+                      <p className="font-medium text-slate-900 dark:text-gray-900">{resource.title}</p>
+                      <p className="text-sm text-slate-600 dark:text-gray-500 capitalize">{resource.type.toLowerCase()}</p>
                     </div>
                   </a>
                 ))}
@@ -184,7 +184,7 @@ export default function LessonViewer() {
 
         {/* Action Footer */}
         <div className="bg-gray-50 px-8 py-6 flex items-center justify-between border-t">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-slate-600 dark:text-gray-600">
             {progress?.timeSpent ? (
               <span>Time spent: {Math.floor(progress.timeSpent / 60)} minutes</span>
             ) : (
@@ -206,14 +206,14 @@ export default function LessonViewer() {
       </div>
 
       {/* Next Lesson Suggestion */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
-        <h3 className="font-semibold text-indigo-900 mb-2">Keep Learning!</h3>
-        <p className="text-indigo-700 text-sm mb-4">
+      <div className="bg-indigo-100 dark:bg-indigo-50 border border-indigo-300 dark:border-indigo-200 rounded-xl p-6">
+        <h3 className="font-semibold text-indigo-900 dark:text-indigo-900 mb-2">Keep Learning!</h3>
+        <p className="text-indigo-800 dark:text-indigo-700 text-sm mb-4">
           Complete this lesson to unlock the next one and continue your learning journey.
         </p>
         <button
           onClick={() => navigate('/ai-tutor')}
-          className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center gap-2"
+          className="text-indigo-700 dark:text-indigo-600 hover:text-indigo-800 dark:hover:text-indigo-700 font-medium text-sm flex items-center gap-2"
         >
           Need help? Ask the AI Tutor →
         </button>

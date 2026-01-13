@@ -1,5 +1,7 @@
 // client/src/pages/admin/COSPrograms.tsx
-// CLEAN BLACK CYBERPUNK DESIGN — NO BACKGROUND ORBS — SAME LOGIC
+// Updated: Now fully supports light/dark mode using theme-aware classes
+// Removed hardcoded dark colors → uses bg-background, bg-card, text-foreground, etc.
+// Keeps cyberpunk feel in dark mode, becomes clean & readable in light mode
 
 import { useState, useEffect } from 'react';
 import { useAuth } from "../contexts/AuthContext";
@@ -71,37 +73,39 @@ export default function COSPrograms() {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-6xl font-black bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent mb-6">
+          <h1 className="text-5xl sm:text-6xl font-black bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent mb-6">
             Restricted Access
           </h1>
-          <p className="text-2xl text-cyan-400 font-bold">Admin Access Required</p>
+          <p className="text-xl sm:text-2xl text-foreground font-bold">Admin Access Required</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen  text-foreground">
 
       {/* Header */}
-      <div className="max-w-6xl mx-auto p-6 lg:p-10 text-center mb-12">
-        <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-6 flex flex-col lg:flex-row items-center justify-center gap-6">
-          <GraduationCap className="w-16 h-16 lg:w-20 lg:h-20 text-cyan-400" />
-          <span>Manage COS Programs</span>
-        </h1>
-        <p className="text-xl text-gray-400">
+      <div className="max-w-6xl mx-auto px-6 py-10 lg:py-12 text-center mb-10">
+        <div className="flex flex-col items-center gap-4 sm:gap-6">
+          <GraduationCap className="w-16 h-16 sm:w-20 sm:h-20 text-cyan-500" />
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent pb-1 md:pb-4 leading-tight md:leading-snug inline-block">
+            Manage COS Programs
+          </h1>
+        </div>
+        <p className="mt-4 text-lg sm:text-xl text-muted-foreground">
           Bulacan State University • College of Science
         </p>
       </div>
 
-      <div className="max-w-6xl mx-auto p-6 lg:p-10 space-y-10">
+      <div className="max-w-6xl mx-auto px-6 pb-12 space-y-10 lg:space-y-12">
 
         {/* Add New Program Card */}
-        <div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl p-8 lg:p-10">
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-8 flex items-center gap-4">
-            <Plus className="w-10 h-10 text-cyan-400" />
+        <div className="bg-card/80 backdrop-blur-xl rounded-3xl border border-border shadow-xl p-8 lg:p-10">
+          <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-8 flex items-center gap-4">
+            <Plus className="w-9 h-9 lg:w-10 lg:h-10 text-cyan-500" />
             Add New Program
           </h2>
 
@@ -112,7 +116,7 @@ export default function COSPrograms() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProgram()}
-              className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 text-lg transition-all backdrop-blur-xl"
+              className="px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all text-base lg:text-lg"
             />
             <input
               type="text"
@@ -120,75 +124,99 @@ export default function COSPrograms() {
               value={newAbbr}
               onChange={(e) => setNewAbbr(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProgram()}
-              className="px-8 py-6 bg-white/5 border border-white/20 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 text-lg transition-all backdrop-blur-xl"
+              className="px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all text-base lg:text-lg"
             />
             <button
-              onClick={addProgram}
-              disabled={loading || !newTitle.trim()}
-              className="px-10 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xl rounded-2xl shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 gap-4"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-7 h-7 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-7 h-7" />
-                  Add Program
-                </>
-              )}
-            </button>
+            onClick={addProgram}
+            disabled={loading || !newTitle.trim()}
+            className="
+              px-8 py-5 
+              bg-gradient-to-r from-cyan-600 via-cyan-500 to-purple-600 
+              text-white font-bold text-lg rounded-2xl
+              shadow-lg shadow-cyan-500/30
+              hover:shadow-cyan-400/60 hover:shadow-2xl
+              hover:brightness-110
+              transform hover:scale-105 
+              transition-all duration-300
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+              flex items-center justify-center gap-3
+              border border-cyan-400/30
+              relative overflow-hidden
+              before:absolute before:inset-0 before:bg-gradient-to-r 
+              before:from-transparent before:via-white/10 before:to-transparent
+              before:opacity-0 hover:before:opacity-100 before:transition-opacity
+            "
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="w-6 h-6" />
+                Add Program
+              </>
+            )}
+          </button>
           </div>
         </div>
 
         {/* Current Programs List */}
-        <div className="bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
-          <div className="p-8 lg:p-10 border-b border-white/10 bg-white/5">
-            <h2 className="text-3xl lg:text-4xl font-bold text-white">
+        <div className="bg-card/80 backdrop-blur-xl rounded-3xl border border-border shadow-xl overflow-hidden">
+          <div className="p-8 lg:p-10 border-b border-border bg-card/60">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
               Current Official Programs
-              <span className="text-cyan-400 ml-4">({programs.length})</span>
+              <span className="text-cyan-500 ml-4">({programs.length})</span>
             </h2>
-            <p className="text-gray-400 mt-2 text-lg">
+            <p className="mt-2 text-muted-foreground text-lg">
               Visible to students • Used by TISA AI
             </p>
           </div>
 
           {fetching ? (
-            <div className="p-20 text-center">
-              <Loader2 className="w-20 h-20 text-cyan-400 animate-spin mx-auto" />
-              <p className="text-2xl text-gray-400 mt-6">Loading programs...</p>
+            <div className="p-16 lg:p-20 text-center">
+              <Loader2 className="w-16 h-16 lg:w-20 lg:h-20 text-cyan-500 animate-spin mx-auto" />
+              <p className="mt-6 text-xl lg:text-2xl text-muted-foreground">Loading programs...</p>
             </div>
           ) : programs.length === 0 ? (
-            <div className="p-20 text-center">
-              <div className="text-6xl mb-8 text-gray-600">No programs found</div>
-              <p className="text-2xl text-gray-400">Start by adding your first program above</p>
+            <div className="p-16 lg:p-20 text-center">
+              <div className="text-5xl lg:text-6xl mb-6 text-muted-foreground/60">No programs found</div>
+              <p className="text-lg lg:text-xl text-muted-foreground">
+                Start by adding your first program above
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8 lg:p-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 p-6 lg:p-10">
               {programs.map((p) => (
                 <div
                   key={p.id}
-                  className="group relative bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all duration-500"
+                  className="group relative bg-card/60 border border-border rounded-3xl p-7 lg:p-8 backdrop-blur-xl hover:border-cyan-500/50 hover:bg-card/90 transition-all duration-300"
                 >
                   <button
                     onClick={() => deleteProgram(p.id)}
-                    className="absolute top-6 right-6 p-3 bg-red-600/20 border border-red-600/40 rounded-xl text-red-400 hover:bg-red-600/40 hover:text-red-300 transform hover:scale-110 transition-all"
+                    className="absolute top-5 right-5 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all hover:scale-110"
                     title="Delete Program"
                   >
                     <Trash2 className="w-6 h-6" />
                   </button>
 
-                  <h3 className="text-2xl lg:text-3xl font-bold text-white pr-12 leading-tight">
+                  <h3 className="text-2xl lg:text-3xl font-bold text-foreground pr-14 leading-tight">
                     {p.title}
                   </h3>
                   {p.abbreviation && (
-                    <p className="text-xl lg:text-2xl font-bold text-cyan-400 mt-3">
+                    <p className="text-xl lg:text-2xl font-semibold text-cyan-500 mt-3">
                       {p.abbreviation}
                     </p>
                   )}
 
-                  <div className="mt-8 inline-block px-6 py-3 bg-gradient-to-r from-cyan-500/20 to-purple-600/20 border border-cyan-500/40 rounded-xl text-cyan-300 font-semibold">
+                  <div className="mt-6 inline-block px-5 py-2.5 bg-gradient-to-r from-cyan-600 via-cyan-500 to-purple-600 
+                    text-white font-bold text-lg rounded-2xl
+                    shadow-lg shadow-cyan-500/30
+                    hover:shadow-cyan-400/60 hover:shadow-2xl
+                    hover:brightness-110
+                    transform hover:scale-105 
+                    transition-all duration-300 font-medium text-sm lg:text-base">
                     Active Program
                   </div>
                 </div>

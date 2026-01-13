@@ -50,19 +50,27 @@ router.get("/subjects", isAdmin, async (_, res) => {
   }
 });
 
-// ADD faculty
+// ADD faculty - Updated to include middleName
 router.post("/faculty", isAdmin, async (req: AuthRequest, res) => {
   try {
-    const { firstName, lastName, email, position, subjectIds } = req.body;
+    const { 
+      firstName, 
+      middleName,      // ← Now accepted from request body
+      lastName, 
+      email, 
+      position, 
+      subjectIds 
+    } = req.body;
 
     const faculty = await prisma.faculty.create({
       data: {
         firstName,
+        middleName: middleName?.trim() || null,   // ← Save as null if empty
         lastName,
-        email,
-        position,
+        email: email?.toLowerCase().trim(),
+        position: position || 'Professor',
         subjects: {
-          create: subjectIds.map((id: string) => ({
+          create: (subjectIds || []).map((id: string) => ({
             subjectId: id,
           })),
         },
@@ -74,45 +82,67 @@ router.post("/faculty", isAdmin, async (req: AuthRequest, res) => {
       },
     });
 
-    res.json(faculty);
+    res.status(201).json(faculty);
   } catch (err) {
-    console.error(err);
+    console.error("Error creating faculty:", err);
     res.status(500).json({ error: "Failed to add faculty" });
   }
 });
 
-// UPDATE faculty
-router.put("/faculty/:id", isAdmin, async (req, res) => {
+// UPDATE faculty - Updated to support middleName
+router.put("/faculty/:id", isAdmin, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, position, subjectIds } = req.body;
+    const { 
+      firstName, 
+      middleName,      // ← Now accepted
+      lastName, 
+      email, 
+      position, 
+      subjectIds 
+    } = req.body;
 
-    // Update main fields
+    // Update main fields (only send fields that were provided)
     await prisma.faculty.update({
       where: { id },
       data: {
-        firstName,
-        lastName,
-        email,
-        position,
+        ...(firstName !== undefined && { firstName }),
+        middleName: middleName !== undefined ? (middleName?.trim() || null) : undefined,
+        ...(lastName !== undefined && { lastName }),
+        ...(email !== undefined && { email: email?.toLowerCase().trim() }),
+        ...(position !== undefined && { position }),
       },
     });
 
-    // Reset subjects
-    await prisma.facultySubject.deleteMany({
-      where: { facultyId: id },
+    // Handle subjects update (reset + recreate)
+    if (subjectIds !== undefined) {
+      await prisma.facultySubject.deleteMany({
+        where: { facultyId: id },
+      });
+
+      if (subjectIds.length > 0) {
+        await prisma.facultySubject.createMany({
+          data: subjectIds.map((sId: string) => ({
+            facultyId: id,
+            subjectId: sId,
+          })),
+        });
+      }
+    }
+
+    // Return updated faculty with relations
+    const updatedFaculty = await prisma.faculty.findUnique({
+      where: { id },
+      include: {
+        subjects: {
+          include: { subject: true },
+        },
+      },
     });
 
-    // Add new ones
-    await prisma.facultySubject.createMany({
-      data: subjectIds.map((sId: string) => ({
-        facultyId: id,
-        subjectId: sId,
-      })),
-    });
-
-    res.json({ success: true });
+    res.json(updatedFaculty);
   } catch (err) {
+    console.error("Error updating faculty:", err);
     res.status(500).json({ error: "Failed to update faculty" });
   }
 });

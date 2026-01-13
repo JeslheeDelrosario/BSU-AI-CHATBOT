@@ -386,6 +386,7 @@ model ChatSession {
 model Faculty {
   id        String           @id @default(uuid())
   firstName String
+  middleName String?
   lastName  String
   email     String?
   position  String
