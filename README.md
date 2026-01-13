@@ -27,13 +27,127 @@
 
 ## 🚀 Features
 
-- ✅ **AI-Powered Personalization** - Adaptive learning paths
-- ✅ **Accessibility First** - WCAG 2.1 AAA compliance
-- ✅ **Multi-Modal Content** - Video, audio, interactive lessons
-- ✅ **AI Teaching Assistant** - 24/7 support for students
-- ✅ **Progress Tracking** - Comprehensive analytics
-- ✅ **Collaborative Learning** - Study groups and peer tutoring
-- ✅ **Gamification** - Achievements and badges
+🎨 Frontend (Client)
+🔐 Authentication & Access Control
+
+- Login and Signup pages
+- AuthProvider context for authentication state
+- PrivateRoute for protecting authenticated routes
+
+👤 Core User-Facing Pages
+
+- Landing – Public entry page
+- Dashboard – Personalized overview after login
+- Courses – Browse and list available courses
+- CourseDetail – Detailed course information
+- MyCourses – Enrolled courses management
+- LessonViewer – View individual lessons
+- Settings – User account and preferences
+- AI Tutor – Interactive AI assistant interface
+
+🛠️ Admin Pages (College of Science)
+
+- AdminCOSPrograms – Manage COS programs
+- AdminFaculty – Manage faculty members
+- AdminCurriculum – Manage curriculum structure
+
+🎨 Shared UI & Layout
+
+- App layout wrapper (navigation, shell)
+- TailwindCSS styling setup
+
+🧭 Routing
+
+- React Router v6
+
+--
+
+🧠 Backend (Server)
+
+🔐 Authentication
+
+- JWT-based authentication middleware (authenticateToken)
+- Auth routes and controllers (login, signup, etc.)
+
+🤖 AI Tutor Service (TISA)
+
+Endpoints
+- POST /api/ai-tutor/ask – Ask the AI tutor with conversation continuity and curriculum awareness
+- GET /api/ai-tutor/history – Fetch user-specific AI interaction history
+- POST /api/ai-tutor/:id/rate – Rate AI responses (helpful / not helpful)
+
+AI Logic
+- Context-aware prompt engineering for TISA (The Intelligent Student Assistant)
+- Uses previous interactions for continuity
+- Clarifies ambiguous queries
+- Answers program, curriculum, and faculty-related questions
+- Integrates OpenAI via API key
+- Graceful fallback behavior if AI API is not configured
+- Grounds responses using Prisma/PostgreSQL data:
+-- Programs
+-- Curriculum
+-- Faculty
+
+📚 Core Application Modules
+
+- Courses
+- Lessons
+- Dashboard
+- Chat sessions
+
+Routes & Controllers
+- Courses (course.routes.ts, course.controller.ts)
+- Lessons (lesson.routes.ts, lesson.controller.ts)
+- Dashboard (dashboard.routes.ts, dashboard.controller.ts)
+- Chat Sessions (chat-session.routes.ts, chat-session.controller.ts)
+
+🛠️ Admin Management (College of Science)
+
+- Curriculum routes (adminCurriculum.routes.ts)
+- Faculty routes (adminFaculty.routes.ts)
+- Admin root routes (adminRoutes.ts)
+
+🗄️ Data Layer
+
+- Prisma ORM (schema.prisma)
+- Database migrations and seed scripts
+- PostgreSQL setup with initial seed data
+
+⚙️ Other Backend Components
+- Express server bootstrap (index.ts)
+- Environment configuration for development and production
+
+🌟 Platform-Level Capabilities
+🤖 AI-Powered Personalization
+- TISA AI assistant with:
+- Conversation continuity
+- COS program knowledge
+- Curriculum breakdown by year and semester
+- Faculty lookup by role
+- AI interaction history
+- Feedback loop for improving AI responses
+
+📖 Learning Workflows
+- Course browsing
+- Enrollment management (MyCourses)
+- Lesson viewing
+- Personalized user dashboard
+- User account and settings management
+
+🧑‍💼 Admin Operations (COS-Focused)
+- Program management
+- Curriculum management
+- Faculty management
+
+♿ Accessibility & UI
+- TailwindCSS-based design system
+- Accessibility considerations (WCAG-focused, per README)
+
+🚀 Deployment & DevOps
+- Frontend: Vite + React + TypeScript
+- Backend: Node.js + Express + TypeScript
+- Environment variables and production-ready configuration
+- Public and private route configuration (App.tsx)
 
 ---
 
@@ -170,10 +284,11 @@ curl -X POST http://localhost:5000/api/auth/login \
 ```
 TISA-Labs/
 ├── client/          # React frontend
-├── server/          # Express backend
+├── server/         # Express backend
 ├── PROJECT.md       # Platform specification
 ├── CREDENTIALS.md   # All credentials
 └── README.md        # This file
+
 ```
 
 ---
