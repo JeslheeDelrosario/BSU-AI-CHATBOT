@@ -769,6 +769,182 @@ export const getAIHistory = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
+// Generate quiz based on conversation history
+export const generateQuiz = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { topic, questionCount = 5 } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get recent conversation history for context
+    const recentInteractions = await prisma.aIInteraction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        userMessage: true,
+        aiResponse: true,
+      },
+    });
+
+    const conversationContext = recentInteractions
+      .map(i => `Q: ${i.userMessage}\nA: ${i.aiResponse}`)
+      .join('\n\n');
+
+    const quizPrompt = `Based on the following conversation history and topic, generate a quiz with ${questionCount} multiple choice questions.
+
+${topic ? `Topic: ${topic}` : 'Generate questions based on the conversation topics.'}
+
+Conversation History:
+${conversationContext || 'No previous conversations.'}
+
+Generate a JSON array of quiz questions in this exact format:
+[
+  {
+    "question": "Question text here?",
+    "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+    "correctAnswer": "A",
+    "explanation": "Brief explanation of why this is correct"
+  }
+]
+
+Make questions educational and relevant to BSU College of Science curriculum. Return ONLY the JSON array, no other text.`;
+
+    if (!openai) {
+      // Fallback quiz if OpenAI not configured
+      const fallbackQuiz = [
+        {
+          question: "What does BSU COS stand for?",
+          options: ["A) Bulacan State University - College of Science", "B) Basic Science Unit - Course of Study", "C) Bachelor of Science - Computer Operations", "D) None of the above"],
+          correctAnswer: "A",
+          explanation: "BSU COS stands for Bulacan State University - College of Science"
+        },
+        {
+          question: "Which of the following is a program offered by BSU College of Science?",
+          options: ["A) BS Nursing", "B) BS Computer Science", "C) BS Architecture", "D) BS Law"],
+          correctAnswer: "B",
+          explanation: "BS Mathematics with Specialization in Computer Science is one of the programs offered."
+        }
+      ];
+      res.json({ quiz: fallbackQuiz, source: 'fallback' });
+      return;
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'You are a quiz generator for educational purposes. Generate clear, educational multiple choice questions.' },
+        { role: 'user', content: quizPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    const responseText = completion.choices[0]?.message?.content || '[]';
+    
+    // Parse the JSON response
+    let quiz;
+    try {
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      quiz = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    } catch {
+      quiz = [];
+    }
+
+    // Log the quiz generation
+    await prisma.aIInteraction.create({
+      data: {
+        userId,
+        type: AIInteractionType.QUESTION,
+        context: `quiz:${topic || 'conversation-based'}`,
+        userMessage: `Generate quiz: ${topic || 'from conversation'}`,
+        aiResponse: JSON.stringify(quiz),
+      },
+    });
+
+    res.json({ quiz, questionCount: quiz.length });
+  } catch (error) {
+    console.error('Generate quiz error:', error);
+    res.status(500).json({ error: 'Server error generating quiz' });
+  }
+};
+
+// Get chat suggestions based on conversation context
+export const getChatSuggestions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get last interaction for context
+    const lastInteraction = await prisma.aIInteraction.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        userMessage: true,
+        aiResponse: true,
+        context: true,
+      },
+    });
+
+    // Default suggestions for new users or no context
+    const defaultSuggestions = [
+      "What programs does the College of Science offer?",
+      "Tell me about the Computer Science curriculum",
+      "Who are the faculty members?",
+      "What are the admission requirements?",
+      "Help me with my studies",
+    ];
+
+    if (!lastInteraction) {
+      res.json({ suggestions: defaultSuggestions });
+      return;
+    }
+
+    // Generate contextual suggestions using simple Markov-like logic
+    const contextualSuggestions: string[] = [];
+    const lastResponse = lastInteraction.aiResponse.toLowerCase();
+    const lastQuestion = lastInteraction.userMessage.toLowerCase();
+
+    // Add follow-up suggestions based on context
+    if (lastResponse.includes('program') || lastQuestion.includes('program')) {
+      contextualSuggestions.push("What are the subjects in this program?");
+      contextualSuggestions.push("What careers can I pursue with this degree?");
+    }
+    if (lastResponse.includes('curriculum') || lastResponse.includes('subject')) {
+      contextualSuggestions.push("Tell me about 2nd year subjects");
+      contextualSuggestions.push("What are the prerequisites?");
+    }
+    if (lastResponse.includes('faculty') || lastResponse.includes('professor')) {
+      contextualSuggestions.push("What are their consultation hours?");
+      contextualSuggestions.push("What subjects do they teach?");
+    }
+    if (lastResponse.includes('enrollment') || lastResponse.includes('admission')) {
+      contextualSuggestions.push("What documents do I need?");
+      contextualSuggestions.push("When is the enrollment period?");
+    }
+
+    // Add general follow-ups
+    contextualSuggestions.push("Can you explain more about that?");
+    contextualSuggestions.push("Generate a quiz on this topic");
+
+    // Combine and limit suggestions
+    const suggestions = [...new Set([...contextualSuggestions, ...defaultSuggestions])].slice(0, 5);
+
+    res.json({ suggestions, hasContext: true });
+  } catch (error) {
+    console.error('Get chat suggestions error:', error);
+    res.status(500).json({ error: 'Server error getting suggestions' });
+  }
+};
+
 // Rate AI response (feedback mechanism)
 export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

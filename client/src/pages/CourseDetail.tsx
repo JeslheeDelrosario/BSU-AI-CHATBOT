@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/Toast';
 import api from '../lib/api';
 import { BookOpen, Clock, Users, Play, CheckCircle, Lock, ArrowLeft, Brain, Zap } from 'lucide-react';
 
@@ -9,6 +10,7 @@ export default function CourseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
@@ -35,9 +37,9 @@ export default function CourseDetail() {
     try {
       await api.post('/courses/enroll', { courseId: id });
       setIsEnrolled(true);
-      alert('Successfully enrolled! Welcome to the course.');
+      showToast({ type: 'success', title: 'Enrolled Successfully!', message: 'Welcome to the course. Start learning now!' });
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to enroll');
+      showToast({ type: 'error', title: 'Enrollment Failed', message: error.response?.data?.error || 'Failed to enroll. Please try again.' });
     } finally {
       setEnrolling(false);
     }

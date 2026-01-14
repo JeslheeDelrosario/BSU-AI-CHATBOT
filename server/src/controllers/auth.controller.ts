@@ -182,6 +182,79 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
   }
 };
 
+// UPDATE USER PROFILE
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { firstName, lastName } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+      },
+    });
+
+    res.json({ user: updatedUser, message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Server error updating profile' });
+  }
+};
+
+// UPDATE ACCESSIBILITY SETTINGS
+export const updateAccessibilitySettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { fontSize, fontFamily, colorScheme, textToSpeechEnabled, captionsEnabled, ttsSpeed } = req.body;
+
+    // Upsert accessibility settings (create if not exists, update if exists)
+    const settings = await prisma.accessibilitySettings.upsert({
+      where: { userId },
+      update: {
+        ...(fontSize !== undefined && { fontSize }),
+        ...(fontFamily && { fontFamily }),
+        ...(colorScheme && { colorScheme }),
+        ...(textToSpeechEnabled !== undefined && { textToSpeechEnabled }),
+        ...(captionsEnabled !== undefined && { captionsEnabled }),
+        ...(ttsSpeed !== undefined && { ttsSpeed }),
+      },
+      create: {
+        userId,
+        fontSize: fontSize || 16,
+        fontFamily: fontFamily || 'Inter',
+        colorScheme: colorScheme || 'default',
+        textToSpeechEnabled: textToSpeechEnabled || false,
+        captionsEnabled: captionsEnabled || false,
+        ttsSpeed: ttsSpeed || 1.0,
+      },
+    });
+
+    res.json({ settings, message: 'Accessibility settings updated successfully' });
+  } catch (error) {
+    console.error('Update accessibility settings error:', error);
+    res.status(500).json({ error: 'Server error updating accessibility settings' });
+  }
+};
+
 // USER DATA
 export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

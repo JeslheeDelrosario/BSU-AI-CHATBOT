@@ -1,26 +1,28 @@
 // client/src/pages/Settings.tsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useToast } from '../components/Toast';
 import api from '../lib/api';
 import { User, Bell, Accessibility, Save, Eye, Type, Volume2 } from 'lucide-react';
 
 export default function Settings() {
   const { user } = useAuth();
+  const { settings: accessibilitySettings, updateSettings: updateAccessibility, saveSettings: saveAccessibilitySettings } = useAccessibility();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
 
-  const [settings, setSettings] = useState({
+  const [profileSettings, setProfileSettings] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    textToSpeech: false,
-    speechToText: false,
-    highContrast: false,
-    dyslexiaFont: false,
-    fontSize: 16,
-    screenReader: false,
-    keyboardNav: false,
-    captionsEnabled: false,
+  });
+
+  const [notificationSettings, setNotificationSettings] = useState({
+    courseUpdates: true,
+    achievements: true,
+    weeklyReport: true,
   });
 
   useEffect(() => {
@@ -30,10 +32,12 @@ export default function Settings() {
   const fetchSettings = async () => {
     try {
       const response = await api.get('/auth/me');
-      if (response.data.user.accessibilitySettings) {
-        setSettings(prev => ({
+      if (response.data.user) {
+        setProfileSettings(prev => ({
           ...prev,
-          ...response.data.user.accessibilitySettings,
+          firstName: response.data.user.firstName || prev.firstName,
+          lastName: response.data.user.lastName || prev.lastName,
+          email: response.data.user.email || prev.email,
         }));
       }
     } catch (error) {
@@ -44,10 +48,34 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('Settings saved successfully!');
+      // Save accessibility settings
+      const accessibilitySaved = await saveAccessibilitySettings();
+      
+      // Save profile settings
+      await api.put('/auth/profile', {
+        firstName: profileSettings.firstName,
+        lastName: profileSettings.lastName,
+      });
+
+      if (accessibilitySaved) {
+        showToast({
+          type: 'success',
+          title: 'Settings Saved',
+          message: 'Your preferences have been updated successfully.',
+        });
+      } else {
+        showToast({
+          type: 'warning',
+          title: 'Partially Saved',
+          message: 'Profile saved, but some accessibility settings may not have persisted.',
+        });
+      }
     } catch (error) {
-      alert('Failed to save settings');
+      showToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Failed to save settings. Please try again.',
+      });
     } finally {
       setSaving(false);
     }
@@ -135,8 +163,8 @@ export default function Settings() {
                       <label className="block text-cyan-400 font-semibold mb-3 text-sm sm:text-base">First Name</label>
                       <input
                         type="text"
-                        value={settings.firstName}
-                        onChange={(e) => setSettings({ ...settings, firstName: e.target.value })}
+                        value={profileSettings.firstName}
+                        onChange={(e) => setProfileSettings({ ...profileSettings, firstName: e.target.value })}
                         className="w-full px-5 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
                       />
                     </div>
@@ -144,8 +172,8 @@ export default function Settings() {
                       <label className="block text-cyan-400 font-semibold mb-3 text-sm sm:text-base">Last Name</label>
                       <input
                         type="text"
-                        value={settings.lastName}
-                        onChange={(e) => setSettings({ ...settings, lastName: e.target.value })}
+                        value={profileSettings.lastName}
+                        onChange={(e) => setProfileSettings({ ...profileSettings, lastName: e.target.value })}
                         className="w-full px-5 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
                       />
                     </div>
@@ -153,7 +181,7 @@ export default function Settings() {
                       <label className="block text-cyan-400 font-semibold mb-3 text-sm sm:text-base">Email</label>
                       <input
                         type="email"
-                        value={settings.email}
+                        value={profileSettings.email}
                         disabled
                         className="w-full px-5 py-4 bg-card/40 border border-border/50 rounded-2xl text-muted-foreground cursor-not-allowed"
                       />
@@ -199,15 +227,15 @@ export default function Settings() {
                       icon={Eye}
                       title="High Contrast Mode"
                       description="Increase contrast for better visibility"
-                      checked={settings.highContrast}
-                      onChange={(v) => setSettings({ ...settings, highContrast: v })}
+                      checked={accessibilitySettings.highContrast}
+                      onChange={(v) => updateAccessibility({ highContrast: v })}
                     />
                     <SettingCard
                       icon={Type}
                       title="Dyslexia-Friendly Font"
                       description="Use OpenDyslexic font"
-                      checked={settings.dyslexiaFont}
-                      onChange={(v) => setSettings({ ...settings, dyslexiaFont: v })}
+                      checked={accessibilitySettings.dyslexiaFont}
+                      onChange={(v) => updateAccessibility({ dyslexiaFont: v })}
                     />
 
                     <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
@@ -219,17 +247,17 @@ export default function Settings() {
                             <p className="text-muted-foreground">Adjust text size across the platform</p>
                           </div>
                         </div>
-                        <span className="text-xl sm:text-2xl font-bold text-cyan-400">{settings.fontSize}px</span>
+                        <span className="text-xl sm:text-2xl font-bold text-cyan-400">{accessibilitySettings.fontSize}px</span>
                       </div>
                       <input
                         type="range"
                         min="12"
                         max="28"
-                        value={settings.fontSize}
-                        onChange={(e) => setSettings({ ...settings, fontSize: parseInt(e.target.value) })}
+                        value={accessibilitySettings.fontSize}
+                        onChange={(e) => updateAccessibility({ fontSize: parseInt(e.target.value) })}
                         className="w-full h-3 bg-muted/40 rounded-full appearance-none cursor-pointer"
                         style={{
-                          background: `linear-gradient(to right, #06b6d4 ${((settings.fontSize - 12) / 16) * 100}%, #475569 ${((settings.fontSize - 12) / 16) * 100}%)`
+                          background: `linear-gradient(to right, #06b6d4 ${((accessibilitySettings.fontSize - 12) / 16) * 100}%, #475569 ${((accessibilitySettings.fontSize - 12) / 16) * 100}%)`
                         }}
                       />
                     </div>
@@ -239,9 +267,9 @@ export default function Settings() {
                 <section>
                   <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">Audio & Speech</h3>
                   <div className="space-y-6">
-                    <SettingCard icon={Volume2} title="Text-to-Speech" description="Read content aloud" checked={false} onChange={() => {}} />
-                    <SettingCard icon={Volume2} title="Speech-to-Text" description="Voice input for assignments" checked={false} onChange={() => {}} />
-                    <SettingCard icon={Volume2} title="Captions" description="Show captions on videos" checked={false} onChange={() => {}} />
+                    <SettingCard icon={Volume2} title="Text-to-Speech" description="Read content aloud" checked={accessibilitySettings.textToSpeech} onChange={(v) => updateAccessibility({ textToSpeech: v })} />
+                    <SettingCard icon={Volume2} title="Speech-to-Text" description="Voice input for assignments" checked={accessibilitySettings.speechToText} onChange={(v) => updateAccessibility({ speechToText: v })} />
+                    <SettingCard icon={Volume2} title="Captions" description="Show captions on videos" checked={accessibilitySettings.captionsEnabled} onChange={(v) => updateAccessibility({ captionsEnabled: v })} />
                   </div>
                 </section>
               </div>
@@ -252,9 +280,9 @@ export default function Settings() {
               <div className="space-y-8">
                 <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">Email Notifications</h3>
                 <div className="space-y-6">
-                  <SettingCard title="Course Updates" description="New lessons and announcements" checked={true} onChange={() => {}} />
-                  <SettingCard title="Achievement Unlocked" description="When you earn badges" checked={true} onChange={() => {}} />
-                  <SettingCard title="Weekly Progress Report" description="Summary of your learning" checked={true} onChange={() => {}} />
+                  <SettingCard title="Course Updates" description="New lessons and announcements" checked={notificationSettings.courseUpdates} onChange={(v) => setNotificationSettings({ ...notificationSettings, courseUpdates: v })} />
+                  <SettingCard title="Achievement Unlocked" description="When you earn badges" checked={notificationSettings.achievements} onChange={(v) => setNotificationSettings({ ...notificationSettings, achievements: v })} />
+                  <SettingCard title="Weekly Progress Report" description="Summary of your learning" checked={notificationSettings.weeklyReport} onChange={(v) => setNotificationSettings({ ...notificationSettings, weeklyReport: v })} />
                 </div>
               </div>
             )}

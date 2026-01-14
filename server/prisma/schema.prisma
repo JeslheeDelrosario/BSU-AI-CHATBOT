@@ -384,14 +384,34 @@ model ChatSession {
 }
 
 model Faculty {
-  id        String           @id @default(uuid())
-  firstName String
-  middleName String?
-  lastName  String
-  email     String?
-  position  String
-  college   String           @default("College of Science")
-  subjects  FacultySubject[]
+  id                  String           @id @default(uuid())
+  firstName           String
+  middleName          String?
+  lastName            String
+  email               String?
+  position            String
+  college             String           @default("College of Science")
+  officeHours         String?
+  consultationDays    String[]         @default([])
+  consultationStart   String?
+  consultationEnd     String?
+  vacantTime          String?
+  subjects            FacultySubject[]
+  schedules           FacultySchedule[]
+}
+
+model FacultySchedule {
+  id          String   @id @default(uuid())
+  facultyId   String
+  dayOfWeek   String
+  startTime   String
+  endTime     String
+  subject     String?
+  room        String?
+  scheduleType String  @default("CLASS")
+  faculty     Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@index([facultyId])
 }
 
 model Subject {
@@ -421,6 +441,24 @@ model CurriculumEntry {
   updatedAt     DateTime          @updatedAt
   prerequisites String[]          @default([])
   program       UniversityProgram @relation(fields: [programId], references: [id])
+}
+
+model FAQ {
+  id          String   @id @default(uuid())
+  category    String
+  question    String
+  answer      String
+  keywords    String[]
+  viewCount   Int      @default(0)
+  helpful     Int      @default(0)
+  notHelpful  Int      @default(0)
+  isPublished Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
 }
 
 model playing_with_neon {

@@ -3,6 +3,8 @@ import {
   askAITutor,
   getAIHistory,
   rateAIResponse,
+  generateQuiz,
+  getChatSuggestions,
 } from '../controllers/ai-tutor.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -11,5 +13,7 @@ const router = Router();
 router.post('/ask', authenticateToken, askAITutor);
 router.get('/history', authenticateToken, getAIHistory);
 router.post('/:id/rate', authenticateToken, rateAIResponse);
+router.post('/generate-quiz', authenticateToken, generateQuiz);
+router.get('/suggestions', authenticateToken, getChatSuggestions);
 
 export default router;

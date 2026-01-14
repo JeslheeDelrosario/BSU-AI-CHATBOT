@@ -24,8 +24,15 @@ export default function ManageFaculty() {
     lastName: '',
     email: '',
     position: 'Professor',
-    subjectIds: [] as string[]
+    subjectIds: [] as string[],
+    officeHours: '',
+    consultationDays: [] as string[],
+    consultationStart: '',
+    consultationEnd: '',
+    vacantTime: '',
   });
+
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const positions = [
     'Dean', 'Associate Dean', 'Chairperson',
@@ -84,7 +91,12 @@ export default function ManageFaculty() {
           lastName: form.lastName.trim(),
           email: form.email.toLowerCase().trim(),
           position: form.position.trim() || 'Professor',
-          subjectIds: form.subjectIds
+          subjectIds: form.subjectIds,
+          officeHours: form.officeHours.trim() || null,
+          consultationDays: form.consultationDays,
+          consultationStart: form.consultationStart || null,
+          consultationEnd: form.consultationEnd || null,
+          vacantTime: form.vacantTime.trim() || null,
         })
       });
 
@@ -118,7 +130,12 @@ export default function ManageFaculty() {
       lastName: f.lastName || '',
       email: f.email || '',
       position: f.position || 'Professor',
-      subjectIds: f.subjects?.map((s: any) => s.id) || []
+      subjectIds: f.subjects?.map((s: any) => s.id) || [],
+      officeHours: f.officeHours || '',
+      consultationDays: f.consultationDays || [],
+      consultationStart: f.consultationStart || '',
+      consultationEnd: f.consultationEnd || '',
+      vacantTime: f.vacantTime || '',
     });
     setIsAdding(true);
   };
@@ -133,7 +150,12 @@ export default function ManageFaculty() {
       lastName: '',
       email: '',
       position: 'Professor',
-      subjectIds: []
+      subjectIds: [],
+      officeHours: '',
+      consultationDays: [],
+      consultationStart: '',
+      consultationEnd: '',
+      vacantTime: '',
     });
   };
 
@@ -253,6 +275,70 @@ export default function ManageFaculty() {
                     )}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Consultation Hours Section */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Consultation Schedule (Optional)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <input
+                  placeholder="Office Hours (e.g., MWF 9AM-12PM)"
+                  value={form.officeHours}
+                  onChange={e => setForm({ ...form, officeHours: e.target.value })}
+                  className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
+                />
+                <input
+                  placeholder="Vacant Time (e.g., TTh 2PM-4PM)"
+                  value={form.vacantTime}
+                  onChange={e => setForm({ ...form, vacantTime: e.target.value })}
+                  className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">Consultation Days</label>
+                  <div className="flex flex-wrap gap-2">
+                    {daysOfWeek.map(day => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const days = form.consultationDays.includes(day)
+                            ? form.consultationDays.filter(d => d !== day)
+                            : [...form.consultationDays, day];
+                          setForm({ ...form, consultationDays: days });
+                        }}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-all ${
+                          form.consultationDays.includes(day)
+                            ? 'bg-purple-500/30 border-purple-500 text-purple-300'
+                            : 'bg-card/60 border-border text-muted-foreground hover:border-purple-500/50'
+                        }`}
+                      >
+                        {day.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input
+                  type="time"
+                  placeholder="Start Time"
+                  value={form.consultationStart}
+                  onChange={e => setForm({ ...form, consultationStart: e.target.value })}
+                  className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
+                />
+                <input
+                  type="time"
+                  placeholder="End Time"
+                  value={form.consultationEnd}
+                  onChange={e => setForm({ ...form, consultationEnd: e.target.value })}
+                  className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
+                />
               </div>
             </div>
 
