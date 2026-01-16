@@ -11,6 +11,7 @@ interface AccessibilitySettings {
   captionsEnabled: boolean;
   screenReader: boolean;
   keyboardNav: boolean;
+  language: 'en' | 'fil';
 }
 
 interface AccessibilityContextType {
@@ -31,6 +32,7 @@ const defaultSettings: AccessibilitySettings = {
   captionsEnabled: false,
   screenReader: false,
   keyboardNav: false,
+  language: 'en',
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | null>(null);
@@ -93,6 +95,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
             dyslexiaFont: serverSettings.fontFamily === 'OpenDyslexic' || prev.dyslexiaFont,
             textToSpeech: serverSettings.textToSpeechEnabled || prev.textToSpeech,
             captionsEnabled: serverSettings.captionsEnabled || prev.captionsEnabled,
+            language: serverSettings.language || prev.language,
           }));
         }
       } catch (error) {
@@ -117,6 +120,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         colorScheme: settings.highContrast ? 'high-contrast' : 'default',
         textToSpeechEnabled: settings.textToSpeech,
         captionsEnabled: settings.captionsEnabled,
+        language: settings.language,
       });
       return true;
     } catch (error) {

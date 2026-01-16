@@ -122,15 +122,6 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
       return;
     }
 
-    // ✅ CREATE NEW CHAT SESSION AUTOMATICALLY ON LOGIN
-    await prisma.chatSession.create({
-      data: {
-        userId: user.id,
-        title: "New Chat",
-        messages: [],
-      },
-    });
-
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'secret',
@@ -224,7 +215,7 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
       return;
     }
 
-    const { fontSize, fontFamily, colorScheme, textToSpeechEnabled, captionsEnabled, ttsSpeed } = req.body;
+    const { fontSize, fontFamily, colorScheme, textToSpeechEnabled, captionsEnabled, ttsSpeed, language } = req.body;
 
     // Upsert accessibility settings (create if not exists, update if exists)
     const settings = await prisma.accessibilitySettings.upsert({
@@ -236,6 +227,7 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
         ...(textToSpeechEnabled !== undefined && { textToSpeechEnabled }),
         ...(captionsEnabled !== undefined && { captionsEnabled }),
         ...(ttsSpeed !== undefined && { ttsSpeed }),
+        ...(language && { language }),
       },
       create: {
         userId,
@@ -245,6 +237,7 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
         textToSpeechEnabled: textToSpeechEnabled || false,
         captionsEnabled: captionsEnabled || false,
         ttsSpeed: ttsSpeed || 1.0,
+        language: language || 'en',
       },
     });
 

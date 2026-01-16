@@ -1,10 +1,14 @@
 // client/src/pages/MyCourses.tsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import api from '../lib/api';
 import { BookOpen, TrendingUp } from 'lucide-react';
 
 export default function MyCourses() {
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,10 +41,10 @@ export default function MyCourses() {
       {/* Page Title */}
       <div className="text-center mb-12 lg:mb-14 px-6">
         <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 pb-2 md:pb-3 leading-tight md:leading-snug">
-          My Courses
+          {t.courses.myCourses}
         </h1>
         <p className="text-xl md:text-2xl text-slate-700 dark:text-gray-300 font-light tracking-wide">
-          Pick up where you left off — your learning journey continues.
+          {accessibilitySettings.language === 'fil' ? 'Magpatuloy kung saan ka tumigil — ang iyong paglalakbay sa pag-aaral ay nagpapatuloy.' : 'Pick up where you left off — your learning journey continues.'}
         </p>
       </div>
 
@@ -51,17 +55,17 @@ export default function MyCourses() {
             <BookOpen className="w-20 h-20 text-cyan-400" />
           </div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
-            No courses enrolled yet
+            {t.courses.noEnrolled}
           </h2>
           <p className="text-slate-700 dark:text-gray-400 text-lg mb-10">
-            Start your learning journey with our AI-powered courses.
+            {accessibilitySettings.language === 'fil' ? 'Simulan ang iyong paglalakbay sa pag-aaral gamit ang aming AI-powered na mga kurso.' : 'Start your learning journey with our AI-powered courses.'}
           </p>
           <Link
             to="/courses"
             className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-2xl hover:from-cyan-400 hover:to-purple-500 transform hover:scale-105 transition-all duration-300"
           >
             <BookOpen className="w-6 h-6" />
-            Browse All Courses
+            {accessibilitySettings.language === 'fil' ? 'Tingnan ang Lahat ng Kurso' : 'Browse All Courses'}
           </Link>
         </div>
       ) : (
@@ -94,7 +98,7 @@ export default function MyCourses() {
                     {/* Progress Section */}
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-600 dark:text-gray-400">Progress</span>
+                        <span className="text-slate-600 dark:text-gray-400">{accessibilitySettings.language === 'fil' ? 'Progreso' : 'Progress'}</span>
                         <span className="font-bold text-cyan-500 dark:text-cyan-300">
                           {Math.round(enrollment.progress)}%
                         </span>
@@ -114,7 +118,7 @@ export default function MyCourses() {
                   <div className="mt-6 flex items-center gap-3 text-slate-700 dark:text-gray-300">
                     <TrendingUp className="w-5 h-5 text-purple-400" />
                     <span className="text-sm font-medium">
-                      {enrollment.course._count?.lessons || 0} lessons
+                      {enrollment.course._count?.lessons || 0} {accessibilitySettings.language === 'fil' ? 'aralin' : 'lessons'}
                     </span>
                   </div>
                 </div>

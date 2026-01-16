@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -27,6 +29,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { sidebarOpen, setSidebarOpen } = useSidebar();
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   // const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState(false);
@@ -60,17 +64,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Browse Courses', href: '/courses', icon: BookOpen },
-    { name: 'My Courses', href: '/my-courses', icon: GraduationCap },
-    { name: 'AI Tutor', href: '/ai-tutor', icon: MessageSquare },
-    { name: 'Settings', href: '/settings', icon: SettingsIcon },
+    { name: t.nav.dashboard, href: '/dashboard', icon: LayoutDashboard },
+    { name: t.courses.title, href: '/courses', icon: BookOpen },
+    { name: t.courses.myCourses, href: '/my-courses', icon: GraduationCap },
+    { name: t.nav.aiTutor, href: '/ai-tutor', icon: MessageSquare },
+    { name: t.nav.settings, href: '/settings', icon: SettingsIcon },
   ];
 
   const adminNavigation = [
-    { name: 'CS Programs', href: '/AdminCOSPrograms', icon: GraduationCap },
-    { name: 'Faculty Management', href: '/AdminFaculty', icon: Users },
-    { name: 'Curriculum', href: '/AdminCurriculum', icon: BookMarked },
+    { name: t.programs.title, href: '/AdminCOSPrograms', icon: GraduationCap },
+    { name: t.faculty.title, href: '/AdminFaculty', icon: Users },
+    { name: t.curriculum.title, href: '/AdminCurriculum', icon: BookMarked },
   ];
 
   const handleLogout = () => {

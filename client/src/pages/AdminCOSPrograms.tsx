@@ -5,6 +5,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from "../contexts/AuthContext";
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import { GraduationCap, Plus, Trash2, Loader2 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -16,6 +18,8 @@ interface Program {
 
 export default function COSPrograms() {
   const { user } = useAuth();
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newAbbr, setNewAbbr] = useState('');
@@ -53,7 +57,7 @@ export default function COSPrograms() {
       setNewAbbr('');
       fetchPrograms();
     } catch (err) {
-      alert("Failed to add program. Please try again.");
+      alert(accessibilitySettings.language === 'fil' ? 'Nabigo ang pagdagdag ng programa. Subukan muli.' : 'Failed to add program. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -61,13 +65,13 @@ export default function COSPrograms() {
   };
 
   const deleteProgram = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this program?')) return;
+    if (!confirm(accessibilitySettings.language === 'fil' ? 'Sigurado ka bang gusto mong tanggalin ang programang ito?' : 'Are you sure you want to delete this program?')) return;
     try {
       await api.delete(`/admin/cos-programs/${id}`);
       fetchPrograms();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete program.");
+      alert(accessibilitySettings.language === 'fil' ? 'Nabigo ang pagtanggal ng programa.' : 'Failed to delete program.');
     }
   };
 
@@ -92,11 +96,11 @@ export default function COSPrograms() {
         <div className="flex flex-col items-center gap-4 sm:gap-6">
           <GraduationCap className="w-16 h-16 sm:w-20 sm:h-20 text-cyan-500" />
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent pb-1 md:pb-4 leading-tight md:leading-snug inline-block">
-            Manage COS Programs
+            {t.programs.title}
           </h1>
         </div>
         <p className="mt-4 text-lg sm:text-xl text-muted-foreground">
-          Bulacan State University • College of Science
+          {accessibilitySettings.language === 'fil' ? 'Bulacan State University • Kolehiyo ng Agham' : 'Bulacan State University • College of Science'}
         </p>
       </div>
 
@@ -106,13 +110,13 @@ export default function COSPrograms() {
         <div className="bg-card/80 backdrop-blur-xl rounded-3xl border border-border shadow-xl p-8 lg:p-10">
           <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-8 flex items-center gap-4">
             <Plus className="w-9 h-9 lg:w-10 lg:h-10 text-cyan-500" />
-            Add New Program
+            {accessibilitySettings.language === 'fil' ? 'Magdagdag ng Bagong Programa' : 'Add New Program'}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <input
               type="text"
-              placeholder="Full Program Title (e.g. Bachelor of Science in Information Technology)"
+              placeholder={accessibilitySettings.language === 'fil' ? 'Buong Titulo ng Programa (hal. Bachelor of Science in Information Technology)' : 'Full Program Title (e.g. Bachelor of Science in Information Technology)'}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProgram()}
@@ -120,7 +124,7 @@ export default function COSPrograms() {
             />
             <input
               type="text"
-              placeholder="Abbreviation (e.g. BSIT)"
+              placeholder={accessibilitySettings.language === 'fil' ? 'Abbreviation (hal. BSIT)' : 'Abbreviation (e.g. BSIT)'}
               value={newAbbr}
               onChange={(e) => setNewAbbr(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProgram()}
@@ -150,12 +154,12 @@ export default function COSPrograms() {
             {loading ? (
               <>
                 <Loader2 className="w-6 h-6 animate-spin" />
-                Adding...
+                {accessibilitySettings.language === 'fil' ? 'Dinaragdag...' : 'Adding...'}
               </>
             ) : (
               <>
                 <Plus className="w-6 h-6" />
-                Add Program
+                {accessibilitySettings.language === 'fil' ? 'Magdagdag ng Programa' : 'Add Program'}
               </>
             )}
           </button>
@@ -166,24 +170,24 @@ export default function COSPrograms() {
         <div className="bg-card/80 backdrop-blur-xl rounded-3xl border border-border shadow-xl overflow-hidden">
           <div className="p-8 lg:p-10 border-b border-border bg-card/60">
             <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
-              Current Official Programs
+              {accessibilitySettings.language === 'fil' ? 'Kasalukuyang Opisyal na Programa' : 'Current Official Programs'}
               <span className="text-cyan-500 ml-4">({programs.length})</span>
             </h2>
             <p className="mt-2 text-muted-foreground text-lg">
-              Visible to students • Used by TISA AI
+              {accessibilitySettings.language === 'fil' ? 'Nakikita ng mga estudyante • Ginagamit ng TISA AI' : 'Visible to students • Used by TISA AI'}
             </p>
           </div>
 
           {fetching ? (
             <div className="p-16 lg:p-20 text-center">
               <Loader2 className="w-16 h-16 lg:w-20 lg:h-20 text-cyan-500 animate-spin mx-auto" />
-              <p className="mt-6 text-xl lg:text-2xl text-muted-foreground">Loading programs...</p>
+              <p className="mt-6 text-xl lg:text-2xl text-muted-foreground">{accessibilitySettings.language === 'fil' ? 'Naglo-load ng mga programa...' : 'Loading programs...'}</p>
             </div>
           ) : programs.length === 0 ? (
             <div className="p-16 lg:p-20 text-center">
-              <div className="text-5xl lg:text-6xl mb-6 text-muted-foreground/60">No programs found</div>
+              <div className="text-5xl lg:text-6xl mb-6 text-muted-foreground/60">{accessibilitySettings.language === 'fil' ? 'Walang nahanap na programa' : 'No programs found'}</div>
               <p className="text-lg lg:text-xl text-muted-foreground">
-                Start by adding your first program above
+                {accessibilitySettings.language === 'fil' ? 'Magsimula sa pamamagitan ng pagdagdag ng iyong unang programa sa itaas' : 'Start by adding your first program above'}
               </p>
             </div>
           ) : (
@@ -217,7 +221,7 @@ export default function COSPrograms() {
                     hover:brightness-110
                     transform hover:scale-105 
                     transition-all duration-300 font-medium text-sm lg:text-base">
-                    Active Program
+                    {accessibilitySettings.language === 'fil' ? 'Aktibong Programa' : 'Active Program'}
                   </div>
                 </div>
               ))}

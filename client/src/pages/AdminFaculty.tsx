@@ -3,11 +3,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from "../contexts/AuthContext";
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import { UserPlus, Trash2, Loader2, Edit2, X, Check } from 'lucide-react';
 
 export default function ManageFaculty() {
   const token = localStorage.getItem("token");
   const { user } = useAuth();
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
 
   const [faculty, setFaculty] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -178,10 +182,10 @@ export default function ManageFaculty() {
       {/* Header */}
       <div className="max-w-7xl mx-auto px-6 py-10 lg:py-12 text-center mb-10">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-4 pb-1 md:pb-4 leading-tight md:leading-snug inline-block">
-          Manage Faculty Members
+          {t.faculty.title}
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground">
-          College of Science • Bulacan State University
+          {accessibilitySettings.language === 'fil' ? 'Kolehiyo ng Agham • Bulacan State University' : 'College of Science • Bulacan State University'}
         </p>
       </div>
 
@@ -193,7 +197,7 @@ export default function ManageFaculty() {
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-3xl lg:text-4xl font-bold text-foreground flex items-center gap-4">
                 <UserPlus className="w-9 h-9 lg:w-10 lg:h-10 text-cyan-500" />
-                {editingId ? 'Edit' : 'Add New'} Faculty Member
+                {editingId ? (accessibilitySettings.language === 'fil' ? 'I-edit' : 'Edit') : (accessibilitySettings.language === 'fil' ? 'Magdagdag ng Bago' : 'Add New')} {accessibilitySettings.language === 'fil' ? 'Miyembro ng Faculty' : 'Faculty Member'}
               </h2>
               <button 
                 onClick={resetForm} 
@@ -206,19 +210,19 @@ export default function ManageFaculty() {
             {/* Name Fields */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <input
-                placeholder="First Name"
+                placeholder={accessibilitySettings.language === 'fil' ? 'Pangalan' : 'First Name'}
                 value={form.firstName}
                 onChange={e => setForm({ ...form, firstName: e.target.value })}
                 className="px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
               />
               <input
-                placeholder="Middle Name / M.I. (Optional)"
+                placeholder={accessibilitySettings.language === 'fil' ? 'Gitnang Pangalan / M.I. (Opsyonal)' : 'Middle Name / M.I. (Optional)'}
                 value={form.middleName}
                 onChange={e => setForm({ ...form, middleName: e.target.value })}
                 className="px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
               />
               <input
-                placeholder="Last Name"
+                placeholder={accessibilitySettings.language === 'fil' ? 'Apelyido' : 'Last Name'}
                 value={form.lastName}
                 onChange={e => setForm({ ...form, lastName: e.target.value })}
                 className="px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
@@ -229,7 +233,7 @@ export default function ManageFaculty() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
               <input
                 type="email"
-                placeholder="Email Address"
+                placeholder={accessibilitySettings.language === 'fil' ? 'Email Address' : 'Email Address'}
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
                 className="px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
@@ -239,7 +243,7 @@ export default function ManageFaculty() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search or type position..."
+                  placeholder={accessibilitySettings.language === 'fil' ? 'Maghanap o mag-type ng posisyon...' : 'Search or type position...'}
                   value={form.position}
                   onChange={e => setForm({ ...form, position: e.target.value })}
                   onFocus={() => setPositionDropdownOpen(true)}
@@ -256,7 +260,7 @@ export default function ManageFaculty() {
                   <div className="absolute top-full left-0 mt-2 w-full bg-card border border-border rounded-2xl shadow-2xl max-h-80 overflow-y-auto z-50 backdrop-blur-xl">
                     {filteredPositions.length === 0 ? (
                       <div className="px-6 py-5 text-muted-foreground text-center italic">
-                        {form.position ? 'No match — custom position allowed' : 'Start typing...'}
+                        {form.position ? (accessibilitySettings.language === 'fil' ? 'Walang tugma — custom na posisyon ay pinapayagan' : 'No match — custom position allowed') : (accessibilitySettings.language === 'fil' ? 'Magsimulang mag-type...' : 'Start typing...')}
                       </div>
                     ) : (
                       filteredPositions.map(pos => (
@@ -284,17 +288,17 @@ export default function ManageFaculty() {
                 <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Consultation Schedule (Optional)
+                {accessibilitySettings.language === 'fil' ? 'Iskedyul ng Konsultasyon (Opsyonal)' : 'Consultation Schedule (Optional)'}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <input
-                  placeholder="Office Hours (e.g., MWF 9AM-12PM)"
+                  placeholder={accessibilitySettings.language === 'fil' ? 'Oras sa Opisina (hal., MWF 9AM-12PM)' : 'Office Hours (e.g., MWF 9AM-12PM)'}
                   value={form.officeHours}
                   onChange={e => setForm({ ...form, officeHours: e.target.value })}
                   className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
                 />
                 <input
-                  placeholder="Vacant Time (e.g., TTh 2PM-4PM)"
+                  placeholder={accessibilitySettings.language === 'fil' ? 'Bakanteng Oras (hal., TTh 2PM-4PM)' : 'Vacant Time (e.g., TTh 2PM-4PM)'}
                   value={form.vacantTime}
                   onChange={e => setForm({ ...form, vacantTime: e.target.value })}
                   className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
@@ -302,7 +306,7 @@ export default function ManageFaculty() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-2">Consultation Days</label>
+                  <label className="block text-sm text-muted-foreground mb-2">{accessibilitySettings.language === 'fil' ? 'Mga Araw ng Konsultasyon' : 'Consultation Days'}</label>
                   <div className="flex flex-wrap gap-2">
                     {daysOfWeek.map(day => (
                       <button
@@ -348,7 +352,7 @@ export default function ManageFaculty() {
                 onClick={resetForm}
                 className="px-8 py-4 bg-muted/20 border border-border text-foreground rounded-2xl hover:bg-muted/40 transition-all"
               >
-                Cancel
+                {accessibilitySettings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
               </button>
               <button
                 onClick={handleSubmit}
@@ -374,12 +378,12 @@ export default function ManageFaculty() {
                 {loading ? (
                   <>
                     <Loader2 className="w-6 h-6 animate-spin" />
-                    Saving...
+                    {accessibilitySettings.language === 'fil' ? 'Sine-save...' : 'Saving...'}
                   </>
                 ) : (
                   <>
                     <Check className="w-6 h-6" />
-                    {editingId ? 'Update Faculty' : 'Add Faculty'}
+                    {editingId ? (accessibilitySettings.language === 'fil' ? 'I-update ang Faculty' : 'Update Faculty') : (accessibilitySettings.language === 'fil' ? 'Magdagdag ng Faculty' : 'Add Faculty')}
                   </>
                 )}
               </button>
@@ -392,10 +396,10 @@ export default function ManageFaculty() {
           <div className="p-8 lg:p-10 border-b border-border bg-card/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
             <div>
               <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
-                Faculty Members
+                {accessibilitySettings.language === 'fil' ? 'Mga Miyembro ng Faculty' : 'Faculty Members'}
                 <span className="text-cyan-500 ml-4">({faculty.length})</span>
               </h2>
-              <p className="text-muted-foreground mt-2">College of Science • Active Teaching Staff</p>
+              <p className="text-muted-foreground mt-2">{accessibilitySettings.language === 'fil' ? 'Kolehiyo ng Agham • Aktibong Teaching Staff' : 'College of Science • Active Teaching Staff'}</p>
             </div>
             <button
               onClick={() => setIsAdding(true)}
@@ -417,7 +421,7 @@ export default function ManageFaculty() {
               "
             >
               <UserPlus className="w-6 h-6" />
-              Add Faculty
+              {accessibilitySettings.language === 'fil' ? 'Magdagdag ng Faculty' : 'Add Faculty'}
             </button>
           </div>
 
@@ -427,9 +431,9 @@ export default function ManageFaculty() {
             </div>
           ) : faculty.length === 0 ? (
             <div className="p-16 lg:p-20 text-center">
-              <p className="text-3xl lg:text-4xl text-muted-foreground mb-4">No faculty members yet</p>
+              <p className="text-3xl lg:text-4xl text-muted-foreground mb-4">{accessibilitySettings.language === 'fil' ? 'Wala pang miyembro ng faculty' : 'No faculty members yet'}</p>
               <p className="text-lg lg:text-xl text-muted-foreground">
-                Click "Add Faculty" to begin
+                {accessibilitySettings.language === 'fil' ? 'I-click ang "Magdagdag ng Faculty" upang magsimula' : 'Click "Add Faculty" to begin'}
               </p>
             </div>
           ) : (
@@ -465,7 +469,7 @@ export default function ManageFaculty() {
 
                   {f.subjects?.length > 0 && (
                     <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-3">Teaches:</p>
+                      <p className="text-sm font-semibold text-muted-foreground mb-3">{accessibilitySettings.language === 'fil' ? 'Nagtuturo ng:' : 'Teaches:'}</p>
                       <div className="flex flex-wrap gap-2">
                         {f.subjects.map((s: any) => (
                           <span 

@@ -4,12 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useToast } from '../components/Toast';
 import api from '../lib/api';
-import { User, Bell, Accessibility, Save, Eye, Type, Volume2 } from 'lucide-react';
+import { User, Bell, Accessibility, Save, Eye, Type, Volume2, Globe } from 'lucide-react';
+import { useTranslation } from '../lib/translations';
 
 export default function Settings() {
   const { user } = useAuth();
   const { settings: accessibilitySettings, updateSettings: updateAccessibility, saveSettings: saveAccessibilitySettings } = useAccessibility();
   const { showToast } = useToast();
+  const t = useTranslation(accessibilitySettings.language);
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
 
@@ -18,6 +20,9 @@ export default function Settings() {
     lastName: user?.lastName || '',
     email: user?.email || '',
   });
+
+  // Local state for pending accessibility changes (only applied on Save)
+  const [pendingAccessibilitySettings, setPendingAccessibilitySettings] = useState(accessibilitySettings);
 
   const [notificationSettings, setNotificationSettings] = useState({
     courseUpdates: true,
@@ -28,6 +33,11 @@ export default function Settings() {
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  // Sync pending settings when accessibility settings load from server
+  useEffect(() => {
+    setPendingAccessibilitySettings(accessibilitySettings);
+  }, [accessibilitySettings]);
 
   const fetchSettings = async () => {
     try {
@@ -41,13 +51,21 @@ export default function Settings() {
         }));
       }
     } catch (error) {
-      console.error('Failed to fetch settings:', error);
+      showToast({ type: 'error', title: t.settings.messages.updateFailed });
     }
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Apply pending accessibility settings
+      Object.keys(pendingAccessibilitySettings).forEach(key => {
+        if (pendingAccessibilitySettings[key as keyof typeof pendingAccessibilitySettings] !== 
+            accessibilitySettings[key as keyof typeof accessibilitySettings]) {
+          updateAccessibility({ [key]: pendingAccessibilitySettings[key as keyof typeof pendingAccessibilitySettings] });
+        }
+      });
+
       // Save accessibility settings
       const accessibilitySaved = await saveAccessibilitySettings();
       
@@ -58,11 +76,7 @@ export default function Settings() {
       });
 
       if (accessibilitySaved) {
-        showToast({
-          type: 'success',
-          title: 'Settings Saved',
-          message: 'Your preferences have been updated successfully.',
-        });
+        showToast({ type: 'success', title: t.settings.messages.profileUpdated });
       } else {
         showToast({
           type: 'warning',
@@ -71,20 +85,16 @@ export default function Settings() {
         });
       }
     } catch (error) {
-      showToast({
-        type: 'error',
-        title: 'Save Failed',
-        message: 'Failed to save settings. Please try again.',
-      });
+      showToast({ type: 'error', title: t.settings.messages.updateFailed });
     } finally {
       setSaving(false);
     }
   };
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'accessibility', label: 'Accessibility', icon: Accessibility },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'profile', label: t.settings.tabs.profile, icon: User },
+    { id: 'accessibility', label: t.settings.tabs.accessibility, icon: Accessibility },
+    { id: 'notifications', label: t.settings.tabs.notifications, icon: Bell },
   ];
 
   return (
@@ -112,10 +122,10 @@ export default function Settings() {
       {/* Page Title */}
       <div className="max-w-5xl mx-auto px-6 text-center mb-8">
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-4 pb-1 md:pb-4 leading-tight md:leading-snug inline-block">
-          Settings
+          {t.settings.title}
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground">
-          Personalize your learning experience
+          {t.settings.description}
         </p>
       </div>
 
@@ -157,10 +167,10 @@ export default function Settings() {
             {activeTab === 'profile' && (
               <div className="space-y-12">
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">Profile Information</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.profile.title}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-cyan-400 font-semibold mb-3 text-sm sm:text-base">First Name</label>
+                      <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.profile.firstName}</label>
                       <input
                         type="text"
                         value={profileSettings.firstName}
@@ -169,7 +179,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-cyan-400 font-semibold mb-3 text-sm sm:text-base">Last Name</label>
+                      <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.profile.lastName}</label>
                       <input
                         type="text"
                         value={profileSettings.lastName}
@@ -178,32 +188,32 @@ export default function Settings() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-cyan-400 font-semibold mb-3 text-sm sm:text-base">Email</label>
+                      <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.profile.email}</label>
                       <input
                         type="email"
                         value={profileSettings.email}
                         disabled
                         className="w-full px-5 py-4 bg-card/40 border border-border/50 rounded-2xl text-muted-foreground cursor-not-allowed"
                       />
-                      <p className="text-sm text-muted-foreground mt-3">Email cannot be changed</p>
+                      <p className="text-sm text-muted-foreground mt-3">{t.settings.profile.emailDescription}</p>
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-7">Learning Preferences</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.notifications.title}</h3>
                   <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                       <div>
-                        <p className="text-xl sm:text-2xl font-bold text-foreground">Learning Style</p>
-                        <p className="text-muted-foreground mt-1">How you best absorb information</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{t.settings.notifications.learningStyle}</p>
+                        <p className="text-muted-foreground mt-1">{t.settings.notifications.learningStyleDescription}</p>
                       </div>
                       <div className="relative">
                         <select className="appearance-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all">
-                          <option>Visual</option>
-                          <option>Auditory</option>
-                          <option>Kinesthetic</option>
-                          <option>Mixed</option>
+                          <option>{t.settings.notifications.learningStyleOptions.visual}</option>
+                          <option>{t.settings.notifications.learningStyleOptions.auditory}</option>
+                          <option>{t.settings.notifications.learningStyleOptions.kinesthetic}</option>
+                          <option>{t.settings.notifications.learningStyleOptions.mixed}</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
                           <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,22 +230,58 @@ export default function Settings() {
             {/* Accessibility Tab */}
             {activeTab === 'accessibility' && (
               <div className="space-y-12">
+                {/* Language Section */}
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">Visual Accessibility</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.accessibility.language.title}</h3>
+                  <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                      <div className="flex items-center gap-5">
+                        <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-xl sm:text-2xl font-bold text-foreground">{t.settings.accessibility.language.systemLanguage}</p>
+                          <p className="text-muted-foreground">{t.settings.accessibility.language.description}</p>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <select 
+                          value={pendingAccessibilitySettings.language}
+                          onChange={(e) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, language: e.target.value as 'en' | 'fil' })}
+                          className="appearance-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all min-w-[180px]"
+                        >
+                          <option value="en">{t.settings.accessibility.language.english}</option>
+                          <option value="fil">{t.settings.accessibility.language.filipino}</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
+                          <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-4">
+                      {pendingAccessibilitySettings.language === 'fil' 
+                        ? '🇵🇭 Ang TISA AI ay sasagot sa Filipino/Tagalog pagkatapos i-save.' 
+                        : '🇺🇸 TISA AI will respond in English after saving.'}
+                    </p>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.accessibility.visual.title}</h3>
                   <div className="space-y-6">
                     <SettingCard
                       icon={Eye}
-                      title="High Contrast Mode"
-                      description="Increase contrast for better visibility"
-                      checked={accessibilitySettings.highContrast}
-                      onChange={(v) => updateAccessibility({ highContrast: v })}
+                      title={t.settings.accessibility.visual.highContrast.title}
+                      description={t.settings.accessibility.visual.highContrast.description}
+                      checked={pendingAccessibilitySettings.highContrast}
+                      onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, highContrast: v })}
                     />
                     <SettingCard
                       icon={Type}
-                      title="Dyslexia-Friendly Font"
-                      description="Use OpenDyslexic font"
-                      checked={accessibilitySettings.dyslexiaFont}
-                      onChange={(v) => updateAccessibility({ dyslexiaFont: v })}
+                      title={t.settings.accessibility.visual.dyslexiaFont.title}
+                      description={t.settings.accessibility.visual.dyslexiaFont.description}
+                      checked={pendingAccessibilitySettings.dyslexiaFont}
+                      onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, dyslexiaFont: v })}
                     />
 
                     <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
@@ -243,21 +289,21 @@ export default function Settings() {
                         <div className="flex items-center gap-5">
                           <Type className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
                           <div>
-                            <p className="text-xl sm:text-2xl font-bold text-foreground">Font Size</p>
-                            <p className="text-muted-foreground">Adjust text size across the platform</p>
+                            <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.accessibility.visual.fontSize.title}</label>
+                            <p className="text-muted-foreground mb-4">{t.settings.accessibility.visual.fontSize.description}</p>
                           </div>
                         </div>
-                        <span className="text-xl sm:text-2xl font-bold text-cyan-400">{accessibilitySettings.fontSize}px</span>
+                        <span className="text-xl sm:text-2xl font-bold text-cyan-400">{pendingAccessibilitySettings.fontSize}px</span>
                       </div>
                       <input
                         type="range"
                         min="12"
                         max="28"
-                        value={accessibilitySettings.fontSize}
-                        onChange={(e) => updateAccessibility({ fontSize: parseInt(e.target.value) })}
+                        value={pendingAccessibilitySettings.fontSize}
+                        onChange={(e) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, fontSize: parseInt(e.target.value) })}
                         className="w-full h-3 bg-muted/40 rounded-full appearance-none cursor-pointer"
                         style={{
-                          background: `linear-gradient(to right, #06b6d4 ${((accessibilitySettings.fontSize - 12) / 16) * 100}%, #475569 ${((accessibilitySettings.fontSize - 12) / 16) * 100}%)`
+                          background: `linear-gradient(to right, #06b6d4 ${((pendingAccessibilitySettings.fontSize - 12) / 16) * 100}%, #475569 ${((pendingAccessibilitySettings.fontSize - 12) / 16) * 100}%)`
                         }}
                       />
                     </div>
@@ -265,11 +311,11 @@ export default function Settings() {
                 </section>
 
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">Audio & Speech</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.accessibility.audio.title}</h3>
                   <div className="space-y-6">
-                    <SettingCard icon={Volume2} title="Text-to-Speech" description="Read content aloud" checked={accessibilitySettings.textToSpeech} onChange={(v) => updateAccessibility({ textToSpeech: v })} />
-                    <SettingCard icon={Volume2} title="Speech-to-Text" description="Voice input for assignments" checked={accessibilitySettings.speechToText} onChange={(v) => updateAccessibility({ speechToText: v })} />
-                    <SettingCard icon={Volume2} title="Captions" description="Show captions on videos" checked={accessibilitySettings.captionsEnabled} onChange={(v) => updateAccessibility({ captionsEnabled: v })} />
+                    <SettingCard icon={Volume2} title={t.settings.accessibility.audio.textToSpeech.title} description={t.settings.accessibility.audio.textToSpeech.description} checked={pendingAccessibilitySettings.textToSpeech} onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, textToSpeech: v })} />
+                    <SettingCard icon={Volume2} title={t.settings.accessibility.audio.speechToText.title} description={t.settings.accessibility.audio.speechToText.description} checked={pendingAccessibilitySettings.speechToText} onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, speechToText: v })} />
+                    <SettingCard icon={Volume2} title={t.settings.accessibility.audio.captions.title} description={t.settings.accessibility.audio.captions.description} checked={pendingAccessibilitySettings.captionsEnabled} onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, captionsEnabled: v })} />
                   </div>
                 </section>
               </div>
@@ -278,10 +324,11 @@ export default function Settings() {
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (
               <div className="space-y-8">
-                <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">Email Notifications</h3>
+                <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.notifications.title}</h3>
                 <div className="space-y-6">
-                  <SettingCard title="Course Updates" description="New lessons and announcements" checked={notificationSettings.courseUpdates} onChange={(v) => setNotificationSettings({ ...notificationSettings, courseUpdates: v })} />
-                  <SettingCard title="Achievement Unlocked" description="When you earn badges" checked={notificationSettings.achievements} onChange={(v) => setNotificationSettings({ ...notificationSettings, achievements: v })} />
+                  <SettingCard title={t.settings.notifications.courseUpdates.title} description={t.settings.notifications.courseUpdates.description} checked={notificationSettings.courseUpdates} onChange={(v) => setNotificationSettings({ ...notificationSettings, courseUpdates: v })} />
+                  <SettingCard title={t.settings.notifications.achievements.title} description={t.settings.notifications.achievements.description} checked={notificationSettings.achievements} onChange={(v) => setNotificationSettings({ ...notificationSettings, achievements: v })} />
+                  <SettingCard title={t.settings.notifications.weeklyReport.title} description={t.settings.notifications.weeklyReport.description} checked={notificationSettings.weeklyReport} onChange={(v) => setNotificationSettings({ ...notificationSettings, weeklyReport: v })} />
                   <SettingCard title="Weekly Progress Report" description="Summary of your learning" checked={notificationSettings.weeklyReport} onChange={(v) => setNotificationSettings({ ...notificationSettings, weeklyReport: v })} />
                 </div>
               </div>

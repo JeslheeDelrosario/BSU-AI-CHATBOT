@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import api from '../lib/api';
 import { BookOpen, Trophy, Clock, TrendingUp, Play, Award, Zap, Target, Brain } from 'lucide-react';
 
@@ -23,6 +25,8 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,12 +67,12 @@ export default function Dashboard() {
       {/* Welcome Header */}
       <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 mb-12 shadow-2xl">
         <h1 className="text-4xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Welcome back, {user?.firstName}!
+          {t.dashboard.welcome}, {user?.firstName}!
         </h1>
         <p className="text-xl lg:text-2xl text-slate-700 dark:text-gray-300 mt-4 font-light tracking-wide">
           {isStudent
-            ? "Ready to level up your knowledge today?"
-            : "Monitoring the future of learning — in real time."}
+            ? (accessibilitySettings.language === 'fil' ? 'Handa ka na bang mag-level up ng iyong kaalaman ngayon?' : 'Ready to level up your knowledge today?')
+            : (accessibilitySettings.language === 'fil' ? 'Pagsubaybay sa kinabukasan ng pag-aaral — real time.' : 'Monitoring the future of learning — in real time.')}
         </p>
       </div>
 
@@ -76,17 +80,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12 max-w-7xl mx-auto px-6">
         {isStudent ? (
           <>
-            <StatCard icon={<BookOpen className="w-10 h-10" />} label="Enrolled" value={stats?.overview.enrolledCourses || 0} gradient="from-cyan-500 to-blue-600" />
-            <StatCard icon={<Trophy className="w-10 h-10" />} label="Completed" value={stats?.overview.completedCourses || 0} gradient="from-purple-500 to-pink-600" />
-            <StatCard icon={<Target className="w-10 h-10" />} label="Avg Score" value={`${Math.round(stats?.overview.averageScore || 0)}%`} gradient="from-indigo-500 to-purple-600" />
-            <StatCard icon={<Clock className="w-10 h-10" />} label="Time Spent" value={formatTime(stats?.overview.totalTimeSpent || 0)} gradient="from-teal-500 to-cyan-600" />
+            <StatCard icon={<BookOpen className="w-10 h-10" />} label={t.dashboard.stats.enrolled} value={stats?.overview.enrolledCourses || 0} gradient="from-cyan-500 to-blue-600" />
+            <StatCard icon={<Trophy className="w-10 h-10" />} label={t.dashboard.stats.completed} value={stats?.overview.completedCourses || 0} gradient="from-purple-500 to-pink-600" />
+            <StatCard icon={<Target className="w-10 h-10" />} label={accessibilitySettings.language === 'fil' ? 'Avg na Marka' : 'Avg Score'} value={`${Math.round(stats?.overview.averageScore || 0)}%`} gradient="from-indigo-500 to-purple-600" />
+            <StatCard icon={<Clock className="w-10 h-10" />} label={t.progress.timeSpent} value={formatTime(stats?.overview.totalTimeSpent || 0)} gradient="from-teal-500 to-cyan-600" />
           </>
         ) : (
           <>
-            <StatCard icon={<Brain className="w-10 h-10" />} label="Total Courses" value={stats?.overview.totalCourses || 0} gradient="from-cyan-500 to-blue-600" />
-            <StatCard icon={<Zap className="w-10 h-10" />} label="Active Students" value={stats?.overview.totalStudents || 0} gradient="from-purple-500 to-pink-600" />
-            <StatCard icon={<TrendingUp className="w-10 h-10" />} label="Enrollments" value={stats?.overview.totalEnrollments || 0} gradient="from-indigo-500 to-purple-600" />
-            <StatCard icon={<Award className="w-10 h-10" />} label="Achievements" value={stats?.achievements?.length || 0} gradient="from-pink-500 to-rose-600" />
+            <StatCard icon={<Brain className="w-10 h-10" />} label={accessibilitySettings.language === 'fil' ? 'Kabuuang Kurso' : 'Total Courses'} value={stats?.overview.totalCourses || 0} gradient="from-cyan-500 to-blue-600" />
+            <StatCard icon={<Zap className="w-10 h-10" />} label={accessibilitySettings.language === 'fil' ? 'Aktibong Estudyante' : 'Active Students'} value={stats?.overview.totalStudents || 0} gradient="from-purple-500 to-pink-600" />
+            <StatCard icon={<TrendingUp className="w-10 h-10" />} label={accessibilitySettings.language === 'fil' ? 'Mga Enrollment' : 'Enrollments'} value={stats?.overview.totalEnrollments || 0} gradient="from-indigo-500 to-purple-600" />
+            <StatCard icon={<Award className="w-10 h-10" />} label={t.dashboard.stats.achievements} value={stats?.achievements?.length || 0} gradient="from-pink-500 to-rose-600" />
           </>
         )}
       </div>
@@ -97,7 +101,7 @@ export default function Dashboard() {
         {/* Recent Activity */}
         <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
           <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
-            {isStudent ? 'Recent Progress' : 'Recent Enrollments'}
+            {isStudent ? (accessibilitySettings.language === 'fil' ? 'Kamakailang Progreso' : 'Recent Progress') : (accessibilitySettings.language === 'fil' ? 'Kamakailang Enrollment' : 'Recent Enrollments')}
           </h2>
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {isStudent ? (
@@ -110,14 +114,14 @@ export default function Dashboard() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-slate-900 dark:text-white truncate">{p.lesson.title}</p>
-                        <p className="text-sm text-slate-600 dark:text-gray-400">{p.completed ? 'Completed' : 'In Progress'}</p>
+                        <p className="text-sm text-slate-600 dark:text-gray-400">{p.completed ? (accessibilitySettings.language === 'fil' ? 'Natapos' : 'Completed') : (accessibilitySettings.language === 'fil' ? 'Ginagawa' : 'In Progress')}</p>
                       </div>
                     </div>
                     {p.score && <span className="text-cyan-400 font-bold text-lg ml-4">{Math.round(p.score)}%</span>}
                   </div>
                 ))
               ) : (
-                <p className="text-center text-slate-600 dark:text-gray-500 py-12">No recent activity yet</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">{accessibilitySettings.language === 'fil' ? 'Wala pang kamakailang aktibidad' : 'No recent activity yet'}</p>
               )
             ) : (
               stats?.recentEnrollments?.length ? (
@@ -131,7 +135,7 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <p className="text-center text-slate-600 dark:text-gray-500 py-12">No recent enrollments</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">{accessibilitySettings.language === 'fil' ? 'Wala pang kamakailang enrollment' : 'No recent enrollments'}</p>
               )
             )}
           </div>
@@ -140,7 +144,7 @@ export default function Dashboard() {
         {/* Achievements / Stats */}
         <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
           <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
-            {isStudent ? 'Recent Achievements' : 'Top Performing Courses'}
+            {isStudent ? (accessibilitySettings.language === 'fil' ? 'Kamakailang Tagumpay' : 'Recent Achievements') : (accessibilitySettings.language === 'fil' ? 'Pinakamahusay na Kurso' : 'Top Performing Courses')}
           </h2>
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {isStudent ? (
@@ -156,7 +160,7 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <p className="text-center text-slate-600 dark:text-gray-500 py-12">Keep learning to unlock achievements!</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">{accessibilitySettings.language === 'fil' ? 'Magpatuloy sa pag-aaral upang makakuha ng mga tagumpay!' : 'Keep learning to unlock achievements!'}</p>
               )
             ) : (
               stats?.courseStats?.length ? (
@@ -164,14 +168,14 @@ export default function Dashboard() {
                   <div key={i} className="p-5 bg-white/5 rounded-2xl border border-white/10">
                     <p className="font-bold text-slate-900 dark:text-white">{c.title}</p>
                     <div className="flex gap-4 mt-3 text-sm text-slate-600 dark:text-gray-400">
-                      <span>{c._count.enrollments} students</span>
+                      <span>{c._count.enrollments} {accessibilitySettings.language === 'fil' ? 'estudyante' : 'students'}</span>
                       <span>•</span>
-                      <span>{c._count.lessons} lessons</span>
+                      <span>{c._count.lessons} {accessibilitySettings.language === 'fil' ? 'aralin' : 'lessons'}</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-center text-slate-600 dark:text-gray-500 py-12">No course data yet</p>
+                <p className="text-center text-slate-600 dark:text-gray-500 py-12">{accessibilitySettings.language === 'fil' ? 'Wala pang data ng kurso' : 'No course data yet'}</p>
               )
             )}
           </div>

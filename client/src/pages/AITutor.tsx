@@ -5,6 +5,8 @@ import { Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare } from 'lucide-re
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 
 interface Message {
   role: 'user' | 'ai';
@@ -19,6 +21,8 @@ interface Chat {
 }
 
 export default function AITutor() {
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,7 +48,7 @@ export default function AITutor() {
   // Generate smart title from first message
   const generateTitle = (text: string) => {
     const clean = text.replace(/[^\w\s]/gi, '').trim();
-    const base = clean.substring(0, 40) || 'New Chat';
+    const base = clean.substring(0, 40) || (accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat');
     return base + (clean.length > 40 ? '...' : '');
   };
 
@@ -69,7 +73,7 @@ export default function AITutor() {
 
   const startNewChat = async () => {
     try {
-      const res = await api.post('/chat-sessions', { title: 'New Chat', messages: [] });
+      const res = await api.post('/chat-sessions', { title: accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat', messages: [] });
       const created: Chat = res.data;
       setChats(prev => [created, ...prev]);
       setCurrentChatId(created.id);
@@ -128,7 +132,7 @@ export default function AITutor() {
     setLoading(true);
 
     try {
-      const title = messages.length === 0 ? generateTitle(userMsg.content) : currentChat?.title || 'New Chat';
+      const title = messages.length === 0 ? generateTitle(userMsg.content) : currentChat?.title || (accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat');
       let chatId = currentChatId;
 
       if (!chatId) {
@@ -161,7 +165,7 @@ export default function AITutor() {
       }
     } catch (err) {
       console.error('sendMessage error', err);
-      const errorMsg: Message = { role: 'ai', content: '*Sorry, I encountered an error. Please try again.*' };
+      const errorMsg: Message = { role: 'ai', content: accessibilitySettings.language === 'fil' ? '*Paumanhin, may naganap na error. Pakisubukan muli.*' : '*Sorry, I encountered an error. Please try again.*' };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
@@ -233,7 +237,7 @@ export default function AITutor() {
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-                Chat History
+                {accessibilitySettings.language === 'fil' ? 'Kasaysayan ng Chat' : 'Chat History'}
               </h2>
               <button 
                 onClick={() => setChatHistoryOpen(false)} 
@@ -248,13 +252,13 @@ export default function AITutor() {
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
-              New Chat
+              {accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat'}
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto scrollbar-cyberpunk p-3 space-y-2">
             {chats.length === 0 ? (
-              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">No chats yet</p>
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">{accessibilitySettings.language === 'fil' ? 'Wala pang mga chat' : 'No chats yet'}</p>
             ) : (
               chats.map(chat => (
                 <div
@@ -444,7 +448,7 @@ export default function AITutor() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Ask TISA anything..."
+                placeholder={accessibilitySettings.language === 'fil' ? 'Magtanong kay TISA ng kahit ano...' : 'Ask TISA anything...'}
                 className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base lg:text-[17px] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm"
                 disabled={loading}
               />
@@ -454,7 +458,7 @@ export default function AITutor() {
                 className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
               >
                 <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">Send</span>
+                <span className="hidden sm:inline">{accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}</span>
               </button>
             </div>
           </div>

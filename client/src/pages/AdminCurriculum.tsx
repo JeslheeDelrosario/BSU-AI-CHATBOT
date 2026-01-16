@@ -1,6 +1,8 @@
 // client/src/pages/AdminCurriculum.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from "../contexts/AuthContext";
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import {
   BookOpen, Plus, Trash2, Edit2, X, Check, Loader2,
   ChevronDown, ChevronRight,
@@ -34,6 +36,8 @@ const SEMESTER_LABELS = {
 
 export default function AdminCurriculum() {
   const { user } = useAuth();
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   const token = localStorage.getItem("token");
 
   const [programs, setPrograms] = useState<any[]>([]);
@@ -251,22 +255,22 @@ export default function AdminCurriculum() {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-3">
-            Curriculum Management
+            {t.curriculum.title}
           </h1>
           <p className="text-xl text-muted-foreground">
-            {selectedProgramName ? `${selectedProgramName} Curriculum` : 'Select a program to begin'}
+            {selectedProgramName ? `${selectedProgramName} ${accessibilitySettings.language === 'fil' ? 'Kurikulum' : 'Curriculum'}` : (accessibilitySettings.language === 'fil' ? 'Pumili ng programa upang magsimula' : 'Select a program to begin')}
           </p>
         </div>
 
         {/* Program Selector */}
         <div className="bg-card/70 backdrop-blur-xl rounded-2xl border border-border p-6 shadow-xl">
-          <label className="block text-lg font-semibold mb-3">Program</label>
+          <label className="block text-lg font-semibold mb-3">{accessibilitySettings.language === 'fil' ? 'Programa' : 'Program'}</label>
           <select
             value={selectedProgram}
             onChange={e => setSelectedProgram(e.target.value)}
             className="w-full px-5 py-4 bg-background border border-border rounded-xl focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all"
           >
-            <option value="">Select Program...</option>
+            <option value="">{accessibilitySettings.language === 'fil' ? 'Pumili ng Programa...' : 'Select Program...'}</option>
             {programs.map(p => (
               <option key={p.id} value={p.id}>
                 {p.title} {p.abbreviation ? `(${p.abbreviation})` : ''}
@@ -279,10 +283,10 @@ export default function AdminCurriculum() {
         {selectedProgram && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card/50 backdrop-blur-lg rounded-2xl border border-border p-6">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Search</label>
+              <label className="block text-sm font-medium mb-1.5">{accessibilitySettings.language === 'fil' ? 'Maghanap' : 'Search'}</label>
               <input
                 type="text"
-                placeholder="Code, subject name, prerequisite..."
+                placeholder={accessibilitySettings.language === 'fil' ? 'Code, pangalan ng asignatura, prerequisite...' : 'Code, subject name, prerequisite...'}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
@@ -296,7 +300,7 @@ export default function AdminCurriculum() {
                 onChange={e => setFilterYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
               >
-                <option value="all">All Years</option>
+                <option value="all">{accessibilitySettings.language === 'fil' ? 'Lahat ng Taon' : 'All Years'}</option>
                 {[1,2,3,4].map(y => (
                   <option key={y} value={y}>{YEAR_LABELS[y as keyof typeof YEAR_LABELS]}</option>
                 ))}
@@ -310,10 +314,10 @@ export default function AdminCurriculum() {
                 onChange={e => setFilterSemester(e.target.value === 'all' ? 'all' : Number(e.target.value) as SemesterType)}
                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
               >
-                <option value="all">All Semesters</option>
-                <option value={1}>1st Semester</option>
-                <option value={2}>2nd Semester</option>
-                <option value={3}>Mid-Year</option>
+                <option value="all">{accessibilitySettings.language === 'fil' ? 'Lahat ng Semestre' : 'All Semesters'}</option>
+                <option value={1}>{accessibilitySettings.language === 'fil' ? '1st Semestre' : '1st Semester'}</option>
+                <option value={2}>{accessibilitySettings.language === 'fil' ? '2nd Semestre' : '2nd Semester'}</option>
+                <option value={3}>{accessibilitySettings.language === 'fil' ? 'Mid-Year' : 'Mid-Year'}</option>
               </select>
             </div>
           </div>
@@ -325,7 +329,7 @@ export default function AdminCurriculum() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-3">
                 <BookOpen className="w-7 h-7 text-cyan-400" />
-                {editingId ? 'Edit Subject' : 'Add New Subject'}
+                {editingId ? (accessibilitySettings.language === 'fil' ? 'I-edit ang Asignatura' : 'Edit Subject') : (accessibilitySettings.language === 'fil' ? 'Magdagdag ng Bagong Asignatura' : 'Add New Subject')}
               </h2>
 
               {isAdding && (
@@ -342,29 +346,29 @@ export default function AdminCurriculum() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {/* Course Code */}
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Course Code</label>
+                  <label className="block text-sm font-medium mb-1.5">{accessibilitySettings.language === 'fil' ? 'Course Code' : 'Course Code'}</label>
                   <input
                     value={form.courseCode}
                     onChange={e => setForm({ ...form, courseCode: e.target.value.toUpperCase() })}
-                    placeholder="e.g. CS 101"
+                    placeholder={accessibilitySettings.language === 'fil' ? 'hal. CS 101' : 'e.g. CS 101'}
                     className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
                   />
                 </div>
 
                 {/* Subject Name */}
                 <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium mb-1.5">Subject Name</label>
+                  <label className="block text-sm font-medium mb-1.5">{accessibilitySettings.language === 'fil' ? 'Pangalan ng Asignatura' : 'Subject Name'}</label>
                   <input
                     value={form.subjectName}
                     onChange={e => setForm({ ...form, subjectName: e.target.value })}
-                    placeholder="e.g. Introduction to Computing"
+                    placeholder={accessibilitySettings.language === 'fil' ? 'hal. Introduction to Computing' : 'e.g. Introduction to Computing'}
                     className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
                   />
                 </div>
 
                 {/* Year Level */}
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Year Level</label>
+                  <label className="block text-sm font-medium mb-1.5">{accessibilitySettings.language === 'fil' ? 'Antas ng Taon' : 'Year Level'}</label>
                   <select
                     value={form.yearLevel}
                     onChange={e => setForm({ ...form, yearLevel: Number(e.target.value) })}
@@ -380,15 +384,15 @@ export default function AdminCurriculum() {
 
                 {/* Semester */}
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Semester</label>
+                  <label className="block text-sm font-medium mb-1.5">{accessibilitySettings.language === 'fil' ? 'Semestre' : 'Semester'}</label>
                   <select
                     value={form.semester}
                     onChange={e => setForm({ ...form, semester: Number(e.target.value) as SemesterType })}
                     className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
                   >
-                    <option value={1}>1st Semester</option>
-                    <option value={2}>2nd Semester</option>
-                    <option value={3}>Mid-Year</option>
+                    <option value={1}>{accessibilitySettings.language === 'fil' ? '1st Semestre' : '1st Semester'}</option>
+                    <option value={2}>{accessibilitySettings.language === 'fil' ? '2nd Semestre' : '2nd Semester'}</option>
+                    <option value={3}>{accessibilitySettings.language === 'fil' ? 'Mid-Year' : 'Mid-Year'}</option>
                   </select>
                 </div>
 

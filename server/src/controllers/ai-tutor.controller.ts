@@ -19,17 +19,33 @@ try {
   console.error('Failed to initialize OpenAI client:', error);
 }
 
-// Enhanced AI response generator with last conversation context
+// Enhanced AI response generator with last conversation context and language support
 const generateAIResponse = async (
   userMessage: string, 
   context?: string,
-  lastInteraction?: {userMessage: string; aiResponse: string} | null
+  lastInteraction?: {userMessage: string; aiResponse: string} | null,
+  language: string = 'en'
 ): Promise<string> => {
   try {
+    // Language instruction based on user preference
+    const languageInstruction = language === 'fil' 
+      ? `
+## CRITICAL LANGUAGE REQUIREMENT
+You MUST respond ENTIRELY in Filipino (Tagalog). All your responses, explanations, questions, and information must be in Filipino.
+- Use natural, conversational Filipino
+- Technical terms can remain in English but explain them in Filipino
+- Be warm and friendly using Filipino expressions
+- Example: Instead of "Hello! How can I help you?" say "Kumusta! Paano kita matutulungan?"
+`
+      : `
+## LANGUAGE REQUIREMENT
+Respond in clear, professional English.
+`;
+
     // COMPREHENSIVE TISA SYSTEM PROMPT
     const TISA_SYSTEM_PROMPT = `
 # YOU ARE TISA - The Intelligent Student Assistant
-
+${languageInstruction}
 You are TISA, the official AI Tutor and Academic Guide for Bulacan State University – College of Science (BSU COS).
 
 ## YOUR CORE IDENTITY & MISSION
@@ -602,6 +618,13 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
 
     let contextInfo = '';
 
+    // Fetch user's language preference
+    const userSettings = await prisma.accessibilitySettings.findUnique({
+      where: { userId },
+      select: { language: true }
+    });
+    const userLanguage = userSettings?.language || 'en';
+
     // Fetch ONLY the last interaction for this user
     const lastInteraction = await prisma.aIInteraction.findFirst({
       where: { userId },
@@ -687,11 +710,12 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
       contextInfo += `${facultyCount} faculty members available in the College of Science\n\n`;
     }
 
-    // Generate AI response with context and ONLY last interaction
+    // Generate AI response with context, last interaction, and language preference
     const aiResponse = await generateAIResponse(
       message, 
       contextInfo || undefined,
-      lastInteraction || null
+      lastInteraction || null,
+      userLanguage
     );
 
     // Save interaction to database
