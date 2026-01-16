@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
-import { useTranslation } from '../lib/translations';
 import { useToast } from '../components/Toast';
 import api from '../lib/api';
 import { BookOpen, Clock, Users, Search, Plus, Filter, X } from 'lucide-react';
@@ -11,7 +10,6 @@ import { BookOpen, Clock, Users, Search, Plus, Filter, X } from 'lucide-react';
 export default function Courses() {
   const { user } = useAuth();
   const { settings: accessibilitySettings } = useAccessibility();
-  const t = useTranslation(accessibilitySettings.language);
   const { showToast } = useToast();
   const [courses, setCourses] = useState<any[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<any[]>([]);

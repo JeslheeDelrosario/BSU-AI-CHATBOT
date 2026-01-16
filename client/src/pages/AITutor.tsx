@@ -6,7 +6,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
-import { useTranslation } from '../lib/translations';
 
 interface Message {
   role: 'user' | 'ai';
@@ -22,7 +21,6 @@ interface Chat {
 
 export default function AITutor() {
   const { settings: accessibilitySettings } = useAccessibility();
-  const t = useTranslation(accessibilitySettings.language);
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);

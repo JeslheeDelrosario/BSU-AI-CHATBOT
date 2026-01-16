@@ -32,6 +32,7 @@ export default function Settings() {
 
   useEffect(() => {
     fetchSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync pending settings when accessibility settings load from server

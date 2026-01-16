@@ -44,6 +44,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setMainSidebarCollapsed(true);
     }
     setSidebarOpen(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAITutorPage]);
 
 
