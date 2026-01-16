@@ -28,6 +28,9 @@ export default function AITutor() {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [greeting, setGreeting] = useState<string>('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showGreeting, setShowGreeting] = useState(true);
   
   // Re-added: to control main navigation sidebar from Layout.tsx
   // const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -42,13 +45,6 @@ export default function AITutor() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Generate smart title from first message
-  const generateTitle = (text: string) => {
-    const clean = text.replace(/[^\w\s]/gi, '').trim();
-    const base = clean.substring(0, 40) || (accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat');
-    return base + (clean.length > 40 ? '...' : '');
-  };
 
   // Load chats on mount
   useEffect(() => {
@@ -71,12 +67,37 @@ export default function AITutor() {
 
   const startNewChat = async () => {
     try {
-      const res = await api.post('/chat-sessions', { title: accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat', messages: [] });
-      const created: Chat = res.data;
-      setChats(prev => [created, ...prev]);
-      setCurrentChatId(created.id);
+      // Check if current chat is already empty - don't create duplicate
+      if (currentChatId && messages.length === 0) {
+        // Already have an empty chat, fetch new randomized suggestions
+        setShowGreeting(true);
+        setChatHistoryOpen(false);
+        
+        // Fetch fresh randomized suggestions
+        try {
+          const greetingRes = await api.get('/ai-tutor/greeting');
+          setGreeting(greetingRes.data.greeting);
+          setSuggestions(greetingRes.data.suggestions || []);
+        } catch (err) {
+          console.error('Failed to fetch greeting', err);
+        }
+        return;
+      }
+
+      // Clear current chat and prepare for new one (don't create in DB yet)
+      setCurrentChatId(null);
       setMessages([]);
+      setShowGreeting(true);
       setChatHistoryOpen(false);
+      
+      // Fetch greeting and randomized conversation starters for new chat
+      try {
+        const greetingRes = await api.get('/ai-tutor/greeting');
+        setGreeting(greetingRes.data.greeting);
+        setSuggestions(greetingRes.data.suggestions || []);
+      } catch (err) {
+        console.error('Failed to fetch greeting', err);
+      }
     } catch (err) {
       console.error('startNewChat error', err);
     }
@@ -85,6 +106,8 @@ export default function AITutor() {
   const selectChat = async (chat: Chat) => {
     setCurrentChatId(chat.id);
     setMessages(chat.messages ?? []);
+    setShowGreeting(false);
+    setSuggestions([]);
     setChatHistoryOpen(false);
   };
 
@@ -130,34 +153,48 @@ export default function AITutor() {
     setLoading(true);
 
     try {
-      const title = messages.length === 0 ? generateTitle(userMsg.content) : currentChat?.title || (accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat');
+      // Use temporary title for new chats, will be updated with AI-generated title
+      const tempTitle = accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat';
       let chatId = currentChatId;
 
       if (!chatId) {
-        const createRes = await api.post('/chat-sessions', { title, messages: tempMessages });
+        const createRes = await api.post('/chat-sessions', { title: tempTitle, messages: tempMessages });
         chatId = createRes.data.id;
         setCurrentChatId(chatId);
         setChats(prev => [createRes.data, ...prev]);
       } else {
-        await api.put(`/chat-sessions/${chatId}`, { title, messages: tempMessages });
+        await api.put(`/chat-sessions/${chatId}`, { title: currentChat?.title || tempTitle, messages: tempMessages });
         setChats(prev =>
           prev
-            .map(c => (c.id === chatId ? { ...c, messages: tempMessages, title, updatedAt: Date.now() } : c))
+            .map(c => (c.id === chatId ? { ...c, messages: tempMessages, updatedAt: Date.now() } : c))
             .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
         );
       }
 
-      const res = await api.post('/ai-tutor/ask', { message: userMsg.content, type: 'QUESTION' });
+      const res = await api.post('/ai-tutor/ask', { 
+        message: userMsg.content, 
+        type: 'QUESTION',
+        chatSessionId: chatId 
+      });
       const aiText = res.data?.response ?? '*No response*';
       const aiMsg: Message = { role: 'ai', content: aiText };
       const finalMessages = [...tempMessages, aiMsg];
+      
+      // Update suggestions from AI response
+      if (res.data?.suggestions) {
+        setSuggestions(res.data.suggestions);
+      }
+      setShowGreeting(false);
 
       setMessages(finalMessages);
 
+      // Use AI-generated title if available, otherwise keep current title
+      const finalTitle = res.data?.generatedTitle || currentChat?.title || tempTitle;
+
       if (chatId) {
-        await api.put(`/chat-sessions/${chatId}`, { title, messages: finalMessages });
+        await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
         setChats(prev => {
-          const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title, updatedAt: Date.now() } : c));
+          const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
           return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
         });
       }
@@ -365,6 +402,44 @@ export default function AITutor() {
                 <p className="text-base text-slate-600 dark:text-slate-400">
                   Your Student Assistant. Ask anything about College of Science.
                 </p>
+                
+                {/* Greeting Message */}
+                {showGreeting && greeting && (
+                  <div className="mt-8 max-w-2xl mx-auto">
+                    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-lg">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                        <div className="text-slate-900 dark:text-slate-100 whitespace-pre-line">
+                          {greeting.split('**').map((part, i) => 
+                            i % 2 === 0 ? part : <strong key={i}>{part}</strong>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Smart Suggestions Bubbles */}
+                {suggestions.length > 0 && (
+                  <div className="mt-6 max-w-2xl mx-auto">
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">
+                      {accessibilitySettings.language === 'fil' ? 'Mga mungkahing tanong:' : 'Suggested questions:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {suggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(suggestion);
+                            sendMessage();
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-sm text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm hover:shadow-md"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -428,6 +503,29 @@ export default function AITutor() {
                         <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce-delay-100"></div>
                         <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce-delay-200"></div>
                       </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Smart Follow-up Suggestions After Messages */}
+                {!loading && messages.length > 0 && suggestions.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+                      {accessibilitySettings.language === 'fil' ? 'Susunod na tanong:' : 'Follow-up questions:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {suggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(suggestion);
+                            setTimeout(() => sendMessage(), 100);
+                          }}
+                          className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-xs text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

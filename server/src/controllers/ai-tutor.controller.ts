@@ -3,6 +3,14 @@ import { Response } from 'express';
 import { PrismaClient, AIInteractionType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import OpenAI from 'openai';
+import { 
+  generateSmartSuggestions, 
+  generateGreeting, 
+  isWithinScope, 
+  generateOutOfScopeResponse,
+  getDefaultSuggestions 
+} from '../services/markov-suggestions.service';
+import { generateChatTitle } from '../services/title-generator.service';
 
 const prisma = new PrismaClient();
 
@@ -300,6 +308,22 @@ Use this to understand the current user's message in context.` : '\n\n## LAST CO
 
     const lowerMsg = userMessage.toLowerCase();
 
+    // Detect simple greetings and respond appropriately
+    const simpleGreetings = ['hi', 'hello', 'hey', 'kumusta', 'kamusta', 'musta', 'good morning', 'good afternoon', 'good evening', 'magandang umaga', 'magandang hapon', 'magandang gabi'];
+    const isSimpleGreeting = simpleGreetings.some(greeting => {
+      const msg = lowerMsg.trim();
+      return msg === greeting || msg === greeting + '!' || msg === greeting + '?';
+    });
+
+    if (isSimpleGreeting && !lastInteraction) {
+      // First message is a simple greeting - respond warmly
+      if (language === 'fil') {
+        return `Kumusta! 👋 Ako si **TISA**, ang iyong AI tutor para sa Bulacan State University – College of Science.\n\n**Paano kita matutulungan ngayong araw?** Maaari akong magbigay ng impormasyon tungkol sa:\n• Mga programa at kurikulum\n• Faculty members\n• Admission requirements\n• Career opportunities\n• At marami pang iba!\n\nMagtanong lang! 😊`;
+      } else {
+        return `Hello! 👋 I'm **TISA**, your AI tutor for Bulacan State University – College of Science.\n\n**How can I help you today?** I can provide information about:\n• Programs and curriculum\n• Faculty members\n• Admission requirements\n• Career opportunities\n• And much more!\n\nFeel free to ask me anything! 😊`;
+      }
+    }
+
     // Build messages for OpenAI
     const messages: Array<{role: 'user' | 'assistant', content: string}> = [
       { role: 'system' as any, content: TISA_SYSTEM_PROMPT }
@@ -495,11 +519,11 @@ Would you like to know more about their office hours or how to contact them?`;
 
         for (const sem of Object.keys(grouped).sort((a, b) => Number(a) - Number(b))) {
           const entries = grouped[Number(sem)];
-          const totalUnits = entries.reduce((sum, e) => sum + e.units, 0);
+          const totalUnits = entries.reduce((sum, e) => sum + (e.totalUnits || 0), 0);
           grandTotal += totalUnits;
 
           const formattedList = entries
-            .map(e => `• **${e.courseCode}** - ${e.subjectName} (${e.units} ${e.units === 1 ? 'unit' : 'units'})${e.prerequisites && e.prerequisites.length > 0 ? `\n  Prerequisites: ${e.prerequisites.join(', ')}` : ''}`)
+            .map(e => `• **${e.courseCode}** - ${e.subjectName} (${e.totalUnits || 0} ${e.totalUnits === 1 ? 'unit' : 'units'})${e.prerequisites && e.prerequisites.length > 0 ? `\n  Prerequisites: ${e.prerequisites.join(', ')}` : ''}`)
             .join('\n\n');
 
           responseParts.push(`**Year ${yearLevel} — ${Number(sem) === 1 ? '1st' : '2nd'} Semester**:\n\n${formattedList}\n\n**Total Units (sem ${sem}):** ${totalUnits}`);
@@ -604,7 +628,7 @@ I'll be back to full functionality soon. Thank you for your patience! 🙏`;
 export const askAITutor = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { message, type } = req.body;
+    const { message, type, chatSessionId } = req.body;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -625,16 +649,30 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
     });
     const userLanguage = userSettings?.language || 'en';
 
-    // Fetch ONLY the last interaction for this user
-    const lastInteraction = await prisma.aIInteraction.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        userMessage: true,
-        aiResponse: true,
-        createdAt: true,
+    // Fetch last interaction ONLY from current chat session if provided
+    let lastInteraction = null;
+    if (chatSessionId) {
+      const chatSession = await prisma.chatSession.findUnique({
+        where: { id: chatSessionId },
+        select: { messages: true }
+      });
+      
+      if (chatSession && Array.isArray(chatSession.messages)) {
+        const msgs = chatSession.messages as Array<{role: string; content: string}>;
+        if (msgs.length >= 2) {
+          // Get last user message and AI response from this chat session
+          const lastUserMsg = msgs.filter(m => m.role === 'user').pop();
+          const lastAiMsg = msgs.filter(m => m.role === 'ai').pop();
+          
+          if (lastUserMsg && lastAiMsg) {
+            lastInteraction = {
+              userMessage: lastUserMsg.content,
+              aiResponse: lastAiMsg.content
+            };
+          }
+        }
       }
-    });
+    }
 
     // Fetch all active programs
     const programs = await prisma.universityProgram.findMany({
@@ -654,8 +692,8 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
       }
     }
 
-    // If not found, check last conversation
-    if (!program && lastInteraction) {
+    // If not found, check last conversation (only if from same chat session)
+    if (!program && lastInteraction && chatSessionId) {
       const lastUserMsg = lastInteraction.userMessage.toLowerCase();
       const lastBotMsg = lastInteraction.aiResponse.toLowerCase();
       
@@ -718,6 +756,25 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
       userLanguage
     );
 
+    // Check if query is within BSU COS scope
+    const scopeCheck = isWithinScope(message);
+    let finalResponse = aiResponse;
+    let suggestions: string[] = [];
+
+    if (!scopeCheck.inScope) {
+      // User asked something outside BSU COS scope
+      finalResponse = generateOutOfScopeResponse(userLanguage);
+      suggestions = getDefaultSuggestions(userLanguage);
+    } else {
+      // Generate smart follow-up suggestions using Markov chain
+      suggestions = await generateSmartSuggestions(
+        message,
+        aiResponse,
+        userId,
+        userLanguage
+      );
+    }
+
     // Save interaction to database
     const interaction = await prisma.aIInteraction.create({
       data: {
@@ -725,12 +782,24 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
         type: (type as AIInteractionType) || AIInteractionType.QUESTION,
         context: contextInfo || undefined,
         userMessage: message,
-        aiResponse,
+        aiResponse: finalResponse,
       },
     });
 
+    // Generate AI-powered title for new conversations
+    let generatedTitle: string | undefined;
+    if (message && finalResponse) {
+      try {
+        generatedTitle = await generateChatTitle(message, finalResponse, userLanguage);
+      } catch (error) {
+        console.error('Failed to generate chat title:', error);
+      }
+    }
+
     res.json({
-      response: aiResponse,
+      response: finalResponse,
+      suggestions,
+      generatedTitle,
       interactionId: interaction.id,
       timestamp: interaction.createdAt,
     });
@@ -1011,5 +1080,39 @@ export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<v
   } catch (error) {
     console.error('Rate AI response error:', error);
     res.status(500).json({ error: 'Server error rating response' });
+  }
+};
+
+// Get greeting message for new conversation
+export const getGreeting = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Fetch user's language preference
+    const userSettings = await prisma.accessibilitySettings.findUnique({
+      where: { userId },
+      select: { language: true }
+    });
+    const userLanguage = userSettings?.language || 'en';
+
+    // Generate personalized greeting
+    const greeting = await generateGreeting(userId, userLanguage);
+    
+    // Get default suggestions for new conversation
+    const suggestions = getDefaultSuggestions(userLanguage);
+
+    res.json({
+      greeting,
+      suggestions,
+      language: userLanguage
+    });
+  } catch (error) {
+    console.error('Get greeting error:', error);
+    res.status(500).json({ error: 'Server error getting greeting' });
   }
 };
