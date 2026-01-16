@@ -16,7 +16,12 @@ interface CurriculumEntry {
   subjectName: string;
   yearLevel: number;
   semester: SemesterType;
-  units: number;
+  lec: number;
+  lab: number;
+  totalUnits: number;
+  lecHours: number;
+  labHours: number;
+  totalHours: number;
   prerequisites: string[];
 }
 
@@ -57,7 +62,12 @@ export default function AdminCurriculum() {
     subjectName: '',
     yearLevel: 1,
     semester: 1 as SemesterType,
-    units: 3,
+    lec: 3,
+    lab: 0,
+    totalUnits: 3,
+    lecHours: 3,
+    labHours: 0,
+    totalHours: 3,
     prerequisites: [] as string[]
   });
 
@@ -148,7 +158,7 @@ export default function AdminCurriculum() {
 
   // Calculate units
   const calculateUnits = (entries: CurriculumEntry[]) =>
-    entries.reduce((sum, item) => sum + item.units, 0);
+    entries.reduce((sum, item) => sum + (item.totalUnits || 0), 0);
 
   const handleSave = async () => {
     if (!form.courseCode.trim() || !form.subjectName.trim() || !selectedProgram) return;
@@ -169,7 +179,12 @@ export default function AdminCurriculum() {
         subjectName: form.subjectName.trim(),
         yearLevel: form.yearLevel,
         semester: form.semester,
-        units: form.units,
+        lec: form.lec,
+        lab: form.lab,
+        totalUnits: form.totalUnits,
+        lecHours: form.lecHours,
+        labHours: form.labHours,
+        totalHours: form.totalHours,
         prerequisites: form.prerequisites
       };
 
@@ -214,7 +229,12 @@ export default function AdminCurriculum() {
       subjectName: entry.subjectName,
       yearLevel: entry.yearLevel,
       semester: entry.semester,
-      units: entry.units,
+      lec: entry.lec || 0,
+      lab: entry.lab || 0,
+      totalUnits: entry.totalUnits || 0,
+      lecHours: entry.lecHours || 0,
+      labHours: entry.labHours || 0,
+      totalHours: entry.totalHours || 0,
       prerequisites: [...entry.prerequisites]
     });
     setIsAdding(true);
@@ -228,7 +248,12 @@ export default function AdminCurriculum() {
       subjectName: '',
       yearLevel: 1,
       semester: 1,
-      units: 3,
+      lec: 3,
+      lab: 0,
+      totalUnits: 3,
+      lecHours: 3,
+      labHours: 0,
+      totalHours: 3,
       prerequisites: []
     });
   };
@@ -396,16 +421,48 @@ export default function AdminCurriculum() {
                   </select>
                 </div>
 
-                {/* Units */}
+                {/* Lecture Units */}
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Units</label>
+                  <label className="block text-sm font-medium mb-1.5">Lec Units</label>
                   <input
                     type="number"
-                    min={1}
+                    min={0}
                     max={12}
-                    value={form.units}
-                    onChange={e => setForm({ ...form, units: Number(e.target.value) || 3 })}
+                    value={form.lec}
+                    onChange={e => {
+                      const lec = Number(e.target.value) || 0;
+                      const totalUnits = lec + form.lab;
+                      setForm({ ...form, lec, totalUnits, lecHours: lec, totalHours: lec + form.labHours });
+                    }}
                     className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  />
+                </div>
+
+                {/* Lab Units */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Lab Units</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={12}
+                    value={form.lab}
+                    onChange={e => {
+                      const lab = Number(e.target.value) || 0;
+                      const totalUnits = form.lec + lab;
+                      setForm({ ...form, lab, totalUnits, labHours: lab * 3, totalHours: form.lecHours + (lab * 3) });
+                    }}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:border-cyan-500 transition-all"
+                  />
+                </div>
+
+                {/* Total Units (Read-only) */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Total Units</label>
+                  <input
+                    type="number"
+                    value={form.totalUnits}
+                    readOnly
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl cursor-not-allowed"
                   />
                 </div>
 
@@ -549,9 +606,12 @@ export default function AdminCurriculum() {
                                         </div>
                                         <div className="text-right">
                                           <div className="text-xl font-bold text-purple-300">
-                                            {entry.units}
+                                            {entry.totalUnits}
                                           </div>
                                           <div className="text-xs text-muted-foreground">units</div>
+                                          <div className="text-xs text-cyan-400 mt-1">
+                                            Lec: {entry.lec} / Lab: {entry.lab}
+                                          </div>
                                         </div>
                                       </div>
 
