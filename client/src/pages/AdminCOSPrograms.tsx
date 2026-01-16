@@ -7,13 +7,16 @@ import { useState, useEffect } from 'react';
 import { useAuth } from "../contexts/AuthContext";
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../lib/translations';
-import { GraduationCap, Plus, Trash2, Loader2 } from 'lucide-react';
+import { GraduationCap, Plus, Trash2, Loader2, Edit2 } from 'lucide-react';
 import api from '../lib/api';
 
 interface Program {
   id: string;
   title: string;
   abbreviation?: string | null;
+  college: string;
+  isActive: boolean;
+  order: number;
 }
 
 export default function COSPrograms() {
@@ -25,11 +28,14 @@ export default function COSPrograms() {
   const [newAbbr, setNewAbbr] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAbbr, setEditAbbr] = useState('');
 
   const fetchPrograms = async () => {
     setFetching(true);
     try {
-      const res = await api.get('/admin/cos-programs');
+      const res = await api.get('/admin/programs');
       setPrograms(res.data || []);
     } catch (err) {
       console.error("Failed to fetch programs:", err);
@@ -49,9 +55,11 @@ export default function COSPrograms() {
     if (!newTitle.trim()) return;
     setLoading(true);
     try {
-      await api.post('/admin/cos-programs', {
+      await api.post('/admin/programs', {
         title: newTitle.trim(),
         abbreviation: newAbbr.trim() || null,
+        college: 'College of Science',
+        isActive: true
       });
       setNewTitle('');
       setNewAbbr('');
@@ -64,14 +72,45 @@ export default function COSPrograms() {
     }
   };
 
+  const startEdit = (program: Program) => {
+    setEditingProgram(program);
+    setEditTitle(program.title);
+    setEditAbbr(program.abbreviation || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingProgram(null);
+    setEditTitle('');
+    setEditAbbr('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingProgram || !editTitle.trim()) return;
+    setLoading(true);
+    try {
+      await api.put(`/admin/programs/${editingProgram.id}`, {
+        title: editTitle.trim(),
+        abbreviation: editAbbr.trim() || null
+      });
+      cancelEdit();
+      fetchPrograms();
+    } catch (err) {
+      alert(accessibilitySettings.language === 'fil' ? 'Nabigo ang pag-update ng programa.' : 'Failed to update program.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteProgram = async (id: string) => {
     if (!confirm(accessibilitySettings.language === 'fil' ? 'Sigurado ka bang gusto mong tanggalin ang programang ito?' : 'Are you sure you want to delete this program?')) return;
     try {
-      await api.delete(`/admin/cos-programs/${id}`);
+      await api.delete(`/admin/programs/${id}`);
       fetchPrograms();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert(accessibilitySettings.language === 'fil' ? 'Nabigo ang pagtanggal ng programa.' : 'Failed to delete program.');
+      const errorMsg = err.response?.data?.error || (accessibilitySettings.language === 'fil' ? 'Nabigo ang pagtanggal ng programa.' : 'Failed to delete program.');
+      alert(errorMsg);
     }
   };
 
@@ -197,13 +236,22 @@ export default function COSPrograms() {
                   key={p.id}
                   className="group relative bg-card/60 border border-border rounded-3xl p-7 lg:p-8 backdrop-blur-xl hover:border-cyan-500/50 hover:bg-card/90 transition-all duration-300"
                 >
-                  <button
-                    onClick={() => deleteProgram(p.id)}
-                    className="absolute top-5 right-5 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all hover:scale-110"
-                    title="Delete Program"
-                  >
-                    <Trash2 className="w-6 h-6" />
-                  </button>
+                  <div className="absolute top-5 right-5 flex gap-3">
+                    <button
+                      onClick={() => startEdit(p)}
+                      className="p-3 bg-blue-500/20 border border-blue-500/30 rounded-xl text-blue-400 hover:bg-blue-500/30 hover:text-blue-300 transition-all hover:scale-110"
+                      title={accessibilitySettings.language === 'fil' ? 'I-edit ang Programa' : 'Edit Program'}
+                    >
+                      <Edit2 className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={() => deleteProgram(p.id)}
+                      className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all hover:scale-110"
+                      title={accessibilitySettings.language === 'fil' ? 'Tanggalin ang Programa' : 'Delete Program'}
+                    >
+                      <Trash2 className="w-6 h-6" />
+                    </button>
+                  </div>
 
                   <h3 className="text-2xl lg:text-3xl font-bold text-foreground pr-14 leading-tight">
                     {p.title}
@@ -229,6 +277,67 @@ export default function COSPrograms() {
           )}
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingProgram && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 z-50">
+          <div className="bg-card border border-border rounded-3xl p-8 lg:p-10 max-w-2xl w-full shadow-2xl">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-8">
+              {accessibilitySettings.language === 'fil' ? 'I-edit ang Programa' : 'Edit Program'}
+            </h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  {accessibilitySettings.language === 'fil' ? 'Titulo ng Programa' : 'Program Title'}
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all text-base lg:text-lg"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  {accessibilitySettings.language === 'fil' ? 'Abbreviation (Opsyonal)' : 'Abbreviation (Optional)'}
+                </label>
+                <input
+                  type="text"
+                  value={editAbbr}
+                  onChange={(e) => setEditAbbr(e.target.value)}
+                  className="w-full px-6 py-5 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all text-base lg:text-lg"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button
+                onClick={saveEdit}
+                disabled={loading || !editTitle.trim()}
+                className="flex-1 px-8 py-5 bg-gradient-to-r from-cyan-600 via-cyan-500 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg shadow-cyan-500/30 hover:shadow-cyan-400/60 hover:shadow-2xl hover:brightness-110 transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    {accessibilitySettings.language === 'fil' ? 'Sine-save...' : 'Saving...'}
+                  </div>
+                ) : (
+                  accessibilitySettings.language === 'fil' ? 'I-save ang Pagbabago' : 'Save Changes'
+                )}
+              </button>
+              <button
+                onClick={cancelEdit}
+                disabled={loading}
+                className="flex-1 px-8 py-5 bg-card/60 border border-border text-foreground font-bold text-lg rounded-2xl hover:bg-card/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {accessibilitySettings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

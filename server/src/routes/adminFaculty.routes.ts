@@ -50,25 +50,37 @@ router.get("/subjects", isAdmin, async (_, res) => {
   }
 });
 
-// ADD faculty - Updated to include middleName
+// ADD faculty - Complete with all fields
 router.post("/faculty", isAdmin, async (req: AuthRequest, res) => {
   try {
     const { 
       firstName, 
-      middleName,      // ← Now accepted from request body
+      middleName,
       lastName, 
       email, 
-      position, 
+      position,
+      college,
+      officeHours,
+      consultationDays,
+      consultationStart,
+      consultationEnd,
+      vacantTime,
       subjectIds 
     } = req.body;
 
     const faculty = await prisma.faculty.create({
       data: {
         firstName,
-        middleName: middleName?.trim() || null,   // ← Save as null if empty
+        middleName: middleName?.trim() || null,
         lastName,
-        email: email?.toLowerCase().trim(),
-        position: position || 'Professor',
+        email: email?.toLowerCase().trim() || null,
+        position: position || 'Faculty',
+        college: college || 'College of Science',
+        officeHours: officeHours?.trim() || null,
+        consultationDays: consultationDays || [],
+        consultationStart: consultationStart || null,
+        consultationEnd: consultationEnd || null,
+        vacantTime: vacantTime?.trim() || null,
         subjects: {
           create: (subjectIds || []).map((id: string) => ({
             subjectId: id,
@@ -89,16 +101,22 @@ router.post("/faculty", isAdmin, async (req: AuthRequest, res) => {
   }
 });
 
-// UPDATE faculty - Updated to support middleName
+// UPDATE faculty - Complete with all fields
 router.put("/faculty/:id", isAdmin, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { 
       firstName, 
-      middleName,      // ← Now accepted
+      middleName,
       lastName, 
       email, 
-      position, 
+      position,
+      college,
+      officeHours,
+      consultationDays,
+      consultationStart,
+      consultationEnd,
+      vacantTime,
       subjectIds 
     } = req.body;
 
@@ -109,8 +127,14 @@ router.put("/faculty/:id", isAdmin, async (req: AuthRequest, res) => {
         ...(firstName !== undefined && { firstName }),
         middleName: middleName !== undefined ? (middleName?.trim() || null) : undefined,
         ...(lastName !== undefined && { lastName }),
-        ...(email !== undefined && { email: email?.toLowerCase().trim() }),
+        ...(email !== undefined && { email: email?.toLowerCase().trim() || null }),
         ...(position !== undefined && { position }),
+        ...(college !== undefined && { college }),
+        ...(officeHours !== undefined && { officeHours: officeHours?.trim() || null }),
+        ...(consultationDays !== undefined && { consultationDays }),
+        ...(consultationStart !== undefined && { consultationStart: consultationStart || null }),
+        ...(consultationEnd !== undefined && { consultationEnd: consultationEnd || null }),
+        ...(vacantTime !== undefined && { vacantTime: vacantTime?.trim() || null }),
       },
     });
 

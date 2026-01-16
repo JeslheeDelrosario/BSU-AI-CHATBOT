@@ -433,14 +433,19 @@ model FacultySubject {
 model CurriculumEntry {
   id            String            @id @default(cuid())
   programId     String
-  yearLevel     Int
-  semester      Int
+  yearLevel     Int               // 1, 2, 3, 4
+  semester      Int               // 1, 2
   courseCode    String
-  subjectName   String
-  units         Int
+  subjectName   String            // Descriptive Title
+  lec           Int               @default(0)  // Lecture units
+  lab           Int               @default(0)  // Laboratory units
+  totalUnits    Int               @default(0)  // Total units
+  lecHours      Int               @default(0)  // Lecture hours
+  labHours      Int               @default(0)  // Laboratory hours
+  totalHours    Int               @default(0)  // Total hours
+  prerequisites String[]          @default([])
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
-  prerequisites String[]          @default([])
   program       UniversityProgram @relation(fields: [programId], references: [id])
 }
 

@@ -25,9 +25,11 @@ router.get('/:programId', async (req: AuthRequest, res: Response) => {
 });
 
 // POST add new curriculum entry
-// POST add new curriculum entry
 router.post('/', async (req: AuthRequest, res: Response) => {
-  const { programId, courseCode, subjectName, yearLevel, semester, units, prerequisites } = req.body;
+  const { 
+    programId, courseCode, subjectName, yearLevel, semester, 
+    lec, lab, totalUnits, lecHours, labHours, totalHours, prerequisites 
+  } = req.body;
 
   try {
     const entry = await prisma.curriculumEntry.create({
@@ -35,10 +37,14 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         programId,
         courseCode,
         subjectName,
-        yearLevel,
-        semester,
-        units,
-        // pass an array directly
+        yearLevel: parseInt(yearLevel),
+        semester: parseInt(semester),
+        lec: parseInt(lec) || 0,
+        lab: parseInt(lab) || 0,
+        totalUnits: parseInt(totalUnits) || 0,
+        lecHours: parseInt(lecHours) || 0,
+        labHours: parseInt(labHours) || 0,
+        totalHours: parseInt(totalHours) || 0,
         prerequisites: Array.isArray(prerequisites) ? prerequisites : []
       }
     });
@@ -53,7 +59,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // PUT edit entry
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { courseCode, subjectName, yearLevel, semester, units, prerequisites } = req.body;
+  const { 
+    courseCode, subjectName, yearLevel, semester,
+    lec, lab, totalUnits, lecHours, labHours, totalHours, prerequisites 
+  } = req.body;
 
   try {
     const updated = await prisma.curriculumEntry.update({
@@ -61,9 +70,14 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       data: {
         courseCode,
         subjectName,
-        yearLevel,
-        semester,
-        units,
+        yearLevel: parseInt(yearLevel),
+        semester: parseInt(semester),
+        lec: parseInt(lec) || 0,
+        lab: parseInt(lab) || 0,
+        totalUnits: parseInt(totalUnits) || 0,
+        lecHours: parseInt(lecHours) || 0,
+        labHours: parseInt(labHours) || 0,
+        totalHours: parseInt(totalHours) || 0,
         prerequisites: Array.isArray(prerequisites) ? prerequisites : []
       }
     });
