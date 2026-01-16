@@ -5,96 +5,96 @@ const prisma = new PrismaClient();
 
 const facultyData = [
   // Mathematics Faculty
-  { name: 'Amores, Minerva R.', position: 'Faculty', discipline: 'Mathematics', email: 'minerva.amores@bulsu.edu.ph' },
-  { name: 'Angeles, Deo Stephanie R.', position: 'Faculty', discipline: 'Mathematics', email: 'deo.angeles@bulsu.edu.ph' },
-  { name: 'Arellano, Ma. Concepcion DC.', position: 'Faculty', discipline: 'Mathematics', email: 'concepcion.arellano@bulsu.edu.ph' },
-  { name: 'Balagtas, Michael R.', position: 'Faculty', discipline: 'Mathematics', email: 'michael.balagtas@bulsu.edu.ph' },
-  { name: 'Baldevarona, Irish T.', position: 'Faculty', discipline: 'Mathematics', email: 'irish.baldevarona@bulsu.edu.ph' },
-  { name: 'Balilla, Jeffrhaim', position: 'Faculty', discipline: 'Mathematics', email: 'jeffrhaim.balilla@bulsu.edu.ph' },
-  { name: 'Camara, Evelyn R.', position: 'Faculty', discipline: 'Mathematics', email: 'evelyn.camara@bulsu.edu.ph' },
-  { name: 'Carcosia, Imelda Cristina B.', position: 'Faculty', discipline: 'Mathematics', email: 'imelda.carcosia@bulsu.edu.ph' },
-  { name: 'Clemente, Carla M.', position: 'Faculty', discipline: 'Mathematics', email: 'carla.clemente@bulsu.edu.ph' },
-  { name: 'Dela Cruz, Harris R.', position: 'Faculty', discipline: 'Mathematics', email: 'harris.delacruz@bulsu.edu.ph' },
-  { name: 'Dela Cruz, Luzviminda F.', position: 'Faculty', discipline: 'Mathematics', email: 'luzviminda.delacruz@bulsu.edu.ph' },
-  { name: 'Duque, Rainilyn L.', position: 'Faculty', discipline: 'Mathematics', email: 'rainilyn.duque@bulsu.edu.ph' },
-  { name: 'Estrella, Benedict M.', position: 'Faculty', discipline: 'Mathematics', email: 'benedict.estrella@bulsu.edu.ph' },
-  { name: 'Gonzales, Raevinor R.', position: 'Faculty', discipline: 'Mathematics', email: 'raevinor.gonzales@bulsu.edu.ph' },
-  { name: 'Lampayan, Valentine Blez L.', position: 'Faculty', discipline: 'Mathematics', email: 'valentine.lampayan@bulsu.edu.ph' },
-  { name: 'Magtulis, Mary Ann C.', position: 'Faculty', discipline: 'Mathematics', email: 'maryann.magtulis@bulsu.edu.ph' },
-  { name: 'Manalaysay, Ellenita G.', position: 'Faculty', discipline: 'Mathematics', email: 'ellenita.manalaysay@bulsu.edu.ph' },
-  { name: 'Mangaran, Armele J.', position: 'Faculty', discipline: 'Mathematics', email: 'armele.mangaran@bulsu.edu.ph' },
-  { name: 'Marcelino, Lyca D.', position: 'Faculty', discipline: 'Mathematics', email: 'lyca.marcelino@bulsu.edu.ph' },
-  { name: 'Martin, Maria Cecilia E.', position: 'Faculty', discipline: 'Mathematics', email: 'cecilia.martin@bulsu.edu.ph' },
-  { name: 'Pagtalunan, Thelma V.', position: 'Faculty', discipline: 'Mathematics', email: 'thelma.pagtalunan@bulsu.edu.ph' },
-  { name: 'Reyes, Jo Ann V.', position: 'Faculty', discipline: 'Mathematics', email: 'joann.reyes@bulsu.edu.ph' },
-  { name: 'Roberto, Yolanda C.', position: 'Faculty', discipline: 'Mathematics', email: 'yolanda.roberto@bulsu.edu.ph' },
-  { name: 'Santos, Edgardo M.', position: 'Faculty', discipline: 'Mathematics', email: 'edgardo.santos@bulsu.edu.ph' },
-  { name: 'Victorino, Adolfo Jr. D.', position: 'Faculty', discipline: 'Mathematics', email: 'adolfo.victorino@bulsu.edu.ph' },
-  { name: 'Viola, Joselito V.', position: 'Faculty', discipline: 'Mathematics', email: 'joselito.viola@bulsu.edu.ph' },
+  { surname: 'Amores', firstName: 'Minerva', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Angeles', firstName: 'Deo Stephanie', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Arellano', firstName: 'Ma. Concepcion', middleInitial: 'DC.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Balagtas', firstName: 'Michael', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Baldevarona', firstName: 'Irish', middleInitial: 'T.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Balilla', firstName: 'Jeffrhaim', middleInitial: '', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Camara', firstName: 'Evelyn', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Carcosia', firstName: 'Imelda Cristina', middleInitial: 'B.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Clemente', firstName: 'Carla', middleInitial: 'M.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Dela Cruz', firstName: 'Harris', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Dela Cruz', firstName: 'Luzviminda', middleInitial: 'F.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Duque', firstName: 'Rainilyn', middleInitial: 'L.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Estrella', firstName: 'Benedict', middleInitial: 'M.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Gonzales', firstName: 'Raevinor', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Lampayan', firstName: 'Valentine Blez', middleInitial: 'L.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Magtulis', firstName: 'Mary Ann', middleInitial: 'C.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Manalaysay', firstName: 'Ellenita', middleInitial: 'G.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Mangaran', firstName: 'Armele', middleInitial: 'J.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Marcelino', firstName: 'Lyca', middleInitial: 'D.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Martin', firstName: 'Maria Cecilia', middleInitial: 'E.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Pagtalunan', firstName: 'Thelma', middleInitial: 'V.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Reyes', firstName: 'Jo Ann', middleInitial: 'V.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Roberto', firstName: 'Yolanda', middleInitial: 'C.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Santos', firstName: 'Edgardo', middleInitial: 'M.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Victorino', firstName: 'Adolfo Jr.', middleInitial: 'D.', position: 'Faculty', department: 'Mathematics' },
+  { surname: 'Viola', firstName: 'Joselito', middleInitial: 'V.', position: 'Faculty', department: 'Mathematics' },
   
   // Mathematics Part-Time Faculty
-  { name: 'Galvez, Arcel F.', position: 'Faculty (Part-Time)', discipline: 'Mathematics', email: 'arcel.galvez@bulsu.edu.ph' },
-  { name: 'Regalado, Cherielyn C.', position: 'Faculty (Part-Time)', discipline: 'Mathematics', email: 'cherielyn.regalado@bulsu.edu.ph' },
-  { name: 'Reyes, Gertrudes C.', position: 'Faculty (Part-Time)', discipline: 'Mathematics', email: 'gertrudes.reyes@bulsu.edu.ph' },
-  { name: 'Roxas, Mara N.', position: 'Faculty (Part-Time)', discipline: 'Mathematics', email: 'mara.roxas@bulsu.edu.ph' },
-  { name: 'Sumala, Judy Ann T.', position: 'Faculty (Part-Time)', discipline: 'Mathematics', email: 'judyann.sumala@bulsu.edu.ph' },
-  { name: 'Valeroso, Joshua P.', position: 'Faculty (Part-Time)', discipline: 'Mathematics', email: 'joshua.valeroso@bulsu.edu.ph' },
+  { surname: 'Galvez', firstName: 'Arcel', middleInitial: 'F.', position: 'Faculty (Part-Time)', department: 'Mathematics' },
+  { surname: 'Regalado', firstName: 'Cherielyn', middleInitial: 'C.', position: 'Faculty (Part-Time)', department: 'Mathematics' },
+  { surname: 'Reyes', firstName: 'Gertrudes', middleInitial: 'C.', position: 'Faculty (Part-Time)', department: 'Mathematics' },
+  { surname: 'Roxas', firstName: 'Mara', middleInitial: 'N.', position: 'Faculty (Part-Time)', department: 'Mathematics' },
+  { surname: 'Sumala', firstName: 'Judy Ann', middleInitial: 'T.', position: 'Faculty (Part-Time)', department: 'Mathematics' },
+  { surname: 'Valeroso', firstName: 'Joshua', middleInitial: 'P.', position: 'Faculty (Part-Time)', department: 'Mathematics' },
   
   // Mathematics Adjunct Faculty
-  { name: 'Gan, Aubrey Rose T.', position: 'Faculty (Adjunct)', discipline: 'Mathematics', email: 'aubreyrose.gan@bulsu.edu.ph' },
+  { surname: 'Gan', firstName: 'Aubrey Rose', middleInitial: 'T.', position: 'Faculty (Adjunct)', department: 'Mathematics' },
   
   // Science Faculty
-  { name: 'Agustin, Michelle S.', position: 'Faculty', discipline: 'Science', email: 'michelle.agustin@bulsu.edu.ph' },
-  { name: 'Alaijos, Oliver R.', position: 'Faculty', discipline: 'Science', email: 'oliver.alaijos@bulsu.edu.ph' },
-  { name: 'Arrieta, Thelma D.C.', position: 'Faculty', discipline: 'Science', email: 'thelma.arrieta@bulsu.edu.ph' },
-  { name: 'Basilio, Eleonor R.', position: 'Faculty', discipline: 'Science', email: 'eleonor.basilio@bulsu.edu.ph' },
-  { name: 'Canta, Kristan Diane B.', position: 'Faculty', discipline: 'Science', email: 'kristan.canta@bulsu.edu.ph' },
-  { name: 'Clavio, Rachel D.C.', position: 'Faculty', discipline: 'Science', email: 'rachel.clavio@bulsu.edu.ph' },
-  { name: 'Clemente, Richard F.', position: 'Faculty', discipline: 'Science', email: 'richard.clemente@bulsu.edu.ph' },
-  { name: 'Cristobal, Maria Lin D.', position: 'Faculty', discipline: 'Science', email: 'marialin.cristobal@bulsu.edu.ph' },
-  { name: 'Cruz, Merlyn C.', position: 'Faculty', discipline: 'Science', email: 'merlyn.cruz@bulsu.edu.ph' },
-  { name: 'Dela Cruz, Marissa DA.', position: 'Faculty', discipline: 'Science', email: 'marissa.delacruz@bulsu.edu.ph' },
-  { name: 'Javier, Raymundo F.', position: 'Faculty', discipline: 'Science', email: 'raymundo.javier@bulsu.edu.ph' },
-  { name: 'Jingco, Freya Gay A.', position: 'Faculty', discipline: 'Science', email: 'freya.jingco@bulsu.edu.ph' },
-  { name: 'Lee, Mary Ylane S.', position: 'Faculty', discipline: 'Science', email: 'marylylane.lee@bulsu.edu.ph' },
-  { name: 'Neo, Mery day P.', position: 'Faculty', discipline: 'Science', email: 'meryday.neo@bulsu.edu.ph' },
-  { name: 'Nepomuceno, Joana May C.', position: 'Faculty', discipline: 'Science', email: 'joanamay.nepomuceno@bulsu.edu.ph' },
-  { name: 'Paitan, Virginia P.', position: 'Faculty', discipline: 'Science', email: 'virginia.paitan@bulsu.edu.ph' },
-  { name: 'Poñado, Rosario M.', position: 'Faculty', discipline: 'Science', email: 'rosario.ponado@bulsu.edu.ph' },
-  { name: 'Ocampo, Jose Ravenal S.', position: 'Faculty', discipline: 'Science', email: 'joseravenal.ocampo@bulsu.edu.ph' },
-  { name: 'Reyes, Ma. Theresa F.', position: 'Faculty', discipline: 'Science', email: 'theresa.reyes@bulsu.edu.ph' },
-  { name: 'Ronquillo, Eden C.', position: 'Faculty', discipline: 'Science', email: 'eden.ronquillo@bulsu.edu.ph' },
-  { name: 'Sacdalan, Marlyn Rose M.', position: 'Faculty', discipline: 'Science', email: 'marlynrose.sacdalan@bulsu.edu.ph' },
-  { name: 'Salunga, Anna Dominique M.', position: 'Faculty', discipline: 'Science', email: 'annadominique.salunga@bulsu.edu.ph' },
-  { name: 'Singian, Eloisa Q.', position: 'Faculty', discipline: 'Science', email: 'eloisa.singian@bulsu.edu.ph' },
-  { name: 'Tadiosa, Edwin R.', position: 'Faculty', discipline: 'Science', email: 'edwin.tadiosa@bulsu.edu.ph' },
-  { name: 'Tan, Judith Clarisse J.', position: 'Faculty', discipline: 'Science', email: 'judithclarisse.tan@bulsu.edu.ph' },
-  { name: 'Tiongson, Ma. Victoria S.', position: 'Faculty', discipline: 'Science', email: 'victoria.tiongson@bulsu.edu.ph' },
-  { name: 'Tuazon, Debbie Ann S.', position: 'Faculty', discipline: 'Science', email: 'debbieann.tuazon@bulsu.edu.ph' },
-  { name: 'Villareal, Cielo Emar M.', position: 'Faculty', discipline: 'Science', email: 'cieloemar.villareal@bulsu.edu.ph' },
+  { surname: 'Agustin', firstName: 'Michelle', middleInitial: 'S.', position: 'Faculty', department: 'Science' },
+  { surname: 'Alaijos', firstName: 'Oliver', middleInitial: 'R.', position: 'Faculty', department: 'Science' },
+  { surname: 'Arrieta', firstName: 'Thelma', middleInitial: 'D.C.', position: 'Faculty', department: 'Science' },
+  { surname: 'Basilio', firstName: 'Eleonor', middleInitial: 'R.', position: 'Faculty', department: 'Science' },
+  { surname: 'Canta', firstName: 'Kristan Diane', middleInitial: 'B.', position: 'Faculty', department: 'Science' },
+  { surname: 'Clavio', firstName: 'Rachel', middleInitial: 'D.C.', position: 'Faculty', department: 'Science' },
+  { surname: 'Clemente', firstName: 'Richard', middleInitial: 'F.', position: 'Faculty', department: 'Science' },
+  { surname: 'Cristobal', firstName: 'Maria Lin', middleInitial: 'D.', position: 'Faculty', department: 'Science' },
+  { surname: 'Cruz', firstName: 'Merlyn', middleInitial: 'C.', position: 'Faculty', department: 'Science' },
+  { surname: 'Dela Cruz', firstName: 'Marissa', middleInitial: 'DA.', position: 'Faculty', department: 'Science' },
+  { surname: 'Javier', firstName: 'Raymundo', middleInitial: 'F.', position: 'Faculty', department: 'Science' },
+  { surname: 'Jingco', firstName: 'Freya Gay', middleInitial: 'A.', position: 'Faculty', department: 'Science' },
+  { surname: 'Lee', firstName: 'Mary Ylane', middleInitial: 'S.', position: 'Faculty', department: 'Science' },
+  { surname: 'Neo', firstName: 'Mery day', middleInitial: 'P.', position: 'Faculty', department: 'Science' },
+  { surname: 'Nepomuceno', firstName: 'Joana May', middleInitial: 'C.', position: 'Faculty', department: 'Science' },
+  { surname: 'Paitan', firstName: 'Virginia', middleInitial: 'P.', position: 'Faculty', department: 'Science' },
+  { surname: 'Poñado', firstName: 'Rosario', middleInitial: 'M.', position: 'Faculty', department: 'Science' },
+  { surname: 'Ocampo', firstName: 'Jose Ravenal', middleInitial: 'S.', position: 'Faculty', department: 'Science' },
+  { surname: 'Reyes', firstName: 'Ma. Theresa', middleInitial: 'F.', position: 'Faculty', department: 'Science' },
+  { surname: 'Ronquillo', firstName: 'Eden', middleInitial: 'C.', position: 'Faculty', department: 'Science' },
+  { surname: 'Sacdalan', firstName: 'Marlyn Rose', middleInitial: 'M.', position: 'Faculty', department: 'Science' },
+  { surname: 'Salunga', firstName: 'Anna Dominique', middleInitial: 'M.', position: 'Faculty', department: 'Science' },
+  { surname: 'Singian', firstName: 'Eloisa', middleInitial: 'Q.', position: 'Faculty', department: 'Science' },
+  { surname: 'Tadiosa', firstName: 'Edwin', middleInitial: 'R.', position: 'Faculty', department: 'Science' },
+  { surname: 'Tan', firstName: 'Judith Clarisse', middleInitial: 'J.', position: 'Faculty', department: 'Science' },
+  { surname: 'Tiongson', firstName: 'Ma. Victoria', middleInitial: 'S.', position: 'Faculty', department: 'Science' },
+  { surname: 'Tuazon', firstName: 'Debbie Ann', middleInitial: 'S.', position: 'Faculty', department: 'Science' },
+  { surname: 'Villareal', firstName: 'Cielo Emar', middleInitial: 'M.', position: 'Faculty', department: 'Science' },
   
   // Science Part-Time Faculty
-  { name: 'Abuzo, Ria Laura B.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'rialaura.abuzo@bulsu.edu.ph' },
-  { name: 'Anacleto, Mark Andrew R.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'markandrew.anacleto@bulsu.edu.ph' },
-  { name: 'Barre, Atheena Cammara T.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'atheena.barre@bulsu.edu.ph' },
-  { name: 'Bernardo, Emily K.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'emily.bernardo@bulsu.edu.ph' },
-  { name: 'Carpio, Alfredo P.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'alfredo.carpio@bulsu.edu.ph' },
-  { name: 'Cayetano, Jayson V.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'jayson.cayetano@bulsu.edu.ph' },
-  { name: 'Jacinto, Reynaldo S.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'reynaldo.jacinto@bulsu.edu.ph' },
-  { name: 'Martinez, Maribeth V.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'maribeth.martinez@bulsu.edu.ph' },
-  { name: 'Nicolas, Jovie E.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'jovie.nicolas@bulsu.edu.ph' },
-  { name: 'Politano, Alma D.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'alma.politano@bulsu.edu.ph' },
-  { name: 'Rubico, Racquel Z.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'racquel.rubico@bulsu.edu.ph' },
-  { name: 'Santos, Maria Salome C.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'mariasalome.santos@bulsu.edu.ph' },
-  { name: 'Santos, Marianne P.', position: 'Faculty (Part-Time)', discipline: 'Science', email: 'marianne.santos@bulsu.edu.ph' },
+  { surname: 'Abuzo', firstName: 'Ria Laura', middleInitial: 'B.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Anacleto', firstName: 'Mark Andrew', middleInitial: 'R.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Barre', firstName: 'Atheena Cammara', middleInitial: 'T.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Bernardo', firstName: 'Emily', middleInitial: 'K.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Carpio', firstName: 'Alfredo', middleInitial: 'P.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Cayetano', firstName: 'Jayson', middleInitial: 'V.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Jacinto', firstName: 'Reynaldo', middleInitial: 'S.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Martinez', firstName: 'Maribeth', middleInitial: 'V.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Nicolas', firstName: 'Jovie', middleInitial: 'E.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Politano', firstName: 'Alma', middleInitial: 'D.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Rubico', firstName: 'Racquel', middleInitial: 'Z.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Santos', firstName: 'Maria Salome', middleInitial: 'C.', position: 'Faculty (Part-Time)', department: 'Science' },
+  { surname: 'Santos', firstName: 'Marianne', middleInitial: 'P.', position: 'Faculty (Part-Time)', department: 'Science' },
   
   // Science Guest Lecturers
-  { name: 'Degala, Atty. Julius Victor C.', position: 'Guest Lecturer', discipline: 'Science', email: 'juliusvictor.degala@bulsu.edu.ph' },
-  { name: 'Gan, Agatha Ruth T.', position: 'Guest Lecturer', discipline: 'Science', email: 'agatharuth.gan@bulsu.edu.ph' },
-  { name: 'Santos, Karl Kenneth R.', position: 'Guest Lecturer', discipline: 'Science', email: 'karlkenneth.santos@bulsu.edu.ph' },
+  { surname: 'Degala', firstName: 'Julius Victor', middleInitial: 'C.', position: 'Guest Lecturer', department: 'Science' },
+  { surname: 'Gan', firstName: 'Agatha Ruth', middleInitial: 'T.', position: 'Guest Lecturer', department: 'Science' },
+  { surname: 'Santos', firstName: 'Karl Kenneth', middleInitial: 'R.', position: 'Guest Lecturer', department: 'Science' },
   
   // Science Adjunct Faculty
-  { name: 'Nicolas, Mary Ann L.', position: 'Faculty (Adjunct)', discipline: 'Science', email: 'maryann.nicolas@bulsu.edu.ph' },
+  { surname: 'Nicolas', firstName: 'Mary Ann', middleInitial: 'L.', position: 'Faculty (Adjunct)', department: 'Science' },
 ];
 
 async function seedFaculty() {
@@ -107,21 +107,18 @@ async function seedFaculty() {
 
     // Create faculty members
     for (const faculty of facultyData) {
-      // Parse name into firstName, middleName, lastName
-      const nameParts = faculty.name.split(',').map(s => s.trim());
-      const lastName = nameParts[0];
-      const firstAndMiddle = nameParts[1]?.split(' ').filter(s => s.length > 0) || [];
-      const firstName = firstAndMiddle[0] || '';
-      const middleName = firstAndMiddle.slice(1).join(' ') || undefined;
+      // Generate email from name
+      const emailName = faculty.firstName.toLowerCase().replace(/\s+/g, '') + '.' + faculty.surname.toLowerCase().replace(/\s+/g, '');
+      const email = `${emailName}@bulsu.edu.ph`;
 
       await prisma.faculty.create({
         data: {
-          firstName,
-          middleName,
-          lastName,
-          email: faculty.email,
+          firstName: faculty.firstName,
+          middleName: faculty.middleInitial || undefined,
+          lastName: faculty.surname,
+          email: email,
           position: faculty.position,
-          college: 'College of Science',
+          college: `College of Science - ${faculty.department}`,
           officeHours: 'By Appointment',
           consultationDays: ['Monday', 'Wednesday', 'Friday'],
           consultationStart: '14:00',
@@ -130,9 +127,9 @@ async function seedFaculty() {
       });
     }
 
-    console.log(` Successfully added ${facultyData.length} faculty members`);
-    console.log(`   - Mathematics Faculty: ${facultyData.filter(f => f.discipline === 'Mathematics').length}`);
-    console.log(`   - Science Faculty: ${facultyData.filter(f => f.discipline === 'Science').length}`);
+    console.log(`✓ Successfully added ${facultyData.length} faculty members`);
+    console.log(`   - Mathematics Faculty: ${facultyData.filter(f => f.department === 'Mathematics').length}`);
+    console.log(`   - Science Faculty: ${facultyData.filter(f => f.department === 'Science').length}`);
   } catch (error) {
     console.error('Error seeding faculty:', error);
     throw error;
@@ -144,5 +141,5 @@ async function seedFaculty() {
 seedFaculty()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
+    throw e;
   });
