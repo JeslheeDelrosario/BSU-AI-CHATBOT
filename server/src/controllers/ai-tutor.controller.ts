@@ -183,7 +183,116 @@ If the information isn't in the database, say so politely. Never hallucinate or 
     // Add current user message
     messages.push({ role: 'user', content: userMessage });
 
-    // Detect faculty inquiries
+    // Detect faculty name inquiries (e.g., "who is [name]?")
+    const nameQueryPatterns = [
+      /who\s+is\s+([a-z\s\.]+)/i,
+      /sino\s+si\s+([a-z\s\.]+)/i,
+      /about\s+([a-z\s\.]+)/i,
+      /tungkol\s+kay\s+([a-z\s\.]+)/i
+    ];
+
+    for (const pattern of nameQueryPatterns) {
+      const match = userMessage.match(pattern);
+      if (match && match[1]) {
+        const searchName = match[1].trim();
+        
+        // Split name into parts for multi-word names (e.g., "arcel galvez" -> ["arcel", "galvez"])
+        const nameParts = searchName.split(/\s+/).filter(part => part.length > 0);
+        
+        // Build search conditions
+        let searchConditions: any[] = [];
+        
+        if (nameParts.length === 1) {
+          // Single word - search in firstName, lastName, or middleName
+          const singleName = nameParts[0];
+          searchConditions = [
+            { firstName: { contains: singleName, mode: 'insensitive' } },
+            { lastName: { contains: singleName, mode: 'insensitive' } },
+            { middleName: { contains: singleName, mode: 'insensitive' } }
+          ];
+        } else if (nameParts.length >= 2) {
+          // Multiple words - assume first word is firstName, last word is lastName
+          searchConditions.push({
+            AND: [
+              { firstName: { equals: nameParts[0], mode: 'insensitive' } },
+              { lastName: { equals: nameParts[nameParts.length - 1], mode: 'insensitive' } }
+            ]
+          });
+          
+          // Also try with contains for partial matches
+          searchConditions.push({
+            AND: [
+              { firstName: { contains: nameParts[0], mode: 'insensitive' } },
+              { lastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' } }
+            ]
+          });
+          
+          // Try full name in firstName or lastName (for compound names)
+          searchConditions.push({
+            firstName: { contains: searchName, mode: 'insensitive' }
+          });
+          searchConditions.push({
+            lastName: { contains: searchName, mode: 'insensitive' }
+          });
+        }
+        
+        // Search faculty by name
+        const facultyMatches = await prisma.faculty.findMany({
+          where: {
+            college: { startsWith: 'College of Science', mode: 'insensitive' },
+            OR: searchConditions
+          },
+          orderBy: { lastName: 'asc' }
+        });
+
+        if (facultyMatches.length === 1) {
+          const faculty = facultyMatches[0];
+          const fullName = `${faculty.firstName}${faculty.middleName ? ' ' + faculty.middleName : ''} ${faculty.lastName}`;
+          
+          let response = language === 'fil'
+            ? `**${fullName}** ay ${faculty.position} sa College of Science, Bulacan State University.`
+            : `**${fullName}** is a ${faculty.position} at the College of Science, Bulacan State University.`;
+
+          if (faculty.email) {
+            response += language === 'fil'
+              ? `\n\n📧 **Email**: ${faculty.email}`
+              : `\n\n📧 **Email**: ${faculty.email}`;
+          }
+
+          if (faculty.officeHours) {
+            response += language === 'fil'
+              ? `\n🕐 **Office Hours**: ${faculty.officeHours}`
+              : `\n🕐 **Office Hours**: ${faculty.officeHours}`;
+          }
+
+          if (faculty.consultationDays && faculty.consultationDays.length > 0) {
+            response += language === 'fil'
+              ? `\n📅 **Consultation Days**: ${faculty.consultationDays.join(', ')}`
+              : `\n📅 **Consultation Days**: ${faculty.consultationDays.join(', ')}`;
+          }
+
+          response += language === 'fil'
+            ? `\n\nMay iba ka pa bang gustong malaman tungkol kay ${faculty.firstName}?`
+            : `\n\nWould you like to know more about ${faculty.firstName}?`;
+
+          return response;
+        } else if (facultyMatches.length > 1) {
+          const namesList = facultyMatches.map(f => 
+            `• **${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}** - ${f.position}`
+          ).join('\n');
+          
+          return language === 'fil'
+            ? `Nakahanap ako ng ${facultyMatches.length} faculty members na may pangalang "${searchName}":\n\n${namesList}\n\nAlin sa kanila ang iyong tinutukoy?`
+            : `I found ${facultyMatches.length} faculty members with the name "${searchName}":\n\n${namesList}\n\nWhich one are you referring to?`;
+        } else {
+          return language === 'fil'
+            ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\nMaaari mong kontakin ang COS office para sa mas tumpak na impormasyon.`
+            : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\nPlease contact the COS office for more accurate information.`;
+        }
+      }
+    }
+
+    // Detect faculty inquiries by role
     const facultyRoles = [
       'Dean', 'Associate Dean', 'Chairperson',
       'Department Head, Science Department',
@@ -211,7 +320,7 @@ If the information isn't in the database, say so politely. Never hallucinate or 
         const facultyList = await prisma.faculty.findMany({
           where: { 
             position: role,
-            college: 'College of Science'
+            college: { startsWith: 'College of Science', mode: 'insensitive' }
           },
           orderBy: { lastName: 'asc' }
         });

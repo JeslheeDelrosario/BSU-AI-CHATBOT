@@ -117,12 +117,14 @@ model ChatSession {
   userId    String
   title     String
   messages  Json
+  isStarred Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([updatedAt])
   @@index([userId])
+  @@index([isStarred])
 }
 
 model Course {
