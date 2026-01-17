@@ -385,32 +385,32 @@ model ChatSession {
 }
 
 model Faculty {
-  id                  String           @id @default(uuid())
-  firstName           String
-  middleName          String?
-  lastName            String
-  email               String?
-  position            String
-  college             String           @default("College of Science")
-  officeHours         String?
-  consultationDays    String[]         @default([])
-  consultationStart   String?
-  consultationEnd     String?
-  vacantTime          String?
-  subjects            FacultySubject[]
-  schedules           FacultySchedule[]
+  id                String            @id @default(uuid())
+  firstName         String
+  middleName        String?
+  lastName          String
+  email             String?
+  position          String
+  college           String            @default("College of Science")
+  officeHours       String?
+  consultationDays  String[]          @default([])
+  consultationStart String?
+  consultationEnd   String?
+  vacantTime        String?
+  schedules         FacultySchedule[]
+  subjects          FacultySubject[]
 }
 
 model FacultySchedule {
-  id          String   @id @default(uuid())
-  facultyId   String
-  dayOfWeek   String
-  startTime   String
-  endTime     String
-  subject     String?
-  room        String?
+  id           String  @id @default(uuid())
+  facultyId    String
+  dayOfWeek    String
+  startTime    String
+  endTime      String
+  subject      String?
+  room         String?
   scheduleType String  @default("CLASS")
-  faculty     Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty      Faculty @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId])
 }
@@ -433,16 +433,16 @@ model FacultySubject {
 model CurriculumEntry {
   id            String            @id @default(cuid())
   programId     String
-  yearLevel     Int               // 1, 2, 3, 4
-  semester      Int               // 1, 2
+  yearLevel     Int
+  semester      Int
   courseCode    String
-  subjectName   String            // Descriptive Title
-  lec           Int               @default(0)  // Lecture units
-  lab           Int               @default(0)  // Laboratory units
-  totalUnits    Int               @default(0)  // Total units
-  lecHours      Int               @default(0)  // Lecture hours
-  labHours      Int               @default(0)  // Laboratory hours
-  totalHours    Int               @default(0)  // Total hours
+  subjectName   String
+  lec           Int               @default(0)
+  lab           Int               @default(0)
+  totalUnits    Int               @default(0)
+  lecHours      Int               @default(0)
+  labHours      Int               @default(0)
+  totalHours    Int               @default(0)
   prerequisites String[]          @default([])
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt

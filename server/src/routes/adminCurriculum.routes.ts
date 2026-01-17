@@ -15,7 +15,24 @@ router.get('/:programId', async (req: AuthRequest, res: Response) => {
   try {
     const entries = await prisma.curriculumEntry.findMany({
       where: { programId },
-      orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }]
+      orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }],
+      select: {
+        id: true,
+        programId: true,
+        courseCode: true,
+        subjectName: true,
+        yearLevel: true,
+        semester: true,
+        lec: true,
+        lab: true,
+        totalUnits: true,
+        lecHours: true,
+        labHours: true,
+        totalHours: true,
+        prerequisites: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
     res.json(entries);
   } catch (err) {

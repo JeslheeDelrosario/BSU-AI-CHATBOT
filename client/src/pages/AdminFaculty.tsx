@@ -516,21 +516,21 @@ export default function ManageFaculty() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-card/60 border-b border-border">
+                <thead className="bg-slate-100 dark:bg-card/60 border-b-2 border-slate-300 dark:border-border">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                       {accessibilitySettings.language === 'fil' ? 'Buong Pangalan' : 'Full Name'}
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                       {accessibilitySettings.language === 'fil' ? 'Posisyon' : 'Position'}
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                       {accessibilitySettings.language === 'fil' ? 'Departamento' : 'Department'}
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                       {accessibilitySettings.language === 'fil' ? 'Email' : 'Email'}
                     </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                       {accessibilitySettings.language === 'fil' ? 'Aksyon' : 'Actions'}
                     </th>
                   </tr>
@@ -539,35 +539,35 @@ export default function ManageFaculty() {
                   {filteredFaculty.map((f: any) => {
                     const dept = f.college?.includes('Mathematics') ? 'Mathematics' : 'Science';
                     return (
-                      <tr key={f.id} className="hover:bg-card/40 transition-colors">
+                      <tr key={f.id} className="hover:bg-slate-50 dark:hover:bg-card/40 transition-colors">
                         <td className="px-6 py-5">
-                          <div className="text-base font-semibold text-foreground">
+                          <div className="text-base font-semibold text-slate-900 dark:text-foreground">
                             {f.lastName}, {f.firstName} {f.middleName ? `${f.middleName}.` : ''}
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="text-sm text-cyan-400 font-medium">{f.position}</span>
+                          <span className="text-sm text-cyan-600 dark:text-cyan-400 font-medium">{f.position}</span>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-500/30">
                             {dept}
                           </span>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="text-sm text-muted-foreground">{f.email || '—'}</span>
+                          <span className="text-sm text-slate-600 dark:text-muted-foreground">{f.email || '—'}</span>
                         </td>
                         <td className="px-6 py-5 text-right">
                           <div className="flex justify-end gap-2">
                             <button 
                               onClick={() => startEdit(f)} 
-                              className="p-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 hover:text-blue-300 transition-all"
+                              className="p-2 bg-blue-100 dark:bg-blue-500/20 border border-blue-300 dark:border-blue-500/30 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:text-blue-700 dark:hover:text-blue-300 transition-all"
                               title={accessibilitySettings.language === 'fil' ? 'I-edit' : 'Edit'}
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => deleteFaculty(f.id)} 
-                              className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all"
+                              className="p-2 bg-red-100 dark:bg-red-500/20 border border-red-300 dark:border-red-500/30 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 hover:text-red-700 dark:hover:text-red-300 transition-all"
                               title={accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
                             >
                               <Trash2 className="w-4 h-4" />

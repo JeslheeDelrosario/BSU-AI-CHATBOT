@@ -5,7 +5,7 @@ import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../lib/translations';
 import {
   BookOpen, Plus, Trash2, Edit2, X, Check, Loader2,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, GitBranch, ArrowDown,
 } from 'lucide-react';
 
 type SemesterType = 1 | 2 | 3;
@@ -52,6 +52,8 @@ export default function AdminCurriculum() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CurriculumEntry | null>(null);
+  const [showPrereqModal, setShowPrereqModal] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterYear, setFilterYear] = useState<number | 'all'>('all');
@@ -73,6 +75,34 @@ export default function AdminCurriculum() {
 
   // Which years are currently expanded
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([1,2,3,4]));
+
+  // Build prerequisite tree recursively
+  const buildPrerequisiteTree = useCallback((courseCode: string, visited = new Set<string>()): any => {
+    if (visited.has(courseCode)) return null; // Prevent circular dependencies
+    visited.add(courseCode);
+
+    const course = curriculum.find(c => c.courseCode === courseCode);
+    if (!course) return null;
+
+    const prereqNodes = course.prerequisites
+      .map(prereq => buildPrerequisiteTree(prereq, new Set(visited)))
+      .filter(node => node !== null);
+
+    return {
+      course,
+      prerequisites: prereqNodes
+    };
+  }, [curriculum]);
+
+  const handleCourseClick = (entry: CurriculumEntry) => {
+    setSelectedCourse(entry);
+    setShowPrereqModal(true);
+  };
+
+  const closePrereqModal = () => {
+    setShowPrereqModal(false);
+    setSelectedCourse(null);
+  };
 
  // ==================================================================
   // Fetch programs on mount
@@ -540,7 +570,7 @@ export default function AdminCurriculum() {
                   return (
                     <div
                       key={year}
-                      className="bg-card/60 backdrop-blur-xl rounded-2xl border border-border overflow-hidden shadow-xl"
+                      className="bg-white/80 dark:bg-card/60 backdrop-blur-xl rounded-2xl border-2 border-slate-200 dark:border-border overflow-hidden shadow-xl"
                     >
                       {/* Year Header */}
                       <button
@@ -553,18 +583,18 @@ export default function AdminCurriculum() {
                           }
                           setExpandedYears(newSet);
                         }}
-                        className="w-full px-6 py-5 flex items-center justify-between bg-gradient-to-r from-slate-900/40 to-slate-800/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-colors"
+                        className="w-full px-6 py-5 flex items-center justify-between bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-900/40 dark:to-slate-800/40 hover:from-slate-200 hover:to-slate-100 dark:hover:from-slate-800/60 dark:hover:to-slate-700/60 transition-colors"
                       >
                         <div className="flex items-center gap-4">
                           {isExpanded ? (
-                            <ChevronDown className="w-7 h-7 text-cyan-400" />
+                            <ChevronDown className="w-7 h-7 text-cyan-600 dark:text-cyan-400" />
                           ) : (
-                            <ChevronRight className="w-7 h-7 text-cyan-400" />
+                            <ChevronRight className="w-7 h-7 text-cyan-600 dark:text-cyan-400" />
                           )}
-                          <h3 className="text-2xl font-bold">
+                          <h3 className="text-2xl font-bold text-slate-800 dark:text-foreground">
                             {YEAR_LABELS[year as keyof typeof YEAR_LABELS]}
                           </h3>
-                          <span className="text-lg text-cyan-300 font-medium">
+                          <span className="text-lg text-cyan-600 dark:text-cyan-300 font-medium">
                             ({yearTotal} units)
                           </span>
                         </div>
@@ -580,37 +610,38 @@ export default function AdminCurriculum() {
 
                             return (
                               <div key={sem} className="space-y-4">
-                                <div className="flex items-center justify-between pb-2 border-b border-border/50">
-                                  <h4 className="text-xl font-semibold text-cyan-300">
+                                <div className="flex items-center justify-between pb-2 border-b border-slate-300 dark:border-border/50">
+                                  <h4 className="text-xl font-semibold text-cyan-600 dark:text-cyan-300">
                                     {SEMESTER_LABELS[sem as keyof typeof SEMESTER_LABELS]}
                                   </h4>
-                                  <span className="text-lg font-medium">
+                                  <span className="text-lg font-medium text-slate-700 dark:text-foreground">
                                     {semTotal} units
                                   </span>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 justify-items-center">
                                   {entries.map(entry => (
                                     <div
                                       key={entry.id}
-                                      className="bg-background/70 border border-border/70 rounded-xl p-5 hover:border-cyan-500/50 transition-all group"
+                                      onClick={() => handleCourseClick(entry)}
+                                      className="w-full bg-background/90 dark:bg-background/70 border-2 border-slate-200 dark:border-border/70 rounded-xl p-5 hover:border-cyan-500 dark:hover:border-cyan-500/50 hover:shadow-lg transition-all group cursor-pointer"
                                     >
                                       <div className="flex justify-between items-start mb-3">
                                         <div>
-                                          <div className="font-mono font-bold text-lg text-cyan-300">
+                                          <div className="font-mono font-bold text-lg text-cyan-600 dark:text-cyan-300">
                                             {entry.courseCode}
                                           </div>
-                                          <div className="text-base font-medium mt-0.5">
+                                          <div className="text-base font-medium mt-0.5 text-slate-700 dark:text-foreground">
                                             {entry.subjectName}
                                           </div>
                                         </div>
                                         <div className="text-right">
-                                          <div className="text-xl font-bold text-purple-300">
-                                            {entry.totalUnits}
+                                          <div className="text-xl font-bold text-purple-600 dark:text-purple-300">
+                                            {entry.totalUnits ?? 0}
                                           </div>
-                                          <div className="text-xs text-muted-foreground">units</div>
-                                          <div className="text-xs text-cyan-400 mt-1">
-                                            Lec: {entry.lec} / Lab: {entry.lab}
+                                          <div className="text-xs text-slate-500 dark:text-muted-foreground">units</div>
+                                          <div className="text-xs text-cyan-600 dark:text-cyan-400 mt-1">
+                                            Lec: {entry.lec ?? 0} / Lab: {entry.lab ?? 0}
                                           </div>
                                         </div>
                                       </div>
@@ -621,14 +652,14 @@ export default function AdminCurriculum() {
                                           {entry.prerequisites.map((pre, i) => (
                                             <span
                                               key={i}
-                                              className="px-2.5 py-1 bg-purple-950/60 text-purple-300 text-xs rounded-md border border-purple-700/40"
+                                              className="px-2.5 py-1 bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-xs rounded-md border border-purple-300 dark:border-purple-700/40"
                                             >
                                               {pre}
                                             </span>
                                           ))}
                                         </div>
                                       ) : (
-                                        <div className="text-sm text-muted-foreground mt-3 italic">
+                                        <div className="text-sm text-slate-500 dark:text-muted-foreground mt-3 italic">
                                           No prerequisites
                                         </div>
                                       )}
@@ -636,14 +667,20 @@ export default function AdminCurriculum() {
                                       {/* Actions */}
                                       <div className="flex justify-end gap-3 mt-4 opacity-70 group-hover:opacity-100 transition-opacity">
                                         <button
-                                          onClick={() => startEdit(entry)}
-                                          className="p-2 rounded-lg bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            startEdit(entry);
+                                          }}
+                                          className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/40 hover:bg-blue-200 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-300 transition-colors"
                                         >
                                           <Edit2 size={18} />
                                         </button>
                                         <button
-                                          onClick={() => deleteEntry(entry.id)}
-                                          className="p-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteEntry(entry.id);
+                                          }}
+                                          className="p-2 rounded-lg bg-red-100 dark:bg-red-950/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-300 transition-colors"
                                         >
                                           <Trash2 size={18} />
                                         </button>
@@ -662,6 +699,293 @@ export default function AdminCurriculum() {
             )}
           </div>
         )}
+
+        {/* Prerequisite Path Visualization Modal */}
+        {showPrereqModal && selectedCourse && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-card border border-border rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl scrollbar-hide">
+              <style>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                  display: none;
+                }
+                .scrollbar-hide {
+                  -ms-overflow-style: none;
+                  scrollbar-width: none;
+                }
+                
+                @keyframes wave-flow {
+                  0% {
+                    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+                    border-color: rgba(100, 116, 139, 0.5);
+                  }
+                  50% {
+                    box-shadow: 0 0 30px 10px rgba(6, 182, 212, 0.6),
+                                0 0 60px 20px rgba(168, 85, 247, 0.4);
+                    border-color: rgba(6, 182, 212, 0.8);
+                  }
+                  100% {
+                    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+                    border-color: rgba(100, 116, 139, 0.5);
+                  }
+                }
+                
+                @keyframes wave-flow-light {
+                  0% {
+                    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+                    border-color: rgba(148, 163, 184, 0.5);
+                  }
+                  50% {
+                    box-shadow: 0 0 30px 10px rgba(139, 92, 246, 0.6),
+                                0 0 60px 20px rgba(236, 72, 153, 0.5);
+                    border-color: rgba(139, 92, 246, 0.8);
+                  }
+                  100% {
+                    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+                    border-color: rgba(148, 163, 184, 0.5);
+                  }
+                }
+                
+                @keyframes arrow-wave-dark {
+                  0% {
+                    filter: drop-shadow(0 0 0 rgba(6, 182, 212, 0));
+                  }
+                  50% {
+                    filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.8)) 
+                            drop-shadow(0 0 24px rgba(168, 85, 247, 0.6));
+                  }
+                  100% {
+                    filter: drop-shadow(0 0 0 rgba(6, 182, 212, 0));
+                  }
+                }
+                
+                @keyframes arrow-wave-light {
+                  0% {
+                    filter: drop-shadow(0 0 0 rgba(139, 92, 246, 0));
+                  }
+                  50% {
+                    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.8)) 
+                            drop-shadow(0 0 24px rgba(236, 72, 153, 0.7));
+                  }
+                  100% {
+                    filter: drop-shadow(0 0 0 rgba(139, 92, 246, 0));
+                  }
+                }
+                
+                .wave-animate {
+                  animation: wave-flow 3s ease-in-out infinite;
+                }
+                
+                .dark .wave-animate {
+                  animation: wave-flow 3s ease-in-out infinite;
+                }
+                
+                :not(.dark) .wave-animate {
+                  animation: wave-flow-light 3s ease-in-out infinite;
+                }
+                
+                .arrow-wave {
+                  animation: arrow-wave-dark 3s ease-in-out infinite;
+                }
+                
+                .dark .arrow-wave {
+                  animation: arrow-wave-dark 3s ease-in-out infinite;
+                }
+                
+                :not(.dark) .arrow-wave {
+                  animation: arrow-wave-light 3s ease-in-out infinite;
+                }
+              `}</style>
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-gradient-to-r from-slate-200 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-b-2 border-slate-300 dark:border-border p-6 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <GitBranch className="w-7 h-7 text-cyan-600 dark:text-cyan-400" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
+                      {selectedCourse.courseCode}
+                    </h2>
+                    <p className="text-sm text-slate-600 dark:text-muted-foreground mt-0.5">
+                      {selectedCourse.subjectName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closePrereqModal}
+                  className="p-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700/50 transition-colors"
+                >
+                  <X className="w-6 h-6 text-slate-600 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {selectedCourse.prerequisites.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🎓</div>
+                    <p className="text-xl font-medium text-cyan-300 mb-2">
+                      No Prerequisites Required
+                    </p>
+                    <p className="text-muted-foreground">
+                      This course can be taken without any prerequisite courses.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-cyan-50 to-purple-50 dark:from-cyan-950/40 dark:to-purple-950/40 border-2 border-cyan-300 dark:border-cyan-700/30 rounded-xl p-5">
+                      <h3 className="text-lg font-semibold text-cyan-700 dark:text-cyan-300 mb-3 flex items-center gap-2">
+                        <GitBranch className="w-5 h-5" />
+                        Prerequisite Path to {selectedCourse.courseCode}
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground">
+                        Complete all courses in this path before enrolling in {selectedCourse.courseCode}
+                      </p>
+                    </div>
+
+                    {/* Recursive Prerequisite Tree - Shows earliest prerequisites first */}
+                    <PrerequisiteTree 
+                      tree={buildPrerequisiteTree(selectedCourse.courseCode)} 
+                      level={0}
+                    />
+
+                    {/* Course Info Summary */}
+                    <div className="bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-300 dark:border-border rounded-xl p-5 mt-6">
+                      <h4 className="font-semibold text-cyan-700 dark:text-cyan-300 mb-3">Target Course Details</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-600 dark:text-muted-foreground">Year Level:</span>
+                          <span className="ml-2 font-semibold text-slate-800 dark:text-foreground">{YEAR_LABELS[selectedCourse.yearLevel as keyof typeof YEAR_LABELS]}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600 dark:text-muted-foreground">Semester:</span>
+                          <span className="ml-2 font-semibold text-slate-800 dark:text-foreground">{SEMESTER_LABELS[selectedCourse.semester as keyof typeof SEMESTER_LABELS]}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600 dark:text-muted-foreground">Total Units:</span>
+                          <span className="ml-2 font-bold text-purple-700 dark:text-purple-300">{selectedCourse.totalUnits}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600 dark:text-muted-foreground">Total Hours:</span>
+                          <span className="ml-2 font-bold text-purple-700 dark:text-purple-300">{selectedCourse.totalHours}h</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600 dark:text-muted-foreground">Lecture:</span>
+                          <span className="ml-2 font-semibold text-violet-700 dark:text-cyan-300">{selectedCourse.lec} units ({selectedCourse.lecHours}h)</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600 dark:text-muted-foreground">Laboratory:</span>
+                          <span className="ml-2 font-semibold text-violet-700 dark:text-cyan-300">{selectedCourse.lab} units ({selectedCourse.labHours}h)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Helper function to count total nodes in tree for animation timing
+function countTotalNodes(tree: any): number {
+  if (!tree || !tree.course) return 0;
+  const prereqCount = tree.prerequisites?.reduce((sum: number, p: any) => sum + countTotalNodes(p), 0) || 0;
+  return 1 + prereqCount;
+}
+
+// Recursive component to render prerequisite tree as flowchart
+// Uses renderIndex to track visual position for sequential animation delays
+function PrerequisiteTree({ tree, level, renderIndex = { current: 0 } }: { 
+  tree: any; 
+  level: number; 
+  renderIndex?: { current: number };
+}) {
+  if (!tree || !tree.course) return null;
+
+  const { course, prerequisites } = tree;
+  
+  // Capture current index BEFORE rendering prerequisites (for top-to-bottom flow)
+  // Prerequisites render first (at top), so they get lower indices
+  let myIndex = 0;
+  
+  // If this node has prerequisites, they will be rendered first and increment the counter
+  // We need to calculate our index after all prerequisites are counted
+  if (prerequisites && prerequisites.length > 0) {
+    // Count how many nodes are in prerequisites subtree
+    const prereqNodeCount = prerequisites.reduce((sum: number, p: any) => sum + countTotalNodes(p), 0);
+    myIndex = renderIndex.current + prereqNodeCount;
+  } else {
+    myIndex = renderIndex.current;
+  }
+  
+  const animationDelay = `${myIndex * 0.4}s`;
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Render prerequisites FIRST (at top) */}
+      {prerequisites && prerequisites.length > 0 && (
+        <>
+          <div className="w-full space-y-6">
+            {prerequisites.map((prereqTree: any, idx: number) => {
+              // Calculate starting index for this prerequisite subtree
+              const startIdx = renderIndex.current + prerequisites.slice(0, idx).reduce(
+                (sum: number, p: any) => sum + countTotalNodes(p), 0
+              );
+              return (
+                <PrerequisiteTree 
+                  key={idx} 
+                  tree={prereqTree} 
+                  level={level + 1} 
+                  renderIndex={{ current: startIdx }} 
+                />
+              );
+            })}
+          </div>
+
+          {/* Arrow pointing down to current course (centered) */}
+          <div className="flex items-center justify-center py-4">
+            <ArrowDown className="w-6 h-6 text-violet-600 dark:text-cyan-500 arrow-wave" />
+          </div>
+        </>
+      )}
+
+      {/* Course Card - appears AFTER prerequisites */}
+      <div 
+        className={`w-full max-w-sm bg-gradient-to-r ${
+          level === 0 
+            ? 'from-purple-100 to-purple-50 dark:from-purple-950/60 dark:to-purple-900/60 border-purple-400 dark:border-purple-600/50' 
+            : 'from-slate-100 to-slate-50 dark:from-slate-900/60 dark:to-slate-800/60 border-slate-400 dark:border-slate-600/50'
+        } border-2 rounded-xl p-5 hover:border-cyan-500 dark:hover:border-cyan-500/50 transition-all shadow-lg wave-animate`}
+        style={{ animationDelay }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="font-mono font-bold text-lg text-cyan-700 dark:text-cyan-300">
+                {course.courseCode}
+              </span>
+              <span className="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 text-xs rounded-md border border-cyan-400 dark:border-cyan-700/40">
+                Year {course.yearLevel} - Sem {course.semester}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-slate-700 dark:text-foreground/90">
+              {course.subjectName}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
+              {course.totalUnits}
+            </div>
+            <div className="text-xs text-slate-700 dark:text-muted-foreground font-semibold">units</div>
+            <div className="text-xs text-violet-700 dark:text-cyan-400 mt-1 font-medium">
+              Lec: {course.lec} ({course.lecHours}h) / Lab: {course.lab} ({course.labHours}h)
+            </div>
+            <div className="text-xs text-slate-700 dark:text-muted-foreground mt-0.5 font-medium">
+              Total: {course.totalHours}h
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
