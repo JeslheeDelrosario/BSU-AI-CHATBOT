@@ -492,9 +492,19 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
     
     // STEP 2: If clearly out of scope, respond immediately without calling OpenAI
     if (!scopeAnalysis.isInScope && scopeAnalysis.confidence > 0.8) {
-      const outOfScopeResponse = userLanguage === 'fil'
-        ? `Paumanhin, ngunit ang aking kaalaman ay limitado lamang sa **Bulacan State University – College of Science**. 🎓\n\nHindi ako makakatulong sa mga tanong tungkol sa ${scopeAnalysis.category}.\n\nMaaari akong tumulong sa:\n• Mga programa at kurikulum ng COS\n• Impormasyon tungkol sa faculty\n• Career opportunities\n• Admission at enrollment\n\n**Mayroon ka bang tanong tungkol sa BSU College of Science?**`
-        : `I apologize, but my knowledge is strictly limited to **Bulacan State University – College of Science**. 🎓\n\nI cannot help with questions about ${scopeAnalysis.category}.\n\nI can help you with:\n• COS programs and curriculum\n• Faculty information\n• Career opportunities\n• Admission and enrollment\n\n**Do you have any questions about BSU College of Science?**`;
+      let outOfScopeResponse: string;
+      
+      // Handle unsupported language
+      if (scopeAnalysis.category === 'unsupported_language') {
+        outOfScopeResponse = userLanguage === 'fil'
+          ? `Paumanhin, ngunit ako ay sumusuporta lamang sa **English** at **Filipino (Tagalog)** na mga wika. 🌐\n\nMangyaring magtanong sa English o Filipino.\n\n**Mayroon ka bang tanong tungkol sa BSU College of Science?**`
+          : `I apologize, but I only support **English** and **Filipino (Tagalog)** languages. 🌐\n\nPlease ask your question in English or Filipino.\n\n**Do you have any questions about BSU College of Science?**`;
+      } else {
+        // Handle other out-of-scope topics
+        outOfScopeResponse = userLanguage === 'fil'
+          ? `Paumanhin, ngunit ang aking kaalaman ay limitado lamang sa **Bulacan State University – College of Science**. 🎓\n\nHindi ako makakatulong sa mga tanong tungkol sa ${scopeAnalysis.category}.\n\nMaaari akong tumulong sa:\n• Mga programa at kurikulum ng COS\n• Impormasyon tungkol sa faculty\n• Career opportunities\n• Admission at enrollment\n\n**Mayroon ka bang tanong tungkol sa BSU College of Science?**`
+          : `I apologize, but my knowledge is strictly limited to **Bulacan State University – College of Science**. 🎓\n\nI cannot help with questions about ${scopeAnalysis.category}.\n\nI can help you with:\n• COS programs and curriculum\n• Faculty information\n• Career opportunities\n• Admission and enrollment\n\n**Do you have any questions about BSU College of Science?**`;
+      }
 
       // Save the out-of-scope interaction
       const interaction = await prisma.aIInteraction.create({

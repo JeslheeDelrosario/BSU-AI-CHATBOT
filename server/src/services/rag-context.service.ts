@@ -5,6 +5,9 @@
 
 import { PrismaClient } from '@prisma/client';
 
+// Import modular components
+export { analyzeQueryScope } from '../modules/rag/scope-analyzer';
+
 const prisma = new PrismaClient();
 
 export interface RAGContext {
@@ -218,12 +221,11 @@ function generateProgramDescription(title: string): string {
 async function fetchFaculty(msg: string, queryType: string): Promise<FacultyContext[]> {
   // Extract potential name from message
   const namePatterns = [
-    /who is (\w+\s*\w*)/i,
-    /sino si (\w+\s*\w*)/i,
-    /about (\w+\s*\w*)/i,
-    /(\w+)\s+galvez/i,
-    /galvez/i,
-    /(\w+)\s+(\w+)/i
+    /who\s+is\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    /sino\s+(?:si|ang)\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    /tell\s+me\s+about\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    /about\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    /(?:prof|professor|dr|dean|chair)\s+([a-z]+(?:\s+[a-z]+)*)/i
   ];
 
   let nameFilter: any = {};
@@ -232,14 +234,30 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
   for (const pattern of namePatterns) {
     const match = msg.match(pattern);
     if (match) {
-      const searchName = match[1] || match[0];
+      const searchName = match[1]?.trim();
       if (searchName && searchName.length > 2) {
-        nameFilter = {
-          OR: [
-            { firstName: { contains: searchName, mode: 'insensitive' } },
-            { lastName: { contains: searchName, mode: 'insensitive' } }
-          ]
-        };
+        // Split the name into parts (first name, last name, etc.)
+        const nameParts = searchName.split(/\s+/).filter(p => p.length > 0);
+        
+        if (nameParts.length === 1) {
+          // Single word - could be first or last name
+          nameFilter = {
+            OR: [
+              { firstName: { contains: nameParts[0], mode: 'insensitive' as const } },
+              { lastName: { contains: nameParts[0], mode: 'insensitive' as const } }
+            ]
+          };
+        } else if (nameParts.length >= 2) {
+          // Multiple words - search for any part in first or last name
+          const orConditions = [];
+          for (const part of nameParts) {
+            orConditions.push(
+              { firstName: { contains: part, mode: 'insensitive' as const } },
+              { lastName: { contains: part, mode: 'insensitive' as const } }
+            );
+          }
+          nameFilter = { OR: orConditions };
+        }
         break;
       }
     }
@@ -257,14 +275,14 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
   let positionFilter: any = {};
   for (const { keyword, position } of positionKeywords) {
     if (msg.includes(keyword)) {
-      positionFilter = { position: { contains: position, mode: 'insensitive' } };
+      positionFilter = { position: { contains: position, mode: 'insensitive' as const } };
       break;
     }
   }
 
   const faculty = await prisma.faculty.findMany({
     where: {
-      college: 'College of Science',
+      college: { contains: 'College of Science', mode: 'insensitive' as const },
       ...nameFilter,
       ...positionFilter
     },
@@ -537,122 +555,8 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
   return formatted;
 }
 
-/**
- * Check if a query is within the BSU COS knowledge scope
- * Returns detailed analysis for better handling
- */
-export function analyzeQueryScope(userMessage: string): {
-  isInScope: boolean;
-  confidence: number;
-  category: string;
-  reason: string;
-} {
-  const lowerMsg = userMessage.toLowerCase();
-
-  // Definite OUT OF SCOPE topics
-  const outOfScopePatterns = [
-    // Geography/General Knowledge
-    { pattern: /regions?\s*(in|of)?\s*(the)?\s*philippines/i, category: 'geography' },
-    { pattern: /provinces?\s*(in|of)/i, category: 'geography' },
-    { pattern: /capital\s*(of|city)/i, category: 'geography' },
-    { pattern: /population\s*(of)?/i, category: 'geography' },
-    
-    // Weather/News
-    { pattern: /weather|forecast|temperature|climate\s+today/i, category: 'weather' },
-    { pattern: /news|headline|current\s+events/i, category: 'news' },
-    
-    // Entertainment
-    { pattern: /movie|film|actor|actress|celebrity|singer|band/i, category: 'entertainment' },
-    { pattern: /song|music|album|concert/i, category: 'entertainment' },
-    { pattern: /game|gaming|esports/i, category: 'entertainment' },
-    
-    // Sports
-    { pattern: /basketball|football|soccer|volleyball|sports?\s+score/i, category: 'sports' },
-    { pattern: /nba|pba|uaap|ncaa\s+(?!course)/i, category: 'sports' },
-    
-    // Food/Recipes
-    { pattern: /recipe|how\s+to\s+cook|ingredients?\s+for/i, category: 'cooking' },
-    { pattern: /restaurant|food\s+delivery/i, category: 'food' },
-    
-    // Shopping/Commerce
-    { pattern: /buy|purchase|price\s+of|how\s+much\s+is/i, category: 'shopping' },
-    { pattern: /lazada|shopee|amazon/i, category: 'shopping' },
-    
-    // Travel
-    { pattern: /hotel|resort|travel|vacation|tourist\s+spot/i, category: 'travel' },
-    { pattern: /flight|airline|booking/i, category: 'travel' },
-    
-    // Politics
-    { pattern: /president|senator|mayor|election|politics|government\s+(?!requirement)/i, category: 'politics' },
-    
-    // Health (non-academic)
-    { pattern: /medicine|symptom|disease|doctor|hospital\s+(?!internship)/i, category: 'health' },
-    
-    // Technology (non-academic)
-    { pattern: /iphone|android|samsung|laptop\s+(?!requirement)/i, category: 'tech_products' },
-    
-    // Random trivia
-    { pattern: /who\s+invented|when\s+was\s+(?!bsu|bulacan)/i, category: 'trivia' },
-    { pattern: /what\s+is\s+the\s+(?!bsu|college|program|curriculum|course|subject)/i, category: 'trivia' }
-  ];
-
-  // Check for out of scope patterns
-  for (const { pattern, category } of outOfScopePatterns) {
-    if (pattern.test(lowerMsg)) {
-      return {
-        isInScope: false,
-        confidence: 0.95,
-        category,
-        reason: `Query appears to be about ${category}, which is outside BSU COS knowledge scope.`
-      };
-    }
-  }
-
-  // Definite IN SCOPE keywords
-  const inScopeKeywords = [
-    'bsu', 'bulacan state', 'college of science', 'cos',
-    'program', 'curriculum', 'subject', 'course', 'faculty',
-    'professor', 'teacher', 'instructor', 'dean', 'chairperson',
-    'admission', 'enrollment', 'requirement', 'apply',
-    'computer science', 'biology', 'food technology',
-    'environmental science', 'mathematics', 'statistics',
-    'medical technology', 'business applications',
-    'career', 'job', 'graduate', 'degree', 'recommend',
-    'semester', 'year level', 'prerequisite', 'units',
-    'lab', 'lecture', 'thesis', 'ojt', 'internship',
-    'tisa', 'tutor', 'study', 'learn', 'academic'
-  ];
-
-  const matchedKeywords = inScopeKeywords.filter(kw => lowerMsg.includes(kw));
-  
-  if (matchedKeywords.length > 0) {
-    return {
-      isInScope: true,
-      confidence: Math.min(0.5 + (matchedKeywords.length * 0.1), 0.95),
-      category: 'bsu_cos',
-      reason: `Query contains BSU COS related keywords: ${matchedKeywords.join(', ')}`
-    };
-  }
-
-  // Greetings are in scope
-  const greetings = ['hi', 'hello', 'hey', 'kumusta', 'good morning', 'good afternoon', 'good evening'];
-  if (greetings.some(g => lowerMsg.trim() === g || lowerMsg.trim() === g + '!')) {
-    return {
-      isInScope: true,
-      confidence: 1.0,
-      category: 'greeting',
-      reason: 'Simple greeting'
-    };
-  }
-
-  // Default: uncertain - treat as potentially out of scope for safety
-  return {
-    isInScope: false,
-    confidence: 0.6,
-    category: 'unknown',
-    reason: 'Query does not contain recognizable BSU COS keywords. Cannot verify if within scope.'
-  };
-}
+// OLD analyzeQueryScope function removed - now using modular version from scope-analyzer.ts
+// The function is imported and re-exported at the top of this file
 
 /**
  * Generate course recommendation based on career goal
