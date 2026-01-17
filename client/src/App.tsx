@@ -22,6 +22,10 @@ import LessonViewer from './pages/LessonViewer';
 import AITutor from './pages/AITutor';
 import Settings from './pages/Settings';
 import Progress from './pages/Progress';
+import Consultations from './pages/Consultations';
+import Profile from './pages/Profile';
+import Classrooms from './pages/Classrooms';
+import ClassroomDetail from './pages/ClassroomDetail';
 
 // Admin Pages
 import AdminCOSPrograms from './pages/AdminCOSPrograms';
@@ -62,6 +66,10 @@ function App() {
                   <Route path="/my-courses" element={<MyCourses />} />
                   <Route path="/lessons/:id" element={<LessonViewer />} />
                   <Route path="/ai-tutor" element={<AITutor />} />
+                  <Route path="/classrooms" element={<Classrooms />} />
+                  <Route path="/classrooms/:id" element={<ClassroomDetail />} />
+                  <Route path="/consultations" element={<Consultations />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/progress" element={<Progress />} />
 

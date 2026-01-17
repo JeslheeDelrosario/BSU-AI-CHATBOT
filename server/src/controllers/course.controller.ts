@@ -4,7 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
 
-export const getCourses = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getCourses = async (req: AuthRequest, res: Response) => {
   try {
     const { status, level, search } = req.query;
 
@@ -50,14 +50,14 @@ export const getCourses = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
-    res.json({ courses });
+    return res.json({ courses });
   } catch (error) {
     console.error('Get courses error:', error);
-    res.status(500).json({ error: 'Server error fetching courses' });
+    return res.status(500).json({ error: 'Server error fetching courses' });
   }
 };
 
-export const getCourseById = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getCourseById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -99,8 +99,7 @@ export const getCourseById = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     if (!course) {
-      res.status(404).json({ error: 'Course not found' });
-      return;
+      return res.status(404).json({ error: 'Course not found' });
     }
 
     // Check if user is enrolled
@@ -116,21 +115,20 @@ export const getCourseById = async (req: AuthRequest, res: Response): Promise<vo
       });
     }
 
-    res.json({ course, enrollment });
+    return res.json({ course, enrollment });
   } catch (error) {
     console.error('Get course error:', error);
-    res.status(500).json({ error: 'Server error fetching course' });
+    return res.status(500).json({ error: 'Server error fetching course' });
   }
 };
 
-export const enrollInCourse = async (req: AuthRequest, res: Response): Promise<void> => {
+export const enrollInCourse = async (req: AuthRequest, res: Response) => {
   try {
     const { courseId } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Check if already enrolled
@@ -144,8 +142,7 @@ export const enrollInCourse = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (existingEnrollment) {
-      res.status(400).json({ error: 'Already enrolled in this course' });
-      return;
+      return res.status(400).json({ error: 'Already enrolled in this course' });
     }
 
     const enrollment = await prisma.enrollment.create({
@@ -158,20 +155,19 @@ export const enrollInCourse = async (req: AuthRequest, res: Response): Promise<v
       },
     });
 
-    res.status(201).json({ enrollment });
+    return res.status(201).json({ enrollment });
   } catch (error) {
     console.error('Enroll in course error:', error);
-    res.status(500).json({ error: 'Server error enrolling in course' });
+    return res.status(500).json({ error: 'Server error enrolling in course' });
   }
 };
 
-export const getMyEnrollments = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const enrollments = await prisma.enrollment.findMany({
@@ -198,21 +194,20 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response): Promise
       },
     });
 
-    res.json({ enrollments });
+    return res.json({ enrollments });
   } catch (error) {
     console.error('Get enrollments error:', error);
-    res.status(500).json({ error: 'Server error fetching enrollments' });
+    return res.status(500).json({ error: 'Server error fetching enrollments' });
   }
 };
 
-export const createCourse = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createCourse = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const userRole = req.user?.role;
 
     if (!userId || (userRole !== 'TEACHER' && userRole !== 'ADMIN' && userRole !== 'CONTENT_CREATOR')) {
-      res.status(403).json({ error: 'Only teachers, admins, and content creators can create courses' });
-      return;
+      return res.status(403).json({ error: 'Only teachers, admins, and content creators can create courses' });
     }
 
     const { title, description, level, duration, price, tags } = req.body;
@@ -231,9 +226,9 @@ export const createCourse = async (req: AuthRequest, res: Response): Promise<voi
       },
     });
 
-    res.status(201).json({ course });
+    return res.status(201).json({ course });
   } catch (error) {
     console.error('Create course error:', error);
-    res.status(500).json({ error: 'Server error creating course' });
+    return res.status(500).json({ error: 'Server error creating course' });
   }
 };

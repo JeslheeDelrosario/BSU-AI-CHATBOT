@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from "../contexts/AuthContext";
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../lib/translations';
-import { UserPlus, Trash2, Loader2, Edit2, X, Check } from 'lucide-react';
+import { UserPlus, Trash2, Loader2, Edit2, X, Check, Calendar, Clock } from 'lucide-react';
 
 export default function ManageFaculty() {
   const token = localStorage.getItem("token");
@@ -322,11 +322,11 @@ export default function ManageFaculty() {
             {/* Consultation Hours Section */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Calendar className="w-5 h-5 text-purple-500" />
                 {accessibilitySettings.language === 'fil' ? 'Iskedyul ng Konsultasyon (Opsyonal)' : 'Consultation Schedule (Optional)'}
+                <span className="text-xs text-muted-foreground font-normal ml-2">(GMT+8 Philippine Time)</span>
               </h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <input
                   placeholder={accessibilitySettings.language === 'fil' ? 'Oras sa Opisina (hal., MWF 9AM-12PM)' : 'Office Hours (e.g., MWF 9AM-12PM)'}
@@ -341,46 +341,102 @@ export default function ManageFaculty() {
                   className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm text-muted-foreground mb-2">{accessibilitySettings.language === 'fil' ? 'Mga Araw ng Konsultasyon' : 'Consultation Days'}</label>
-                  <div className="flex flex-wrap gap-2">
-                    {daysOfWeek.map(day => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => {
-                          const days = form.consultationDays.includes(day)
-                            ? form.consultationDays.filter(d => d !== day)
-                            : [...form.consultationDays, day];
-                          setForm({ ...form, consultationDays: days });
-                        }}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-all ${
-                          form.consultationDays.includes(day)
-                            ? 'bg-purple-500/30 border-purple-500 text-purple-300'
-                            : 'bg-card/60 border-border text-muted-foreground hover:border-purple-500/50'
-                        }`}
-                      >
-                        {day.slice(0, 3)}
-                      </button>
-                    ))}
-                  </div>
+
+              {/* Consultation Days Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  {accessibilitySettings.language === 'fil' ? 'Mga Araw ng Konsultasyon' : 'Consultation Days'}
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {daysOfWeek.map(day => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        const days = form.consultationDays.includes(day)
+                          ? form.consultationDays.filter(d => d !== day)
+                          : [...form.consultationDays, day];
+                        setForm({ ...form, consultationDays: days });
+                      }}
+                      className={`px-4 py-3 text-sm font-medium rounded-xl border-2 transition-all transform hover:scale-105 ${
+                        form.consultationDays.includes(day)
+                          ? 'bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-500/30'
+                          : 'bg-card/60 border-border text-muted-foreground hover:border-purple-500/50 hover:bg-purple-500/10'
+                      }`}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  ))}
                 </div>
-                <input
-                  type="time"
-                  placeholder="Start Time"
-                  value={form.consultationStart}
-                  onChange={e => setForm({ ...form, consultationStart: e.target.value })}
-                  className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
-                />
-                <input
-                  type="time"
-                  placeholder="End Time"
-                  value={form.consultationEnd}
-                  onChange={e => setForm({ ...form, consultationEnd: e.target.value })}
-                  className="px-6 py-4 bg-card/60 border border-border rounded-2xl text-foreground focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
-                />
               </div>
+
+              {/* Time Selection with Enhanced UI */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    {accessibilitySettings.language === 'fil' ? 'Oras ng Simula' : 'Start Time'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      value={form.consultationStart}
+                      onChange={e => setForm({ ...form, consultationStart: e.target.value })}
+                      className="w-full px-6 py-4 bg-card/60 border-2 border-border rounded-2xl text-foreground text-lg font-medium focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all"
+                    />
+                    <Clock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-500 pointer-events-none" />
+                  </div>
+                  {form.consultationStart && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {accessibilitySettings.language === 'fil' ? 'Nakatakda sa' : 'Set to'}: {form.consultationStart} (GMT+8)
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    {accessibilitySettings.language === 'fil' ? 'Oras ng Pagtatapos' : 'End Time'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      value={form.consultationEnd}
+                      onChange={e => setForm({ ...form, consultationEnd: e.target.value })}
+                      className="w-full px-6 py-4 bg-card/60 border-2 border-border rounded-2xl text-foreground text-lg font-medium focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
+                    />
+                    <Clock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500 pointer-events-none" />
+                  </div>
+                  {form.consultationEnd && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {accessibilitySettings.language === 'fil' ? 'Nakatakda sa' : 'Set to'}: {form.consultationEnd} (GMT+8)
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Duration Display */}
+              {form.consultationStart && form.consultationEnd && (
+                <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                  <p className="text-sm text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-purple-500" />
+                    <span className="font-medium">
+                      {accessibilitySettings.language === 'fil' ? 'Tagal ng Konsultasyon' : 'Consultation Duration'}:
+                    </span>
+                    <span className="text-purple-500 font-bold">
+                      {(() => {
+                        const [startHour, startMin] = form.consultationStart.split(':').map(Number);
+                        const [endHour, endMin] = form.consultationEnd.split(':').map(Number);
+                        const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+                        const hours = Math.floor(durationMinutes / 60);
+                        const minutes = durationMinutes % 60;
+                        return `${hours}h ${minutes}m`;
+                      })()}
+                    </span>
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}

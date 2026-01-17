@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-export const getAllStudents = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getAllStudents = async (req: AuthRequest, res: Response) => {
   try {
     const { search, status, learningStyle, page = '1', limit = '20' } = req.query;
 
@@ -64,7 +64,7 @@ export const getAllStudents = async (req: AuthRequest, res: Response): Promise<v
       prisma.user.count({ where }),
     ]);
 
-    res.json({
+    return res.json({
       students,
       pagination: {
         page: pageNum,
@@ -75,11 +75,11 @@ export const getAllStudents = async (req: AuthRequest, res: Response): Promise<v
     });
   } catch (error) {
     console.error('Get all students error:', error);
-    res.status(500).json({ error: 'Server error fetching students' });
+    return res.status(500).json({ error: 'Server error fetching students' });
   }
 };
 
-export const getStudentById = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getStudentById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -152,23 +152,21 @@ export const getStudentById = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (!student) {
-      res.status(404).json({ error: 'Student not found' });
-      return;
+      return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'STUDENT') {
-      res.status(400).json({ error: 'User is not a student' });
-      return;
+      return res.status(400).json({ error: 'User is not a student' });
     }
 
-    res.json(student);
+    return res.json(student);
   } catch (error) {
     console.error('Get student by ID error:', error);
-    res.status(500).json({ error: 'Server error fetching student' });
+    return res.status(500).json({ error: 'Server error fetching student' });
   }
 };
 
-export const updateStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateStudent = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { firstName, lastName, email, learningStyle, gradeLevel, isActive, dateOfBirth } = req.body;
@@ -176,20 +174,17 @@ export const updateStudent = async (req: AuthRequest, res: Response): Promise<vo
     const existingStudent = await prisma.user.findUnique({ where: { id } });
 
     if (!existingStudent) {
-      res.status(404).json({ error: 'Student not found' });
-      return;
+      return res.status(404).json({ error: 'Student not found' });
     }
 
     if (existingStudent.role !== 'STUDENT') {
-      res.status(400).json({ error: 'User is not a student' });
-      return;
+      return res.status(400).json({ error: 'User is not a student' });
     }
 
     if (email && email !== existingStudent.email) {
       const emailExists = await prisma.user.findUnique({ where: { email } });
       if (emailExists) {
-        res.status(400).json({ error: 'Email already in use' });
-        return;
+        return res.status(400).json({ error: 'Email already in use' });
       }
     }
 
@@ -219,27 +214,25 @@ export const updateStudent = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    res.json(updated);
+    return res.json(updated);
   } catch (error) {
     console.error('Update student error:', error);
-    res.status(500).json({ error: 'Server error updating student' });
+    return res.status(500).json({ error: 'Server error updating student' });
   }
 };
 
-export const toggleStudentStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+export const toggleStudentStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
     const student = await prisma.user.findUnique({ where: { id } });
 
     if (!student) {
-      res.status(404).json({ error: 'Student not found' });
-      return;
+      return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'STUDENT') {
-      res.status(400).json({ error: 'User is not a student' });
-      return;
+      return res.status(400).json({ error: 'User is not a student' });
     }
 
     const updated = await prisma.user.update({
@@ -257,36 +250,33 @@ export const toggleStudentStatus = async (req: AuthRequest, res: Response): Prom
       },
     });
 
-    res.json({
+    return res.json({
       ...updated,
       message: updated.isActive ? 'Student activated' : 'Student deactivated',
     });
   } catch (error) {
     console.error('Toggle student status error:', error);
-    res.status(500).json({ error: 'Server error toggling student status' });
+    return res.status(500).json({ error: 'Server error toggling student status' });
   }
 };
 
-export const resetStudentPassword = async (req: AuthRequest, res: Response): Promise<void> => {
+export const resetStudentPassword = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;
 
     if (!newPassword || newPassword.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' });
-      return;
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     const student = await prisma.user.findUnique({ where: { id } });
 
     if (!student) {
-      res.status(404).json({ error: 'Student not found' });
-      return;
+      return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'STUDENT') {
-      res.status(400).json({ error: 'User is not a student' });
-      return;
+      return res.status(400).json({ error: 'User is not a student' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -299,39 +289,37 @@ export const resetStudentPassword = async (req: AuthRequest, res: Response): Pro
       },
     });
 
-    res.json({ success: true, message: 'Password reset successfully' });
+    return res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     console.error('Reset student password error:', error);
-    res.status(500).json({ error: 'Server error resetting password' });
+    return res.status(500).json({ error: 'Server error resetting password' });
   }
 };
 
-export const deleteStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteStudent = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
     const student = await prisma.user.findUnique({ where: { id } });
 
     if (!student) {
-      res.status(404).json({ error: 'Student not found' });
-      return;
+      return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'STUDENT') {
-      res.status(400).json({ error: 'User is not a student' });
-      return;
+      return res.status(400).json({ error: 'User is not a student' });
     }
 
     await prisma.user.delete({ where: { id } });
 
-    res.json({ success: true, message: 'Student deleted successfully' });
+    return res.json({ success: true, message: 'Student deleted successfully' });
   } catch (error) {
     console.error('Delete student error:', error);
-    res.status(500).json({ error: 'Server error deleting student' });
+    return res.status(500).json({ error: 'Server error deleting student' });
   }
 };
 
-export const getStudentStats = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getStudentStats = async (req: AuthRequest, res: Response) => {
   try {
     const [
       totalStudents,
@@ -362,7 +350,7 @@ export const getStudentStats = async (req: AuthRequest, res: Response): Promise<
       }),
     ]);
 
-    res.json({
+    return res.json({
       totalStudents,
       activeStudents,
       inactiveStudents,
@@ -379,28 +367,25 @@ export const getStudentStats = async (req: AuthRequest, res: Response): Promise<
     });
   } catch (error) {
     console.error('Get student stats error:', error);
-    res.status(500).json({ error: 'Server error fetching student stats' });
+    return res.status(500).json({ error: 'Server error fetching student stats' });
   }
 };
 
-export const createStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createStudent = async (req: AuthRequest, res: Response) => {
   try {
     const { email, password, firstName, lastName, learningStyle, gradeLevel } = req.body;
 
     if (!email || !password || !firstName || !lastName) {
-      res.status(400).json({ error: 'Email, password, first name, and last name are required' });
-      return;
+      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
     }
 
     if (password.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' });
-      return;
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
-      res.status(400).json({ error: 'Email already in use' });
-      return;
+      return res.status(400).json({ error: 'Email already in use' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -437,9 +422,9 @@ export const createStudent = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    res.status(201).json(student);
+    return res.status(201).json(student);
   } catch (error) {
     console.error('Create student error:', error);
-    res.status(500).json({ error: 'Server error creating student' });
+    return res.status(500).json({ error: 'Server error creating student' });
   }
 };

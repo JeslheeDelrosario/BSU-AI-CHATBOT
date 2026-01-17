@@ -14,6 +14,7 @@ import {
   Shield,
   Users,
   BookMarked,
+  Calendar,
   Menu,
   X,
   LogOut,
@@ -63,11 +64,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
   const navigation = [
-    { name: t.nav.dashboard, href: '/dashboard', icon: LayoutDashboard },
-    { name: t.courses.title, href: '/courses', icon: BookOpen },
-    { name: t.courses.myCourses, href: '/my-courses', icon: GraduationCap },
-    { name: t.nav.aiTutor, href: '/ai-tutor', icon: MessageSquare },
-    { name: t.nav.settings, href: '/settings', icon: SettingsIcon },
+    { name: accessibilitySettings.language === 'fil' ? 'Dashboard' : 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: accessibilitySettings.language === 'fil' ? 'Mag-browse ng Kurso' : 'Browse Courses', href: '/courses', icon: BookOpen },
+    { name: accessibilitySettings.language === 'fil' ? 'Aking mga Kurso' : 'My Courses', href: '/my-courses', icon: GraduationCap },
+    { name: accessibilitySettings.language === 'fil' ? 'Classroom' : 'Classroom', href: '/classrooms', icon: Users },
+    { name: accessibilitySettings.language === 'fil' ? 'AI Tutor' : 'AI Tutor', href: '/ai-tutor', icon: MessageSquare },
+    { name: accessibilitySettings.language === 'fil' ? 'Konsultasyon' : 'Consultations', href: '/consultations', icon: Calendar },
+    { name: accessibilitySettings.language === 'fil' ? 'Mga Setting' : 'Settings', href: '/settings', icon: SettingsIcon },
   ];
 
   const adminNavigation = [
@@ -239,17 +242,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* User Profile & Logout */}
             <div className="p-6 border-t border-border bg-card/60 backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-2xl">
+                <Link
+                  to="/profile"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-4 flex-1 hover:bg-white/5 p-2 rounded-xl transition-all cursor-pointer group"
+                >
+                  <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-2xl group-hover:scale-105 transition-transform">
                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-white">
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">
                       {user?.firstName} {user?.lastName}
                     </p>
                     <p className="text-sm text-cyan-400 capitalize">{user?.role?.toLowerCase()}</p>
                   </div>
-                </div>
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="p-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded-xl transition-all duration-300 group"

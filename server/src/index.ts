@@ -21,6 +21,9 @@ import curriculumRoutes from './routes/adminCurriculum.routes';
 import faqRoutes from './routes/faq.routes';
 import studentsRoutes from './routes/students.routes';
 import progressRoutes from './routes/progress.routes';
+import consultationRoutes from './routes/consultation.routes';
+import programRoutes from './routes/program.routes';
+import classroomRoutes from './routes/classroom.routes';
 
 // Load environment variables
 dotenv.config();
@@ -121,6 +124,9 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/admin/students', studentsRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/consultations', consultationRoutes);
+app.use('/api/programs', programRoutes);
+app.use('/api/classrooms', classroomRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

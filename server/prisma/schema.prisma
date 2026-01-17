@@ -127,6 +127,37 @@ model ChatSession {
   @@index([isStarred])
 }
 
+model ConsultationBooking {
+  id          String              @id @default(cuid())
+  facultyId   String
+  studentId   String
+  date        DateTime
+  startTime   String
+  endTime     String
+  topic       String
+  notes       String?
+  status      ConsultationStatus  @default(PENDING)
+  meetingLink String?
+  location    String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime
+  Faculty     Faculty             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  Student     User                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([facultyId])
+  @@index([studentId])
+  @@index([date])
+  @@index([status])
+}
+
+enum ConsultationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  RESCHEDULED
+}
+
 model Course {
   id                          String         @id @default(cuid())
   title                       String
@@ -146,6 +177,7 @@ model Course {
   CourseReview                CourseReview[]
   Enrollment                  Enrollment[]
   Lesson                      Lesson[]
+  Classrooms                  Classroom[]
 
   @@index([creatorId])
   @@index([status])
@@ -223,20 +255,21 @@ model FAQ {
 }
 
 model Faculty {
-  id                String            @id @default(cuid())
-  firstName         String
-  middleName        String?
-  lastName          String
-  email             String?
-  position          String
-  college           String            @default("College of Science")
-  officeHours       String?
-  consultationDays  String[]          @default([])
-  consultationStart String?
-  consultationEnd   String?
-  vacantTime        String?
-  FacultySchedule   FacultySchedule[]
-  FacultySubject    FacultySubject[]
+  id                   String                 @id @default(cuid())
+  firstName            String
+  middleName           String?
+  lastName             String
+  email                String?
+  position             String
+  college              String                 @default("College of Science")
+  officeHours          String?
+  consultationDays     String[]               @default([])
+  consultationStart    String?
+  consultationEnd      String?
+  vacantTime           String?
+  FacultySchedule      FacultySchedule[]
+  FacultySubject       FacultySubject[]
+  ConsultationBookings ConsultationBooking[]
 }
 
 model FacultySchedule {
@@ -440,6 +473,9 @@ model User {
   lastName                         String
   role                             UserRole               @default(STUDENT)
   avatar                           String?
+  phoneNumber                      String?
+  course                           String?
+  section                          String?
   isActive                         Boolean                @default(true)
   createdAt                        DateTime               @default(now())
   updatedAt                        DateTime
@@ -462,6 +498,15 @@ model User {
   Progress                         Progress[]
   StudyGroupMember                 StudyGroupMember[]
   Submission                       Submission[]
+  ConsultationBookings             ConsultationBooking[]
+  ClassroomMembers                 ClassroomMember[]
+  ClassroomPosts                   ClassroomPost[]        @relation("ClassroomPostAuthor")
+  ClassroomComments                ClassroomComment[]     @relation("ClassroomCommentAuthor")
+  PostReactions                    PostReaction[]         @relation("PostReactionUser")
+  CommentReactions                 CommentReaction[]      @relation("CommentReactionUser")
+  AssignmentSubmissions            AssignmentSubmission[] @relation("AssignmentSubmissionStudent")
+  ClassroomJoinRequests            ClassroomJoinRequest[] @relation("JoinRequestUser")
+  ReviewedJoinRequests             ClassroomJoinRequest[] @relation("JoinRequestReviewer")
   User                             User?                  @relation("UserToUser", fields: [parentId], references: [id])
   other_User                       User[]                 @relation("UserToUser")
 
@@ -554,4 +599,262 @@ enum UserRole {
   PARENT
   ADMIN
   CONTENT_CREATOR
+}
+
+// ============================================
+// CLASSROOM SYSTEM MODELS
+// ============================================
+
+model Classroom {
+  id              String            @id @default(cuid())
+  courseId        String
+  name            String
+  section         String?
+  sections        String?           // Additional sections info for About page
+  description     String?
+  inviteCode      String            @unique @default(cuid())
+  isArchived      Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  Course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  ClassroomPosts  ClassroomPost[]
+  ClassroomMembers ClassroomMember[]
+  ClassroomJoinRequests ClassroomJoinRequest[]
+  
+  @@index([courseId])
+  @@index([inviteCode])
+  @@index([isArchived])
+}
+
+model ClassroomMember {
+  id          String          @id @default(cuid())
+  classroomId String
+  userId      String
+  role        ClassroomRole   @default(STUDENT)
+  joinedAt    DateTime        @default(now())
+  lastSeenAt  DateTime?
+  Classroom   Classroom       @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  User        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([classroomId, userId])
+  @@index([classroomId])
+  @@index([userId])
+}
+
+enum ClassroomRole {
+  TEACHER
+  STUDENT
+  PRESIDENT      // Student with posting privileges
+  VICE_PRESIDENT // Student with posting privileges
+  MODERATOR      // Student with posting privileges
+  TA
+}
+
+model ClassroomJoinRequest {
+  id          String              @id @default(cuid())
+  classroomId String
+  userId      String
+  status      JoinRequestStatus   @default(PENDING)
+  message     String?             // Optional message from student
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime
+  reviewedBy  String?             // Teacher who approved/rejected
+  reviewedAt  DateTime?
+  Classroom   Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  User        User                @relation("JoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  Reviewer    User?               @relation("JoinRequestReviewer", fields: [reviewedBy], references: [id])
+  
+  @@unique([classroomId, userId])
+  @@index([classroomId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ClassroomPost {
+  id              String              @id @default(cuid())
+  classroomId     String
+  authorId        String
+  type            PostType
+  title           String?
+  content         String
+  attachments     Json                @default("[]")
+  isPinned        Boolean             @default(false)
+  visibility      PostVisibility      @default(ALL_STUDENTS)
+  publishedAt     DateTime            @default(now())
+  dueDate         DateTime?
+  points          Int?
+  allowLateSubmission Boolean         @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime
+  Classroom       Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  Author          User                @relation("ClassroomPostAuthor", fields: [authorId], references: [id])
+  Comments        ClassroomComment[]
+  Submissions     AssignmentSubmission[]
+  Reactions       PostReaction[]
+  
+  @@index([classroomId])
+  @@index([authorId])
+  @@index([type])
+  @@index([publishedAt])
+  @@index([dueDate])
+}
+
+enum PostVisibility {
+  ALL_STUDENTS
+  MODERATORS_ONLY
+}
+
+enum PostType {
+  ANNOUNCEMENT
+  MATERIAL
+  DISCUSSION
+  
+  // Major Academic Work
+  PROJECT
+  CAPSTONE_PROJECT
+  THESIS
+  RESEARCH_PAPER
+  CASE_STUDY
+  FEASIBILITY_STUDY
+  PROPOSAL
+  
+  // Coursework & Submissions
+  ASSIGNMENT
+  HOMEWORK
+  SEATWORK
+  WORKSHEET
+  WRITTEN_EXERCISE
+  PRACTICE_TASK
+  
+  // Activities
+  ACTIVITY
+  CLASS_ACTIVITY
+  GROUP_ACTIVITY
+  INDIVIDUAL_ACTIVITY
+  LABORATORY_ACTIVITY
+  HANDS_ON_ACTIVITY
+  WORKSHOP_ACTIVITY
+  
+  // Assessments
+  QUIZ
+  SHORT_QUIZ
+  LONG_QUIZ
+  PRE_TEST
+  POST_TEST
+  EXAMINATION
+  MIDTERM_EXAM
+  FINAL_EXAM
+  PRACTICAL_EXAM
+  
+  // Collaboration & Participation
+  GROUP_WORK
+  PAIR_WORK
+  TEAM_TASK
+  DISCUSSION_TASK
+  RECITATION
+  PARTICIPATION_TASK
+  
+  // Output & Presentations
+  PRESENTATION
+  ORAL_PRESENTATION
+  VIDEO_PRESENTATION
+  POSTER
+  PORTFOLIO
+  CREATIVE_OUTPUT
+  
+  // Reflection & Evaluation
+  REFLECTION_PAPER
+  LEARNING_JOURNAL
+  SELF_ASSESSMENT
+  PEER_EVALUATION
+  FEEDBACK
+  
+  // Online / Submission-Based
+  ONLINE_ACTIVITY
+  ONLINE_SUBMISSION
+  FORUM_POST
+  DISCUSSION_BOARD_RESPONSE
+  
+  // Practicum / Experience-Based
+  INTERNSHIP_REQUIREMENT
+  OJT_REQUIREMENT
+  PRACTICUM_ACTIVITY
+  FIELD_STUDY
+  OBSERVATION_REPORT
+}
+
+model ClassroomComment {
+  id          String            @id @default(cuid())
+  postId      String
+  authorId    String
+  parentId    String?
+  content     String
+  attachments Json              @default("[]")
+  isPrivate   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime
+  Post        ClassroomPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  Author      User              @relation("ClassroomCommentAuthor", fields: [authorId], references: [id])
+  Parent      ClassroomComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  Replies     ClassroomComment[] @relation("CommentReplies")
+  Reactions   CommentReaction[]
+  
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model PostReaction {
+  id        String        @id @default(cuid())
+  postId    String
+  userId    String
+  emoji     String
+  createdAt DateTime      @default(now())
+  Post      ClassroomPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  User      User          @relation("PostReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId, emoji])
+  @@index([postId])
+}
+
+model CommentReaction {
+  id        String           @id @default(cuid())
+  commentId String
+  userId    String
+  emoji     String
+  createdAt DateTime         @default(now())
+  Comment   ClassroomComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  User      User             @relation("CommentReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+}
+
+model AssignmentSubmission {
+  id              String              @id @default(cuid())
+  assignmentId    String
+  studentId       String
+  content         String?
+  attachments     Json                @default("[]")
+  status          SubmissionStatus    @default(DRAFT)
+  submittedAt     DateTime?
+  grade           Float?
+  feedback        String?
+  isLate          Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime
+  Assignment      ClassroomPost       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  Student         User                @relation("AssignmentSubmissionStudent", fields: [studentId], references: [id])
+  
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@index([status])
 }

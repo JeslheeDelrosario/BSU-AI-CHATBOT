@@ -580,19 +580,17 @@ I'll be back to full functionality soon. Thank you for your patience! 🙏`;
 
 // Main controller function - STRICT RAG-BASED IMPLEMENTATION
 // AI will ONLY answer based on database knowledge
-export const askAITutor = async (req: AuthRequest, res: Response): Promise<void> => {
+export const askAITutor = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { message, type, chatSessionId } = req.body;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     if (!message || message.trim().length === 0) {
-      res.status(400).json({ error: 'Message cannot be empty' });
-      return;
+      return res.status(400).json({ error: 'Message cannot be empty' });
     }
 
     // Fetch user's language preference
@@ -632,7 +630,7 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
         },
       });
 
-      res.json({
+      return res.json({
         response: outOfScopeResponse,
         suggestions: getDefaultSuggestions(userLanguage),
         interactionId: interaction.id,
@@ -724,7 +722,7 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
       }
     }
 
-    res.json({
+    return res.json({
       response: aiResponse,
       suggestions,
       generatedTitle,
@@ -735,7 +733,7 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
 
   } catch (error) {
     console.error('AI tutor error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Server error processing AI request',
       message: 'We encountered an issue processing your question. Please try again.'
     });
@@ -743,14 +741,13 @@ export const askAITutor = async (req: AuthRequest, res: Response): Promise<void>
 };
 
 // Get AI conversation history
-export const getAIHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getAIHistory = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { limit = 50, context, type } = req.query;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const where: any = { userId };
@@ -781,25 +778,24 @@ export const getAIHistory = async (req: AuthRequest, res: Response): Promise<voi
       }
     });
 
-    res.json({ 
+    return res.json({ 
       interactions,
       count: interactions.length 
     });
   } catch (error) {
     console.error('Get AI history error:', error);
-    res.status(500).json({ error: 'Server error fetching AI history' });
+    return res.status(500).json({ error: 'Server error fetching AI history' });
   }
 };
 
 // Generate quiz based on conversation history
-export const generateQuiz = async (req: AuthRequest, res: Response): Promise<void> => {
+export const generateQuiz = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { topic, questionCount = 5 } = req.body;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Get recent conversation history for context
@@ -852,8 +848,7 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
           explanation: "BS Mathematics with Specialization in Computer Science is one of the programs offered."
         }
       ];
-      res.json({ quiz: fallbackQuiz, source: 'fallback' });
-      return;
+      return res.json({ quiz: fallbackQuiz, source: 'fallback' });
     }
 
     const completion = await openai.chat.completions.create({
@@ -888,21 +883,20 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
       },
     });
 
-    res.json({ quiz, questionCount: quiz.length });
+    return res.json({ quiz, questionCount: quiz.length });
   } catch (error) {
     console.error('Generate quiz error:', error);
-    res.status(500).json({ error: 'Server error generating quiz' });
+    return res.status(500).json({ error: 'Server error generating quiz' });
   }
 };
 
 // Get chat suggestions based on conversation context
-export const getChatSuggestions = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getChatSuggestions = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Get last interaction for context
@@ -926,8 +920,7 @@ export const getChatSuggestions = async (req: AuthRequest, res: Response): Promi
     ];
 
     if (!lastInteraction) {
-      res.json({ suggestions: defaultSuggestions });
-      return;
+      return res.json({ suggestions: defaultSuggestions });
     }
 
     // Generate contextual suggestions using simple Markov-like logic
@@ -960,28 +953,26 @@ export const getChatSuggestions = async (req: AuthRequest, res: Response): Promi
     // Combine and limit suggestions
     const suggestions = [...new Set([...contextualSuggestions, ...defaultSuggestions])].slice(0, 5);
 
-    res.json({ suggestions, hasContext: true });
+    return res.json({ suggestions, hasContext: true });
   } catch (error) {
     console.error('Get chat suggestions error:', error);
-    res.status(500).json({ error: 'Server error getting suggestions' });
+    return res.status(500).json({ error: 'Server error getting suggestions' });
   }
 };
 
 // Rate AI response (feedback mechanism)
-export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<void> => {
+export const rateAIResponse = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { helpful, feedback } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     if (typeof helpful !== 'boolean') {
-      res.status(400).json({ error: 'Helpful rating must be a boolean value' });
-      return;
+      return res.status(400).json({ error: 'Helpful rating must be a boolean value' });
     }
 
     const interaction = await prisma.aIInteraction.findUnique({
@@ -989,8 +980,7 @@ export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (!interaction || interaction.userId !== userId) {
-      res.status(404).json({ error: 'Interaction not found' });
-      return;
+      return res.status(404).json({ error: 'Interaction not found' });
     }
 
     const updated = await prisma.aIInteraction.update({
@@ -1002,24 +992,23 @@ export const rateAIResponse = async (req: AuthRequest, res: Response): Promise<v
       },
     });
 
-    res.json({ 
+    return res.json({ 
       interaction: updated,
       message: 'Thank you for your feedback!' 
     });
   } catch (error) {
     console.error('Rate AI response error:', error);
-    res.status(500).json({ error: 'Server error rating response' });
+    return res.status(500).json({ error: 'Server error rating response' });
   }
 };
 
 // Get greeting message for new conversation
-export const getGreeting = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getGreeting = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Fetch user's language preference
@@ -1035,13 +1024,13 @@ export const getGreeting = async (req: AuthRequest, res: Response): Promise<void
     // Get default suggestions for new conversation
     const suggestions = getDefaultSuggestions(userLanguage);
 
-    res.json({
+    return res.json({
       greeting,
       suggestions,
       language: userLanguage
     });
   } catch (error) {
     console.error('Get greeting error:', error);
-    res.status(500).json({ error: 'Server error getting greeting' });
+    return res.status(500).json({ error: 'Server error getting greeting' });
   }
 };

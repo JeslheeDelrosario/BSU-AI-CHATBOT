@@ -10,10 +10,10 @@ export const listPrograms = async (req: AuthRequest, res: Response) => {
       where: { college: 'College of Science' },
       orderBy: { order: 'asc' }, // optional, can use updatedAt instead
     });
-    res.json(programs);
+    return res.json(programs);
   } catch (err) {
     console.error('listPrograms error', err);
-    res.status(500).json({ error: 'Unable to fetch programs' });
+    return res.status(500).json({ error: 'Unable to fetch programs' });
   }
 };
 

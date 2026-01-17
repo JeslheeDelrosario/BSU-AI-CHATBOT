@@ -4,13 +4,12 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
 
-export const getUserProgress = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getUserProgress = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.params.userId || req.user?.userId;
 
     if (!userId) {
-      res.status(400).json({ error: 'User ID required' });
-      return;
+      return res.status(400).json({ error: 'User ID required' });
     }
 
     const enrollments = await prisma.enrollment.findMany({
@@ -85,7 +84,7 @@ export const getUserProgress = async (req: AuthRequest, res: Response): Promise<
       };
     });
 
-    res.json({
+    return res.json({
       summary: {
         totalEnrollments: enrollments.length,
         completedLessons,
@@ -108,17 +107,16 @@ export const getUserProgress = async (req: AuthRequest, res: Response): Promise<
     });
   } catch (error) {
     console.error('Get user progress error:', error);
-    res.status(500).json({ error: 'Server error fetching progress' });
+    return res.status(500).json({ error: 'Server error fetching progress' });
   }
 };
 
-export const getProgressAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getProgressAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.params.userId || req.user?.userId;
 
     if (!userId) {
-      res.status(400).json({ error: 'User ID required' });
-      return;
+      return res.status(400).json({ error: 'User ID required' });
     }
 
     const progress = await prisma.progress.findMany({
@@ -187,7 +185,7 @@ export const getProgressAnalytics = async (req: AuthRequest, res: Response): Pro
       orderBy: { earnedAt: 'desc' },
     });
 
-    res.json({
+    return res.json({
       byLessonType: Object.values(byLessonType),
       weeklyProgress,
       scoreDistribution,
@@ -196,7 +194,7 @@ export const getProgressAnalytics = async (req: AuthRequest, res: Response): Pro
     });
   } catch (error) {
     console.error('Get progress analytics error:', error);
-    res.status(500).json({ error: 'Server error fetching analytics' });
+    return res.status(500).json({ error: 'Server error fetching analytics' });
   }
 };
 
@@ -240,14 +238,13 @@ function calculateStreak(progress: any[]): { currentStreak: number; longestStrea
   };
 }
 
-export const getAIInteractionHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getAIInteractionHistory = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.params.userId || req.user?.userId;
     const { page = '1', limit = '20', type } = req.query;
 
     if (!userId) {
-      res.status(400).json({ error: 'User ID required' });
-      return;
+      return res.status(400).json({ error: 'User ID required' });
     }
 
     const pageNum = parseInt(page as string, 10);
@@ -289,7 +286,7 @@ export const getAIInteractionHistory = async (req: AuthRequest, res: Response): 
       _count: { type: true },
     });
 
-    res.json({
+    return res.json({
       interactions,
       pagination: {
         page: pageNum,
@@ -307,11 +304,11 @@ export const getAIInteractionHistory = async (req: AuthRequest, res: Response): 
     });
   } catch (error) {
     console.error('Get AI interaction history error:', error);
-    res.status(500).json({ error: 'Server error fetching AI history' });
+    return res.status(500).json({ error: 'Server error fetching AI history' });
   }
 };
 
-export const getSystemAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getSystemAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const [
       totalUsers,
@@ -382,7 +379,7 @@ export const getSystemAnalytics = async (req: AuthRequest, res: Response): Promi
       });
     }
 
-    res.json({
+    return res.json({
       overview: {
         totalUsers,
         totalStudents,
@@ -402,6 +399,6 @@ export const getSystemAnalytics = async (req: AuthRequest, res: Response): Promi
     });
   } catch (error) {
     console.error('Get system analytics error:', error);
-    res.status(500).json({ error: 'Server error fetching system analytics' });
+    return res.status(500).json({ error: 'Server error fetching system analytics' });
   }
 };
