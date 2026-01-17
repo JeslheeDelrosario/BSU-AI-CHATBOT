@@ -74,7 +74,7 @@ export default function MyCourses() {
           {enrollments.map((enrollment) => (
             <Link
               key={enrollment.id}
-              to={`/courses/${enrollment.course.id}`}
+              to={`/courses/${enrollment.Course?.id}`}
               className="group block h-full"
             >
               <div className="h-full bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:shadow-cyan-500/30 hover:border-cyan-500/50 flex flex-col">
@@ -92,7 +92,7 @@ export default function MyCourses() {
                 <div className="p-7 flex-1 flex flex-col justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 line-clamp-2 group-hover:text-cyan-300 transition-colors">
-                      {enrollment.course.title}
+                      {enrollment.Course?.title}
                     </h3>
 
                     {/* Progress Section */}
@@ -118,7 +118,7 @@ export default function MyCourses() {
                   <div className="mt-6 flex items-center gap-3 text-slate-700 dark:text-gray-300">
                     <TrendingUp className="w-5 h-5 text-purple-400" />
                     <span className="text-sm font-medium">
-                      {enrollment.course._count?.lessons || 0} {accessibilitySettings.language === 'fil' ? 'aralin' : 'lessons'}
+                      {enrollment.Course?._count?.Lesson || 0} {accessibilitySettings.language === 'fil' ? 'aralin' : 'lessons'}
                     </span>
                   </div>
                 </div>
