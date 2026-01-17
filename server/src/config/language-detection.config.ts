@@ -154,7 +154,7 @@ export const UNICODE_SCRIPT_LANGUAGES: LanguagePattern[] = [
  * Filipino/Tagalog Common Words
  * Used to identify and ALLOW Filipino queries
  */
-export const FILIPINO_PATTERNS = /\b(ano|mga|ng|sa|ang|ay|ko|mo|siya|kami|kayo|sila|ba|na|pa|po|opo|hindi|oo|kumusta|magandang|araw|gabi|umaga|tanong|sagot|programa|kurso|paaralan|unibersidad|kolehiyo|agham|pag-aaral|estudyante|guro|propesyor|paano|saan|kailan|sino|bakit|ilan|mayroon|wala|gusto|kailangan|pwede|maaari)\b/i;
+export const FILIPINO_PATTERNS = /\b(ano|mga|ng|sa|ang|ay|ko|mo|siya|kami|kayo|sila|ba|na|pa|po|opo|hindi|oo|kumusta|magandang|araw|gabi|umaga|tanong|sagot|programa|kurso|paaralan|unibersidad|kolehiyo|agham|pag-aaral|estudyante|guro|propesyor|paano|saan|kailan|sino|bakit|ilan|mayroon|wala|gusto|kailangan|pwede|maaari|sabihin|tungkol|tungkol sa|patungkol|patungkol sa|magtanong|magturo|pag-aralan|mag-aral|kompyuter|siyensya|matematika|pisika|kimika|biyolohiya)\b/i;
 
 /**
  * Latin-Script Foreign Languages
@@ -196,7 +196,7 @@ export const LATIN_SCRIPT_LANGUAGES: LanguagePattern[] = [
   },
   {
     name: 'Pangasinan',
-    patterns: [/\b(pansianno|iner|anto|siopa|akin|mabiskeg|siyempre|agew|bukas|listo|eskuelaan|manursuro|ituro)\b/i],
+    patterns: [/\b(pansianno|iner|anto|siopa|mabiskeg|siyempre|agew|listo|eskuelaan|manursuro)\b/i],
     confidence: 0.95
   },
   {
@@ -223,27 +223,27 @@ export const LATIN_SCRIPT_LANGUAGES: LanguagePattern[] = [
   // European Languages
   {
     name: 'Spanish',
-    patterns: [/\b(universidad|curso|mejor|estudiar|ciencia|carrera|hola|gracias|por favor|buenos días|buenas noches|cómo|dónde|cuándo|qué|quién|por qué)\b/i],
+    patterns: [/\b(universidad|mejor|estudiar|hola|gracias|por favor|buenos días|buenas noches|cómo|dónde|cuándo|qué|quién|por qué|señor|señora|español)\b/i],
     confidence: 0.95
   },
   {
     name: 'French',
-    patterns: [/\b(université|cours|meilleur|étudier|science|carrière|bonjour|merci|s'il vous plaît|bonne journée|bonne nuit|comment|où|quand|quoi|qui|pourquoi)\b/i],
+    patterns: [/\b(université|meilleur|étudier|carrière|bonjour|merci|s'il vous plaît|bonne journée|bonne nuit|comment|où|quand|quoi|qui|pourquoi|français|monsieur|madame)\b/i],
     confidence: 0.95
   },
   {
     name: 'German',
-    patterns: [/\b(universität|kurs|beste|studieren|wissenschaft|karriere|hallo|danke|bitte|guten tag|gute nacht|wie|wo|wann|was|wer|warum)\b/i],
+    patterns: [/\b(universität|beste|studieren|wissenschaft|karriere|hallo|danke|bitte|guten tag|gute nacht|wie|wo|wann|was|wer|warum|deutsch|herr|frau)\b/i],
     confidence: 0.95
   },
   {
     name: 'Italian',
-    patterns: [/\b(università|corso|migliore|studiare|scienza|carriera|ciao|grazie|per favore|buongiorno|buonanotte|come|dove|quando|cosa|chi|perché)\b/i],
+    patterns: [/\b(università|migliore|studiare|ciao|grazie|per favore|buongiorno|buonanotte|come|dove|quando|cosa|chi|perché|italiano|signore|signora)\b/i],
     confidence: 0.95
   },
   {
     name: 'Portuguese',
-    patterns: [/\b(universidade|melhor|estudar|ciência|carreira|olá|obrigado|por favor|bom dia|boa noite|como|onde|quando|o que|quem|por que)\b/i],
+    patterns: [/\b(universidade|melhor|estudar|olá|obrigado|obrigada|por favor|bom dia|boa noite|como|onde|quando|o que|quem|por que|português|senhor|senhora)\b/i],
     confidence: 0.95
   },
   {
@@ -324,7 +324,7 @@ export const LATIN_SCRIPT_LANGUAGES: LanguagePattern[] = [
   // Other Languages
   {
     name: 'Esperanto',
-    patterns: [/\b(universitato|kurso|plej bona|studi|scienco|kariero|saluton|dankon|bonvolu|bonan tagon|bonan nokton|kiel|kie|kiam|kio|kiu|kial)\b/i],
+    patterns: [/\b(universitato|plej bona|studi|scienco|kariero|saluton|dankon|bonvolu|bonan tagon|bonan nokton|kiel|kie|kiam|kiu|kial)\b/i],
     confidence: 0.95
   },
   {
