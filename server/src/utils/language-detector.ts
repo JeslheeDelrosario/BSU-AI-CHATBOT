@@ -74,12 +74,23 @@ export function detectLanguage(text: string): LanguageDetectionResult {
     };
   }
 
-  // Default: Assume English
+  // Step 5: Check for common English indicators
+  const hasEnglishIndicators = detectEnglishIndicators(lowerText);
+  if (hasEnglishIndicators) {
+    return {
+      isEnglishOrFilipino: true,
+      detectedLanguage: 'English',
+      confidence: 0.95,
+      reason: 'Contains common English words'
+    };
+  }
+
+  // Default: Assume English (Latin script with no foreign patterns)
   return {
     isEnglishOrFilipino: true,
     detectedLanguage: 'English',
-    confidence: 0.7,
-    reason: 'No foreign language patterns detected'
+    confidence: 0.85,
+    reason: 'Latin script with no foreign language patterns detected'
   };
 }
 
@@ -137,6 +148,20 @@ function detectAccentedLanguage(text: string, lowerText: string): { confidence: 
   }
 
   return null;
+}
+
+/**
+ * Detect common English words and patterns
+ */
+function detectEnglishIndicators(lowerText: string): boolean {
+  const englishPatterns = [
+    /\b(the|is|are|was|were|have|has|had|do|does|did|will|would|should|could|can|may|might)\b/,
+    /\b(about|program|course|university|college|science|student|teacher|professor|study|learn|education)\b/,
+    /\b(what|where|when|who|why|how|which|tell|me|you|your|my|our|their)\b/,
+    /\b(computer|biology|chemistry|physics|mathematics|engineering|technology|career|admission)\b/
+  ];
+  
+  return englishPatterns.some(pattern => pattern.test(lowerText));
 }
 
 /**
