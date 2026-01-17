@@ -127,8 +127,8 @@ export default function Dashboard() {
               stats?.recentEnrollments?.length ? (
                 stats.recentEnrollments.slice(0, 6).map((e: any, i: number) => (
                   <div key={i} className="p-5 bg-white/5 rounded-2xl border border-white/10">
-                    <p className="font-medium text-slate-900 dark:text-white">{e.user.firstName} {e.user.lastName}</p>
-                    <p className="text-sm text-slate-600 dark:text-gray-400 truncate">{e.course.title}</p>
+                    <p className="font-medium text-slate-900 dark:text-white">{e.User.firstName} {e.User.lastName}</p>
+                    <p className="text-sm text-slate-600 dark:text-gray-400 truncate">{e.Course.title}</p>
                     <p className="text-xs text-cyan-400 mt-1">
                       {new Date(e.enrolledAt).toLocaleDateString('en-PH')}
                     </p>
