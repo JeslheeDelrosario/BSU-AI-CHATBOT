@@ -145,6 +145,7 @@ export const createFAQ = async (req: AuthRequest, res: Response): Promise<void> 
         answer: answer.trim(),
         keywords: keywords || [],
         order: order !== undefined ? order : (maxOrder._max.order || 0) + 1,
+        updatedAt: new Date(),
       },
     });
 

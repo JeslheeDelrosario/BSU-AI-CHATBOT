@@ -54,9 +54,9 @@ export const getAllStudents = async (req: AuthRequest, res: Response): Promise<v
           updatedAt: true,
           _count: {
             select: {
-              enrollments: true,
-              progress: true,
-              aiInteractions: true,
+              Enrollment: true,
+              Progress: true,
+              AIInteraction: true,
             },
           },
         },
@@ -98,10 +98,10 @@ export const getStudentById = async (req: AuthRequest, res: Response): Promise<v
         dateOfBirth: true,
         createdAt: true,
         updatedAt: true,
-        accessibilitySettings: true,
-        enrollments: {
+        AccessibilitySettings: true,
+        Enrollment: {
           include: {
-            course: {
+            Course: {
               select: {
                 id: true,
                 title: true,
@@ -112,9 +112,9 @@ export const getStudentById = async (req: AuthRequest, res: Response): Promise<v
           },
           orderBy: { enrolledAt: 'desc' },
         },
-        progress: {
+        Progress: {
           include: {
-            lesson: {
+            Lesson: {
               select: {
                 id: true,
                 title: true,
@@ -125,7 +125,7 @@ export const getStudentById = async (req: AuthRequest, res: Response): Promise<v
           orderBy: { updatedAt: 'desc' },
           take: 20,
         },
-        aiInteractions: {
+        AIInteraction: {
           orderBy: { createdAt: 'desc' },
           take: 10,
           select: {
@@ -137,15 +137,15 @@ export const getStudentById = async (req: AuthRequest, res: Response): Promise<v
             createdAt: true,
           },
         },
-        achievements: {
+        Achievement: {
           orderBy: { earnedAt: 'desc' },
         },
         _count: {
           select: {
-            enrollments: true,
-            progress: true,
-            aiInteractions: true,
-            achievements: true,
+            Enrollment: true,
+            Progress: true,
+            AIInteraction: true,
+            Achievement: true,
           },
         },
       },
@@ -201,6 +201,7 @@ export const updateStudent = async (req: AuthRequest, res: Response): Promise<vo
     if (gradeLevel !== undefined) data.gradeLevel = gradeLevel;
     if (isActive !== undefined) data.isActive = isActive;
     if (dateOfBirth !== undefined) data.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+    data.updatedAt = new Date();
 
     const updated = await prisma.user.update({
       where: { id },
@@ -243,7 +244,10 @@ export const toggleStudentStatus = async (req: AuthRequest, res: Response): Prom
 
     const updated = await prisma.user.update({
       where: { id },
-      data: { isActive: !student.isActive },
+      data: { 
+        isActive: !student.isActive,
+        updatedAt: new Date(),
+      },
       select: {
         id: true,
         email: true,
@@ -289,7 +293,10 @@ export const resetStudentPassword = async (req: AuthRequest, res: Response): Pro
 
     await prisma.user.update({
       where: { id },
-      data: { password: hashedPassword },
+      data: { 
+        password: hashedPassword,
+        updatedAt: new Date(),
+      },
     });
 
     res.json({ success: true, message: 'Password reset successfully' });
@@ -345,10 +352,10 @@ export const getStudentStats = async (req: AuthRequest, res: Response): Promise<
         take: 10,
         orderBy: { enrolledAt: 'desc' },
         include: {
-          user: {
+          User: {
             select: { firstName: true, lastName: true, email: true },
           },
-          course: {
+          Course: {
             select: { title: true },
           },
         },
@@ -364,9 +371,9 @@ export const getStudentStats = async (req: AuthRequest, res: Response): Promise<
         count: ls._count.learningStyle,
       })),
       recentEnrollments: recentEnrollments.map(e => ({
-        studentName: `${e.user.firstName} ${e.user.lastName}`,
-        studentEmail: e.user.email,
-        courseName: e.course.title,
+        studentName: `${e.User.firstName} ${e.User.lastName}`,
+        studentEmail: e.User.email,
+        courseName: e.Course.title,
         enrolledAt: e.enrolledAt,
       })),
     });
@@ -408,6 +415,7 @@ export const createStudent = async (req: AuthRequest, res: Response): Promise<vo
         learningStyle: learningStyle || null,
         gradeLevel: gradeLevel || null,
         isActive: true,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -423,7 +431,10 @@ export const createStudent = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     await prisma.accessibilitySettings.create({
-      data: { userId: student.id },
+      data: { 
+        userId: student.id,
+        updatedAt: new Date(),
+      },
     });
 
     res.status(201).json(student);

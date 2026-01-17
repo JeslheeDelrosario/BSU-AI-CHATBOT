@@ -21,9 +21,9 @@ router.get("/faculty", isAdmin, async (_, res) => {
   try {
     const faculty = await prisma.faculty.findMany({
       include: {
-        subjects: {
+        FacultySubject: {
           include: {
-            subject: true,
+            Subject: true,
           },
         },
       },
@@ -32,7 +32,7 @@ router.get("/faculty", isAdmin, async (_, res) => {
     res.json(
       faculty.map((f) => ({
         ...f,
-        subjects: f.subjects.map((s) => s.subject),
+        subjects: f.FacultySubject.map((s) => s.Subject),
       }))
     );
   } catch (err) {
@@ -81,15 +81,15 @@ router.post("/faculty", isAdmin, async (req: AuthRequest, res) => {
         consultationStart: consultationStart || null,
         consultationEnd: consultationEnd || null,
         vacantTime: vacantTime?.trim() || null,
-        subjects: {
+        FacultySubject: {
           create: (subjectIds || []).map((id: string) => ({
             subjectId: id,
           })),
         },
       },
       include: {
-        subjects: {
-          include: { subject: true },
+        FacultySubject: {
+          include: { Subject: true },
         },
       },
     });
@@ -158,8 +158,8 @@ router.put("/faculty/:id", isAdmin, async (req: AuthRequest, res) => {
     const updatedFaculty = await prisma.faculty.findUnique({
       where: { id },
       include: {
-        subjects: {
-          include: { subject: true },
+        FacultySubject: {
+          include: { Subject: true },
         },
       },
     });

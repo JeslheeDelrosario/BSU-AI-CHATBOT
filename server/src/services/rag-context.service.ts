@@ -219,43 +219,63 @@ function generateProgramDescription(title: string): string {
  * Fetch faculty members with their subjects
  */
 async function fetchFaculty(msg: string, queryType: string): Promise<FacultyContext[]> {
-  // Extract potential name from message
+  // Extract potential name from message - improved patterns
   const namePatterns = [
     /who\s+is\s+([a-z]+(?:\s+[a-z]+)*)/i,
-    /sino\s+(?:si|ang)\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    /sino\s+(?:si|ang)?\s*([a-z]+(?:\s+[a-z]+)*)/i,
     /tell\s+me\s+about\s+([a-z]+(?:\s+[a-z]+)*)/i,
     /about\s+([a-z]+(?:\s+[a-z]+)*)/i,
-    /(?:prof|professor|dr|dean|chair)\s+([a-z]+(?:\s+[a-z]+)*)/i
+    /(?:prof|professor|dr|dean|chair)\.?\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    /\b([a-z]{3,}(?:\s+[a-z]{3,})*)\b/i  // Catch any name-like words (3+ chars)
   ];
 
   let nameFilter: any = {};
+  let searchName = '';
   
   // Check for specific name mentions
   for (const pattern of namePatterns) {
     const match = msg.match(pattern);
     if (match) {
-      const searchName = match[1]?.trim();
-      if (searchName && searchName.length > 2) {
+      searchName = match[1]?.trim() || '';
+      
+      // Filter out common words that aren't names
+      const excludeWords = ['who', 'what', 'where', 'when', 'why', 'how', 'the', 'is', 'are', 'was', 'were', 
+                            'faculty', 'professor', 'teacher', 'instructor', 'dean', 'chair', 'head', 'about'];
+      
+      if (searchName && searchName.length > 2 && !excludeWords.includes(searchName.toLowerCase())) {
         // Split the name into parts (first name, last name, etc.)
-        const nameParts = searchName.split(/\s+/).filter(p => p.length > 0);
+        const nameParts = searchName.split(/\s+/).filter(p => p.length > 2 && !excludeWords.includes(p.toLowerCase()));
         
         if (nameParts.length === 1) {
-          // Single word - could be first or last name
+          // Single word - could be first or last name (fuzzy match)
           nameFilter = {
             OR: [
               { firstName: { contains: nameParts[0], mode: 'insensitive' as const } },
-              { lastName: { contains: nameParts[0], mode: 'insensitive' as const } }
+              { lastName: { contains: nameParts[0], mode: 'insensitive' as const } },
+              { middleName: { contains: nameParts[0], mode: 'insensitive' as const } }
             ]
           };
         } else if (nameParts.length >= 2) {
-          // Multiple words - search for any part in first or last name
+          // Multiple words - match first AND last name combinations
           const orConditions = [];
+          
+          // Try matching first + last name
+          orConditions.push({
+            AND: [
+              { firstName: { contains: nameParts[0], mode: 'insensitive' as const } },
+              { lastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' as const } }
+            ]
+          });
+          
+          // Also try each part individually
           for (const part of nameParts) {
             orConditions.push(
               { firstName: { contains: part, mode: 'insensitive' as const } },
-              { lastName: { contains: part, mode: 'insensitive' as const } }
+              { lastName: { contains: part, mode: 'insensitive' as const } },
+              { middleName: { contains: part, mode: 'insensitive' as const } }
             );
           }
+          
           nameFilter = { OR: orConditions };
         }
         break;
@@ -287,9 +307,9 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
       ...positionFilter
     },
     include: {
-      subjects: {
+      FacultySubject: {
         include: {
-          subject: true
+          Subject: true
         }
       }
     },
@@ -309,7 +329,7 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
     email: f.email,
     officeHours: f.officeHours,
     consultationDays: f.consultationDays,
-    subjects: f.subjects.map(s => s.subject.name)
+    subjects: f.FacultySubject.map((s: any) => s.Subject.name)
   }));
 }
 
@@ -380,7 +400,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
   const curriculum = await prisma.curriculumEntry.findMany({
     where: whereClause,
     include: {
-      program: true
+      UniversityProgram: true
     },
     orderBy: [
       { yearLevel: 'asc' },
@@ -391,8 +411,8 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
   });
 
   return curriculum.map(c => ({
-    programTitle: c.program.title,
-    programAbbreviation: c.program.abbreviation,
+    programTitle: c.UniversityProgram.title,
+    programAbbreviation: c.UniversityProgram.abbreviation,
     yearLevel: c.yearLevel,
     semester: c.semester,
     courseCode: c.courseCode,
@@ -439,9 +459,9 @@ async function fetchSubjects(msg: string): Promise<SubjectContext[]> {
       ]
     },
     include: {
-      faculty: {
+      FacultySubject: {
         include: {
-          faculty: true
+          Faculty: true
         }
       }
     },
@@ -451,7 +471,7 @@ async function fetchSubjects(msg: string): Promise<SubjectContext[]> {
   return subjects.map(s => ({
     code: s.code,
     name: s.name,
-    taughtBy: s.faculty.map(f => `${f.faculty.firstName} ${f.faculty.lastName}`)
+    taughtBy: s.FacultySubject.map((f: any) => `${f.Faculty.firstName} ${f.Faculty.lastName}`)
   }));
 }
 
@@ -482,6 +502,11 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
   // Faculty section
   if (context.faculty.length > 0) {
     formatted += `### FACULTY MEMBERS (${context.faculty.length} found)\n`;
+    
+    if (context.faculty.length > 1) {
+      formatted += `\n**MULTIPLE MATCHES FOUND - Please clarify which person:**\n`;
+    }
+    
     for (const f of context.faculty) {
       formatted += `\n**${f.fullName}**\n`;
       formatted += `- Position: ${f.position}\n`;
@@ -495,6 +520,11 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
         formatted += `- Subjects: ${f.subjects.join(', ')}\n`;
       }
     }
+    
+    if (context.faculty.length > 1) {
+      formatted += `\n**INSTRUCTION**: Since multiple people match this name, list all of them and ask the user which one they meant. Provide distinguishing details (position, subjects taught) to help them choose.\n`;
+    }
+    
     formatted += '\n';
   }
 
@@ -632,7 +662,7 @@ export async function generateCourseRecommendation(careerGoal: string): Promise<
       programId: program.id,
       yearLevel: { gte: 2 }
     },
-    include: { program: true },
+    include: { UniversityProgram: true },
     orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }],
     take: 20
   });
@@ -647,8 +677,8 @@ export async function generateCourseRecommendation(careerGoal: string): Promise<
   };
 
   const subjectContexts: CurriculumContext[] = curriculum.map(c => ({
-    programTitle: c.program.title,
-    programAbbreviation: c.program.abbreviation,
+    programTitle: c.UniversityProgram.title,
+    programAbbreviation: c.UniversityProgram.abbreviation,
     yearLevel: c.yearLevel,
     semester: c.semester,
     courseCode: c.courseCode,

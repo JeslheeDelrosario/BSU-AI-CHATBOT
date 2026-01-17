@@ -57,6 +57,7 @@ export const createChatSession = async (req: AuthRequest, res: Response) => {
         userId,
         title,
         messages,
+        updatedAt: new Date(),
       },
     });
 
@@ -118,6 +119,7 @@ export const updateChatSession = async (req: AuthRequest, res: Response) => {
       data: {
         title: title ?? existing.title,
         messages: messages ?? existing.messages,
+        updatedAt: new Date(),
       },
     });
 
@@ -150,7 +152,10 @@ export const renameChatSession = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.chatSession.update({
       where: { id },
-      data: { title }
+      data: { 
+        title,
+        updatedAt: new Date(),
+      }
     });
 
     return res.json(updated);

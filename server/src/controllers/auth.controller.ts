@@ -54,6 +54,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
         role: role || UserRole.STUDENT,
         learningStyle: learningStyle as any,
         gradeLevel,
+        updatedAt: new Date(),
       },
     });
 
@@ -61,6 +62,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
     await prisma.accessibilitySettings.create({
       data: {
         userId: user.id,
+        updatedAt: new Date(),
       },
     });
 
@@ -102,7 +104,7 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        accessibilitySettings: true,
+        AccessibilitySettings: true,
       },
     });
 
@@ -138,12 +140,17 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
         role: user.role,
         learningStyle: user.learningStyle,
         gradeLevel: user.gradeLevel,
-        accessibilitySettings: user.accessibilitySettings,
+        accessibilitySettings: user.AccessibilitySettings,
       },
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ 
+      error: 'Server error during login',
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+    });
   }
 };
 
@@ -189,6 +196,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       data: {
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -228,6 +236,7 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
         ...(captionsEnabled !== undefined && { captionsEnabled }),
         ...(ttsSpeed !== undefined && { ttsSpeed }),
         ...(language && { language }),
+        updatedAt: new Date(),
       },
       create: {
         userId,
@@ -238,6 +247,7 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
         captionsEnabled: captionsEnabled || false,
         ttsSpeed: ttsSpeed || 1.0,
         language: language || 'en',
+        updatedAt: new Date(),
       },
     });
 
@@ -254,10 +264,10 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
     const user = await prisma.user.findUnique({
       where: { id: req.user?.userId },
       include: {
-        accessibilitySettings: true,
-        enrollments: {
+        AccessibilitySettings: true,
+        Enrollment: {
           include: {
-            course: {
+            Course: {
               select: {
                 id: true,
                 title: true,
@@ -283,8 +293,8 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
       avatar: user.avatar,
       learningStyle: user.learningStyle,
       gradeLevel: user.gradeLevel,
-      accessibilitySettings: user.accessibilitySettings,
-      enrollments: user.enrollments,
+      accessibilitySettings: user.AccessibilitySettings,
+      enrollments: user.Enrollment,
     });
   } catch (error) {
     console.error('Get current user error:', error);

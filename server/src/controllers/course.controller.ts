@@ -30,7 +30,7 @@ export const getCourses = async (req: AuthRequest, res: Response): Promise<void>
     const courses = await prisma.course.findMany({
       where,
       include: {
-        teacher: {
+        User_Course_teacherIdToUser: {
           select: {
             id: true,
             firstName: true,
@@ -40,8 +40,8 @@ export const getCourses = async (req: AuthRequest, res: Response): Promise<void>
         },
         _count: {
           select: {
-            lessons: true,
-            enrollments: true,
+            Lesson: true,
+            Enrollment: true,
           },
         },
       },
@@ -64,7 +64,7 @@ export const getCourseById = async (req: AuthRequest, res: Response): Promise<vo
     const course = await prisma.course.findUnique({
       where: { id },
       include: {
-        teacher: {
+        User_Course_teacherIdToUser: {
           select: {
             id: true,
             firstName: true,
@@ -72,7 +72,7 @@ export const getCourseById = async (req: AuthRequest, res: Response): Promise<vo
             avatar: true,
           },
         },
-        lessons: {
+        Lesson: {
           where: { isPublished: true },
           orderBy: { order: 'asc' },
           select: {
@@ -84,9 +84,9 @@ export const getCourseById = async (req: AuthRequest, res: Response): Promise<vo
             order: true,
           },
         },
-        reviews: {
+        CourseReview: {
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
@@ -154,7 +154,7 @@ export const enrollInCourse = async (req: AuthRequest, res: Response): Promise<v
         courseId,
       },
       include: {
-        course: true,
+        Course: true,
       },
     });
 
@@ -177,9 +177,9 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response): Promise
     const enrollments = await prisma.enrollment.findMany({
       where: { userId },
       include: {
-        course: {
+        Course: {
           include: {
-            teacher: {
+            User_Course_teacherIdToUser: {
               select: {
                 firstName: true,
                 lastName: true,
@@ -187,7 +187,7 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response): Promise
             },
             _count: {
               select: {
-                lessons: true,
+                Lesson: true,
               },
             },
           },
@@ -227,6 +227,7 @@ export const createCourse = async (req: AuthRequest, res: Response): Promise<voi
         tags: tags || [],
         creatorId: userId,
         teacherId: userRole === 'TEACHER' ? userId : undefined,
+        updatedAt: new Date(),
       },
     });
 

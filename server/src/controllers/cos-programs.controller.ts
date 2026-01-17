@@ -36,6 +36,7 @@ export const addProgram = async (req: AuthRequest, res: Response) => {
         college: 'College of Science',
         isActive: true,
         order: 0,
+        updatedAt: new Date(),
       },
     });
     return res.status(201).json(newProgram); // <- always return

@@ -34,7 +34,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         prisma.progress.findMany({
           where: { userId },
           include: {
-            lesson: {
+            Lesson: {
               select: {
                 title: true,
                 courseId: true,
@@ -55,7 +55,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             completed: false,
           },
           include: {
-            lesson: {
+            Lesson: {
               select: {
                 title: true,
                 duration: true,
@@ -92,14 +92,14 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         prisma.enrollment.count(),
         prisma.enrollment.findMany({
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               },
             },
-            course: {
+            Course: {
               select: {
                 title: true,
               },
@@ -113,8 +113,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
           include: {
             _count: {
               select: {
-                enrollments: true,
-                lessons: true,
+                Enrollment: true,
+                Lesson: true,
               },
             },
           },

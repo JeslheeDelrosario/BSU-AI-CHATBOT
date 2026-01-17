@@ -62,7 +62,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         lecHours: parseInt(lecHours) || 0,
         labHours: parseInt(labHours) || 0,
         totalHours: parseInt(totalHours) || 0,
-        prerequisites: Array.isArray(prerequisites) ? prerequisites : []
+        prerequisites: Array.isArray(prerequisites) ? prerequisites : [],
+        updatedAt: new Date(),
       }
     });
 

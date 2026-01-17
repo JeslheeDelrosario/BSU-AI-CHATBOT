@@ -53,6 +53,7 @@ router.post('/cos-programs', isAdmin, async (req: AuthRequest, res: Response) =>
         college: 'College of Science',
         isActive: true,
         order: newOrder,
+        updatedAt: new Date(),
       },
     });
     return res.status(201).json(program); // always return

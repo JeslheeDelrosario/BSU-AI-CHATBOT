@@ -16,13 +16,13 @@ export const getUserProgress = async (req: AuthRequest, res: Response): Promise<
     const enrollments = await prisma.enrollment.findMany({
       where: { userId },
       include: {
-        course: {
+        Course: {
           select: {
             id: true,
             title: true,
             thumbnail: true,
             level: true,
-            _count: { select: { lessons: true } },
+            _count: { select: { Lesson: true } },
           },
         },
       },
@@ -32,7 +32,7 @@ export const getUserProgress = async (req: AuthRequest, res: Response): Promise<
     const progress = await prisma.progress.findMany({
       where: { userId },
       include: {
-        lesson: {
+        Lesson: {
           select: {
             id: true,
             title: true,
@@ -65,14 +65,14 @@ export const getUserProgress = async (req: AuthRequest, res: Response): Promise<
       .slice(-30);
 
     const courseProgress = enrollments.map(e => {
-      const courseLessons = progress.filter(p => p.lesson.courseId === e.courseId);
+      const courseLessons = progress.filter(p => p.Lesson.courseId === e.courseId);
       const completed = courseLessons.filter(p => p.completed).length;
-      const total = e.course._count.lessons;
+      const total = e.Course._count.Lesson;
       return {
         courseId: e.courseId,
-        courseTitle: e.course.title,
-        thumbnail: e.course.thumbnail,
-        level: e.course.level,
+        courseTitle: e.Course.title,
+        thumbnail: e.Course.thumbnail,
+        level: e.Course.level,
         enrolledAt: e.enrolledAt,
         status: e.status,
         lessonsCompleted: completed,
@@ -98,8 +98,8 @@ export const getUserProgress = async (req: AuthRequest, res: Response): Promise<
       progressTimeline,
       recentActivity: progress.slice(0, 10).map(p => ({
         lessonId: p.lessonId,
-        lessonTitle: p.lesson.title,
-        courseId: p.lesson.courseId,
+        lessonTitle: p.Lesson.title,
+        courseId: p.Lesson.courseId,
         completed: p.completed,
         score: p.score,
         timeSpent: p.timeSpent,
@@ -124,13 +124,13 @@ export const getProgressAnalytics = async (req: AuthRequest, res: Response): Pro
     const progress = await prisma.progress.findMany({
       where: { userId },
       include: {
-        lesson: {
+        Lesson: {
           select: {
             id: true,
             title: true,
             courseId: true,
             type: true,
-            course: { select: { title: true } },
+            Course: { select: { title: true } },
           },
         },
       },
@@ -138,7 +138,7 @@ export const getProgressAnalytics = async (req: AuthRequest, res: Response): Pro
     });
 
     const byLessonType = progress.reduce((acc, p) => {
-      const type = p.lesson.type;
+      const type = p.Lesson.type;
       if (!acc[type]) {
         acc[type] = { type, count: 0, completed: 0, totalTime: 0, avgScore: 0, scores: [] as number[] };
       }
@@ -335,8 +335,8 @@ export const getSystemAnalytics = async (req: AuthRequest, res: Response): Promi
         take: 10,
         orderBy: { enrolledAt: 'desc' },
         include: {
-          user: { select: { firstName: true, lastName: true } },
-          course: { select: { title: true } },
+          User: { select: { firstName: true, lastName: true } },
+          Course: { select: { title: true } },
         },
       }),
       prisma.enrollment.groupBy({
@@ -393,8 +393,8 @@ export const getSystemAnalytics = async (req: AuthRequest, res: Response): Promi
         totalAIInteractions,
       },
       recentEnrollments: recentEnrollments.map(e => ({
-        studentName: `${e.user.firstName} ${e.user.lastName}`,
-        courseName: e.course.title,
+        studentName: `${e.User.firstName} ${e.User.lastName}`,
+        courseName: e.Course.title,
         enrolledAt: e.enrolledAt,
       })),
       popularCourses,

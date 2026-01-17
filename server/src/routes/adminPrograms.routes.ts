@@ -32,7 +32,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         abbreviation: abbreviation || null,
         college: college || 'College of Science',
         isActive: isActive !== undefined ? isActive : true,
-        order: order !== undefined ? parseInt(order) : 0
+        order: order !== undefined ? parseInt(order) : 0,
+        updatedAt: new Date(),
       }
     });
 

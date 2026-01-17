@@ -12,13 +12,13 @@ export const getLessonById = async (req: AuthRequest, res: Response): Promise<vo
     const lesson = await prisma.lesson.findUnique({
       where: { id },
       include: {
-        course: {
+        Course: {
           select: {
             id: true,
             title: true,
           },
         },
-        resources: true,
+        Resource: true,
       },
     });
 
@@ -58,6 +58,7 @@ export const getLessonById = async (req: AuthRequest, res: Response): Promise<vo
           data: {
             userId,
             lessonId: id,
+            updatedAt: new Date(),
           },
         });
       }
@@ -120,6 +121,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
         lastPosition: lastPosition !== undefined ? lastPosition : undefined,
         score: score !== undefined ? score : undefined,
         completedAt: completed ? new Date() : undefined,
+        updatedAt: new Date(),
       },
       create: {
         userId,
@@ -129,6 +131,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
         lastPosition,
         score,
         completedAt: completed ? new Date() : undefined,
+        updatedAt: new Date(),
       },
     });
 
@@ -142,7 +145,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
         where: {
           userId,
           completed: true,
-          lesson: {
+          Lesson: {
             courseId: lesson.courseId,
           },
         },
@@ -185,7 +188,7 @@ export const getMyProgress = async (req: AuthRequest, res: Response): Promise<vo
     const where: any = { userId };
 
     if (courseId) {
-      where.lesson = {
+      where.Lesson = {
         courseId: courseId as string,
       };
     }
@@ -193,7 +196,7 @@ export const getMyProgress = async (req: AuthRequest, res: Response): Promise<vo
     const progressRecords = await prisma.progress.findMany({
       where,
       include: {
-        lesson: {
+        Lesson: {
           select: {
             id: true,
             title: true,
