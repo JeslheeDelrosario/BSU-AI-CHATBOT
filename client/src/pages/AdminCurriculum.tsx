@@ -1,6 +1,7 @@
 // client/src/pages/AdminCurriculum.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from "../contexts/AuthContext";
+import { useSidebar } from '../contexts/SidebarContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../lib/translations';
 import {
@@ -40,10 +41,11 @@ const SEMESTER_LABELS = {
 };
 
 export default function AdminCurriculum() {
+  const token = localStorage.getItem("token");
   const { user } = useAuth();
+  const { mainSidebarCollapsed } = useSidebar();
   const { settings: accessibilitySettings } = useAccessibility();
   const t = useTranslation(accessibilitySettings.language);
-  const token = localStorage.getItem("token");
 
   const [programs, setPrograms] = useState<any[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<string>('');
@@ -702,7 +704,7 @@ export default function AdminCurriculum() {
 
         {/* Prerequisite Path Visualization Modal */}
         {showPrereqModal && selectedCourse && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 ${!mainSidebarCollapsed ? 'lg:pl-80' : ''}`}>
             <div className="bg-card border border-border rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl scrollbar-hide">
               <style>{`
                 .scrollbar-hide::-webkit-scrollbar {

@@ -28,12 +28,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { sidebarOpen, setSidebarOpen } = useSidebar();
+  const { sidebarOpen, setSidebarOpen, mainSidebarCollapsed, setMainSidebarCollapsed } = useSidebar();
   const { settings: accessibilitySettings } = useAccessibility();
   const t = useTranslation(accessibilitySettings.language);
-  // const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
-  const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState(false);
 
   // Check if we're on AI Tutor page
   const isAITutorPage = location.pathname === '/ai-tutor';
