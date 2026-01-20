@@ -2,9 +2,23 @@ services:
   - type: web
     name: bsu-ai-tutor-api
     runtime: node
+    plan: free
     rootDir: server
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npx prisma generate && tsc
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://bsu-ai-chatbot.netlify.app
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: "100"

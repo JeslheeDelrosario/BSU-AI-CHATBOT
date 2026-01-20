@@ -2,7 +2,7 @@
 // C:\Users\John Jeslhee\bulsu ai\BSU-AI-Tutor\server\src\routes\auth.routes.ts
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { register, login, logout, getCurrentUser } from '../controllers/auth.controller';
+import { register, login, logout, getCurrentUser, updateProfile, updateAccessibilitySettings } from '../controllers/auth.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -30,5 +30,9 @@ router.post(
 router.post('/logout', authenticateToken, logout);
 
 router.get('/me', authenticateToken, getCurrentUser);
+
+// Profile and accessibility settings
+router.put('/profile', authenticateToken, updateProfile);
+router.put('/accessibility', authenticateToken, updateAccessibilitySettings);
 
 export default router;

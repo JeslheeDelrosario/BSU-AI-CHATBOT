@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
+import { useTranslation } from '../lib/translations';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -12,6 +14,7 @@ import {
   Shield,
   Users,
   BookMarked,
+  Calendar,
   Menu,
   X,
   LogOut,
@@ -26,21 +29,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { sidebarOpen, setSidebarOpen } = useSidebar();
-  // const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { sidebarOpen, setSidebarOpen, mainSidebarCollapsed, setMainSidebarCollapsed } = useSidebar();
+  const { settings: accessibilitySettings } = useAccessibility();
+  const t = useTranslation(accessibilitySettings.language);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
-  const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState(false);
 
   // Check if we're on AI Tutor page
   const isAITutorPage = location.pathname === '/ai-tutor';
 
   // Auto-collapse sidebar on AI Tutor page
   useEffect(() => {
-  if (isAITutorPage && window.innerWidth >= 1024) {
-    setMainSidebarCollapsed(true);
-  }
-  setSidebarOpen(false);
-}, [isAITutorPage, setSidebarOpen]);  // ← ← ← ADD setSidebarOpen here
+    if (isAITutorPage && window.innerWidth >= 1024) {
+      setMainSidebarCollapsed(true);
+    }
+    setSidebarOpen(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAITutorPage]);
+
 
   // Global theme state (light/dark)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -59,18 +64,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Browse Courses', href: '/courses', icon: BookOpen },
-    { name: 'My Courses', href: '/my-courses', icon: GraduationCap },
-    { name: 'AI Tutor', href: '/ai-tutor', icon: MessageSquare },
-    { name: 'Settings', href: '/settings', icon: SettingsIcon },
+    { name: accessibilitySettings.language === 'fil' ? 'Dashboard' : 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: accessibilitySettings.language === 'fil' ? 'Mag-browse ng Kurso' : 'Browse Courses', href: '/courses', icon: BookOpen },
+    { name: accessibilitySettings.language === 'fil' ? 'Aking mga Kurso' : 'My Courses', href: '/my-courses', icon: GraduationCap },
+    { name: accessibilitySettings.language === 'fil' ? 'Classroom' : 'Classroom', href: '/classrooms', icon: Users },
+    { name: accessibilitySettings.language === 'fil' ? 'AI Tutor' : 'AI Tutor', href: '/ai-tutor', icon: MessageSquare },
+    { name: accessibilitySettings.language === 'fil' ? 'Konsultasyon' : 'Consultations', href: '/consultations', icon: Calendar },
+    { name: accessibilitySettings.language === 'fil' ? 'Mga Setting' : 'Settings', href: '/settings', icon: SettingsIcon },
   ];
 
   const adminNavigation = [
-    { name: 'CS Programs', href: '/AdminCOSPrograms', icon: GraduationCap },
-    { name: 'Faculty Management', href: '/AdminFaculty', icon: Users },
-    { name: 'Curriculum', href: '/AdminCurriculum', icon: BookMarked },
-    { name: 'Manage Courses & Modules', href: '/admin/courses', icon: BookOpen },
+    { name: t.programs.title, href: '/AdminCOSPrograms', icon: GraduationCap },
+    { name: t.faculty.title, href: '/AdminFaculty', icon: Users },
+    { name: t.curriculum.title, href: '/AdminCurriculum', icon: BookMarked },
   ];
 
   const handleLogout = () => {
@@ -236,17 +242,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* User Profile & Logout */}
             <div className="p-6 border-t border-border bg-card/60 backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-2xl">
+                <Link
+                  to="/profile"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-4 flex-1 hover:bg-white/5 p-2 rounded-xl transition-all cursor-pointer group"
+                >
+                  <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-2xl group-hover:scale-105 transition-transform">
                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-white">
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">
                       {user?.firstName} {user?.lastName}
                     </p>
                     <p className="text-sm text-cyan-400 capitalize">{user?.role?.toLowerCase()}</p>
                   </div>
-                </div>
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="p-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded-xl transition-all duration-300 group"

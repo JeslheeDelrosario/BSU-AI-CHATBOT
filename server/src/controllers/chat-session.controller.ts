@@ -57,6 +57,7 @@ export const createChatSession = async (req: AuthRequest, res: Response) => {
         userId,
         title,
         messages,
+        updatedAt: new Date(),
       },
     });
 
@@ -118,6 +119,7 @@ export const updateChatSession = async (req: AuthRequest, res: Response) => {
       data: {
         title: title ?? existing.title,
         messages: messages ?? existing.messages,
+        updatedAt: new Date(),
       },
     });
 
@@ -150,13 +152,45 @@ export const renameChatSession = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.chatSession.update({
       where: { id },
-      data: { title }
+      data: { 
+        title,
+        updatedAt: new Date(),
+      }
     });
 
     return res.json(updated);
   } catch (err) {
     console.error("renameChatSession error", err);
     return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ===============================
+// TOGGLE STAR chat
+// ===============================
+export const toggleStarChatSession = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    const existing = await prisma.chatSession.findUnique({ where: { id } });
+
+    if (!existing || existing.userId !== userId) {
+      return res.status(404).json({ error: 'Chat session not found' });
+    }
+
+    const updated = await prisma.chatSession.update({
+      where: { id },
+      data: { 
+        isStarred: !existing.isStarred,
+        updatedAt: new Date(),
+      }
+    });
+
+    return res.json(updated);
+  } catch (err) {
+    console.error('toggleStarChatSession error', err);
+    return res.status(500).json({ error: 'Unable to toggle star' });
   }
 };
 
