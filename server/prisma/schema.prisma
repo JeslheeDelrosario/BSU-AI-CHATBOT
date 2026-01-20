@@ -40,7 +40,7 @@ model AccessibilitySettings {
   signLanguageEnabled Boolean  @default(false)
   language            String   @default("en")
   createdAt           DateTime @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
   User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -70,7 +70,7 @@ model Assessment {
   questions        String
   isPublished      Boolean            @default(false)
   createdAt        DateTime           @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime           @updatedAt
   AssessmentResult AssessmentResult[]
 
   @@index([courseId])
@@ -478,7 +478,7 @@ model User {
   section                          String?
   isActive                         Boolean                @default(true)
   createdAt                        DateTime               @default(now())
-  updatedAt                        DateTime
+  updatedAt                        DateTime               @updatedAt
   learningStyle                    LearningStyle?
   gradeLevel                       String?
   dateOfBirth                      DateTime?

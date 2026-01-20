@@ -52,7 +52,6 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
         role: role || UserRole.STUDENT,
         learningStyle: learningStyle as any,
         gradeLevel,
-        updatedAt: new Date(),
       },
     });
 
@@ -60,7 +59,6 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
     await prisma.accessibilitySettings.create({
       data: {
         userId: user.id,
-        updatedAt: new Date(),
       },
     });
 
@@ -191,7 +189,6 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         phoneNumber: phoneNumber || null,
         course: course || null,
         section: section || null,
-        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -234,7 +231,6 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
         ...(captionsEnabled !== undefined && { captionsEnabled }),
         ...(ttsSpeed !== undefined && { ttsSpeed }),
         ...(language && { language }),
-        updatedAt: new Date(),
       },
       create: {
         userId,
@@ -245,7 +241,6 @@ export const updateAccessibilitySettings = async (req: AuthRequest, res: Respons
         captionsEnabled: captionsEnabled || false,
         ttsSpeed: ttsSpeed || 1.0,
         language: language || 'en',
-        updatedAt: new Date(),
       },
     });
 
