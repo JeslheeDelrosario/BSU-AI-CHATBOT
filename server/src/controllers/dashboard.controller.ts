@@ -4,14 +4,13 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
 
-export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const userRole = req.user?.role;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     if (userRole === 'STUDENT') {
@@ -34,7 +33,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         prisma.progress.findMany({
           where: { userId },
           include: {
-            lesson: {
+            Lesson: {
               select: {
                 title: true,
                 courseId: true,
@@ -55,7 +54,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             completed: false,
           },
           include: {
-            lesson: {
+            Lesson: {
               select: {
                 title: true,
                 duration: true,
@@ -67,7 +66,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         }),
       ]);
 
-      res.json({
+      return res.json({
         overview: {
           enrolledCourses: enrollmentCount,
           completedCourses,
@@ -92,14 +91,14 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         prisma.enrollment.count(),
         prisma.enrollment.findMany({
           include: {
-            user: {
+            User: {
               select: {
                 firstName: true,
                 lastName: true,
                 email: true,
               },
             },
-            course: {
+            Course: {
               select: {
                 title: true,
               },
@@ -113,8 +112,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
           include: {
             _count: {
               select: {
-                enrollments: true,
-                lessons: true,
+                Enrollment: true,
+                Lesson: true,
               },
             },
           },
@@ -122,7 +121,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         }),
       ]);
 
-      res.json({
+      return res.json({
         overview: {
           totalStudents,
           totalCourses,
@@ -132,10 +131,10 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         courseStats,
       });
     } else {
-      res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
   } catch (error) {
     console.error('Get dashboard stats error:', error);
-    res.status(500).json({ error: 'Server error fetching dashboard stats' });
+    return res.status(500).json({ error: 'Server error fetching dashboard stats' });
   }
 };

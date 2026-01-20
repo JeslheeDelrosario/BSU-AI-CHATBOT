@@ -1,115 +1,48 @@
-    // client/src/pages/CourseDetail.tsx
-import { useState, useEffect, useCallback } from 'react';
+// client/src/pages/CourseDetail.tsx
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/Toast';
 import api from '../lib/api';
-import { 
-  BookOpen, Play, CheckCircle, Lock, ArrowLeft, Brain, Zap, 
-  ChevronDown, ChevronUp 
-} from 'lucide-react';
+import { BookOpen, Clock, Users, Play, CheckCircle, Lock, ArrowLeft, Brain, Zap } from 'lucide-react';
 
 export default function CourseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth(); 
-
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [course, setCourse] = useState<any>(null);
-  const [modules, setModules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
-  const [openModuleIndex, setOpenModuleIndex] = useState<number | null>(null);
 
-  const fetchCourseDetail = useCallback(async () => {
-    try {
-      const response = await api.get(`/courses/${id}`);
-      const data = response.data;
-      console.log('Course detail response:', data); // debug: check isEnrolled
-      setCourse(data.course);
-      setIsEnrolled(!!data.enrollment);
-      return data.course;
-    } catch (error) {
-      console.error('Failed to fetch course:', error);
-      return null;
-    }
+  useEffect(() => {
+    fetchCourseDetail();
   }, [id]);
 
-  // const fetchModules = useCallback(async (courseData: any) => {
-  //   try {
-  //     console.log('Fetching modules for course:', id);
-  //     const modRes = await api.get(`/courses/${id}/modules`);
-  //     console.log('Modules API response:', modRes.data);
-  //     const fetchedModules = modRes.data.modules || [];
-
-  //     if (!courseData?.lessons) {
-  //       console.log('No course lessons yet');
-  //       setModules(fetchedModules);
-  //       return;
-  //     }
-
-  //     console.log('Total lessons:', courseData.lessons.length);
-
-  //     const modulesWithLessons = fetchedModules.map((mod: any) => {
-  //       const filtered = courseData.lessons?.filter((l: any) => l.moduleId === mod.id) || [];
-  //     + console.log(`Module ${mod.title} (id: ${mod.id}) → found ${filtered.length} lessons`);
-  //     + console.log('Lessons for this module:', filtered);
-  //       return { ...mod, lessons: filtered };
-  //     });
-
-  //     setModules(modulesWithLessons);
-  //   } catch (error) {
-  //     console.error('Failed to fetch modules:', error);
-  //     setModules([]);
-  //   }
-  // }, [id]);
-
- useEffect(() => {
-  const loadData = async () => {
-    setLoading(true);
+  const fetchCourseDetail = async () => {
     try {
-      // 1. Get course basic info + enrollment status
-      const courseRes = await api.get(`/courses/${id}`);
-      const data = courseRes.data;
-      console.log('Course detail:', data);
-      setCourse(data.course);
-      setIsEnrolled(!!data.enrollment);
-
-      // 2. Get modules **with lessons included**
-      const modulesRes = await api.get(`/courses/${id}/modules`);
-      console.log('Modules with lessons:', modulesRes.data);
-      setModules(modulesRes.data.modules || []);
+      const response = await api.get(`/courses/${id}`);
+      setCourse(response.data.course);
+      setIsEnrolled(response.data.isEnrolled);
     } catch (error) {
-      console.error('Failed to load course data:', error);
+      console.error('Failed to fetch course:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (id) loadData();
-}, [id]); // ← FIXED: added deps to remove exhaustive-deps warning
-
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
-      const res = await api.post('/courses/enroll', { courseId: id });
-      console.log('Enroll response:', res.data);
-      if (res.data.message?.includes('Already')) {
-        alert('You are already enrolled!');
-      } else {
-        alert('Successfully enrolled!');
-      }
-      await fetchCourseDetail(); // Refresh to update isEnrolled
+      await api.post('/courses/enroll', { courseId: id });
       setIsEnrolled(true);
+      showToast({ type: 'success', title: 'Enrolled Successfully!', message: 'Welcome to the course. Start learning now!' });
     } catch (error: any) {
-      console.error('Enroll error:', error.response?.data);
-      alert(error.response?.data?.error || 'Failed to enroll');
+      showToast({ type: 'error', title: 'Enrollment Failed', message: error.response?.data?.error || 'Failed to enroll. Please try again.' });
     } finally {
       setEnrolling(false);
     }
-  };
-
-  const toggleModule = (index: number) => {
-    setOpenModuleIndex(openModuleIndex === index ? null : index);
   };
 
   if (loading) {
@@ -129,181 +62,149 @@ export default function CourseDetail() {
   }
 
   return (
-    <div className="py-6 lg:py-10">
+  <div className="py-6 lg:py-10">  {/* Reduced from py-10/16 */}
 
-      {/* Back Button */}
-      <button
-        onClick={() => navigate('/courses')}
-        className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors mb-6 group"
-      >
-        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-        Back to Courses
-      </button>
+    {/* Back Button - moved up */}
+    <button
+      onClick={() => navigate('/courses')}
+      className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors mb-6 group"
+    >
+      <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+      Back to Courses
+    </button>
 
-      {/* Course Header */}
-      <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 shadow-2xl mb-8">
-        <h1 className="text-4xl lg:text-5xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-6">
-          {course.title}
-        </h1>
-        <p className="text-lg text-gray-300 mb-8 leading-relaxed">
-          {course.description}
-        </p>
+    {/* Course Header - tighter spacing */}
+    <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 shadow-2xl mb-8">  {/* Reduced mb-12 → mb-8 */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">  {/* Reduced gap-10 → gap-8 */}
+        <div className="flex-1">
+          <span className={`inline-block px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wider border mb-5 ${
+            course.level === 'Beginner' ? 'text-cyan-300 border-cyan-500/60 bg-cyan-500/10' :
+            course.level === 'Intermediate' ? 'text-purple-300 border-purple-500/60 bg-purple-500/10' :
+            'text-pink-300 border-pink-500/60 bg-pink-500/10'
+          }`}>
+            {course.level}
+          </span>
 
-        {!isEnrolled ? (
-          <button
-            onClick={handleEnroll}
-            disabled={enrolling}
-            className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-cyan-500/50 hover:brightness-110 transition-all disabled:opacity-50"
-          >
-            {enrolling ? 'Enrolling...' : 'Enroll Now'}
-          </button>
-        ) : (
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 font-medium">
-            <CheckCircle className="w-5 h-5" />
-            Enrolled
+          <h1 className="text-4xl lg:text-6xl font-black text-slate-900 dark:text-white mb-5 leading-tight">  {/* Reduced mb-6 → mb-5 */}
+            {course.title}
+          </h1>
+          <p className="text-xl text-slate-700 dark:text-gray-300 leading-relaxed mb-7 max-w-4xl">  {/* Reduced mb-8 → mb-7 */}
+            {course.description}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-8 text-slate-600 dark:text-gray-400">
+            <span className="flex items-center gap-3">
+              <Clock className="w-6 h-6 text-cyan-400" />
+              <span className="text-slate-900 dark:text-white font-medium">
+                {Math.floor((course.duration || 0) / 60)} hours
+              </span>
+            </span>
+            <span className="flex items-center gap-3">
+              <Users className="w-6 h-6 text-purple-400" />
+              <span className="text-slate-900 dark:text-white font-medium">
+                {course._count?.enrollments || 0} learners
+              </span>
+            </span>
+            <span className="flex items-center gap-3">
+              <BookOpen className="w-6 h-6 text-indigo-400" />
+              <span className="text-slate-900 dark:text-white font-medium">
+                {course._count?.lessons || 0} lessons
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Enroll Button */}
+        {user?.role === 'STUDENT' && (
+          <div className="flex-shrink-0">
+            {isEnrolled ? (
+              <div className="bg-gradient-to-r from-cyan-500 to-purple-600 px-10 py-6 rounded-2xl font-bold text-white text-xl flex items-center gap-4 shadow-2xl shadow-cyan-500/50">
+                <CheckCircle className="w-8 h-8" />
+                Enrolled
+              </div>
+            ) : (
+              <button
+                onClick={handleEnroll}
+                disabled={enrolling}
+                className="group relative overflow-hidden bg-gradient-to-r from-cyan-500 to-purple-600 px-12 py-6 rounded-2xl font-bold text-white text-xl shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-70"
+              >
+                <span className="relative z-10">
+                  {enrolling ? 'Enrolling...' : 'Enroll Now'}
+                </span>
+                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-full transition-transform duration-700"></div>
+              </button>
+            )}
           </div>
         )}
       </div>
+    </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
-        {/* Modules Accordion + Lessons */}
+        {/* Lessons List */}
         <div className="lg:col-span-2">
           <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
             <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
               Course Content
             </h2>
 
-            {modules.length > 0 ? (
+            {course.lessons && course.lessons.length > 0 ? (
               <div className="space-y-5">
-                {modules.map((mod: any, index: number) => (
-                  <div key={mod.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                    <button
-                      onClick={() => toggleModule(index)}
-                      className="w-full flex items-center justify-between p-6 text-left hover:bg-white/10 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                          <BookOpen className="w-6 h-6 text-cyan-400" />
+                {course.lessons.map((lesson: any, index: number) => (
+                  <div
+                    key={lesson.id}
+                    onClick={() => isEnrolled && navigate(`/lessons/${lesson.id}`)}
+                    className={`group p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                      isEnrolled
+                        ? 'bg-white/5 border-white/10 hover:bg-cyan-500/10 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/20'
+                        : 'bg-white/5 border-white/10 opacity-60 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-5">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 ${
+                          isEnrolled ? 'bg-cyan-500/20' : 'bg-gray-700/30'
+                        }`}>
+                          {isEnrolled ? (
+                            <Play className="w-7 h-7 text-cyan-400" />
+                          ) : (
+                            <Lock className="w-7 h-7 text-gray-500" />
+                          )}
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-white">
-                            Module {mod.order}: {mod.title}
+                          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                            {index + 1}. {lesson.title}
                           </h3>
-                          <p className="text-sm text-gray-400 mt-1">
-                            {mod.lessons?.length || 0} lessons • {mod.estTimeMin || '?'} min
-                          </p>
+                          <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-gray-400 mt-2">
+                            <span className="capitalize font-medium">{lesson.type.toLowerCase()}</span>
+                            <span>•</span>
+                            <span>{lesson.duration} min</span>
+                          </div>
                         </div>
                       </div>
-
-                      {openModuleIndex === index ? (
-                        <ChevronUp className="w-6 h-6 text-cyan-400" />
-                      ) : (
-                        <ChevronDown className="w-6 h-6 text-cyan-400" />
-                      )}
-                    </button>
-
-                    {openModuleIndex === index && (
-                      <div className="px-6 pb-6 space-y-4">
-                        {mod.lessons?.length > 0 ? (
-                          mod.lessons
-                            .sort((a: any, b: any) => a.order - b.order)
-                            .map((lesson: any, lessonIndex: number) => (
-                              <div
-                                key={lesson.id}
-                                onClick={() => isEnrolled && navigate(`/lessons/${lesson.id}`)}
-                                className={`group p-5 rounded-xl border transition-all duration-300 cursor-pointer ${
-                                  isEnrolled
-                                    ? 'bg-white/5 border-white/10 hover:bg-cyan-500/10 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/20'
-                                    : 'bg-white/5 border-white/10 opacity-60 cursor-not-allowed'
-                                }`}
-                              >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110 ${
-                                    isEnrolled ? 'bg-cyan-500/20' : 'bg-gray-700/30'
-                                  }`}>
-                                    {isEnrolled ? (
-                                      <Play className="w-5 h-5 text-cyan-400" />
-                                    ) : (
-                                      <Lock className="w-5 h-5 text-gray-500" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <h4 className="text-lg font-bold text-white">
-                                      {lessonIndex + 1}. {lesson.title}
-                                    </h4>
-                                    <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
-                                      <span className="capitalize font-medium">{lesson.type.toLowerCase()}</span>
-                                      {lesson.duration && (
-                                        <>
-                                          <span>•</span>
-                                          <span>{lesson.duration} min</span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {lesson.progress?.completed && (
-                                  <CheckCircle className="w-6 h-6 text-green-500" />
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-center text-gray-500 py-8">
-                            No lessons in this module yet
-                          </p>
-                        )}
-                      </div>
-                    )}
+                      <span className={`px-4 py-2 rounded-full text-xs font-bold ${
+                        lesson.status === 'PUBLISHED'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
+                          : 'bg-gray-700/20 text-gray-400 border border-gray-600/50'
+                      }`}>
+                        {lesson.status === 'PUBLISHED' ? 'Live' : 'Draft'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="space-y-5">
-                {course.lessons?.length > 0 ? (
-                  course.lessons.map((lesson: any) => (
-                    <div
-                      key={lesson.id}
-                      onClick={() => isEnrolled && navigate(`/lessons/${lesson.id}`)}
-                      className={`group p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                        isEnrolled
-                          ? 'bg-white/5 border-white/10 hover:bg-cyan-500/10 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/20'
-                          : 'bg-white/5 border-white/10 opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          isEnrolled ? 'bg-cyan-500/20' : 'bg-gray-700/30'
-                        }`}>
-                          {isEnrolled ? (
-                            <Play className="w-6 h-6 text-cyan-400" />
-                          ) : (
-                            <Lock className="w-6 h-6 text-gray-500" />
-                          )}
-                        </div>
-                        <div>
-                          <h4 className="text-xl font-bold text-white">{lesson.title}</h4>
-                          <p className="text-gray-400 mt-1 capitalize">{lesson.type.toLowerCase()}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-gray-500 py-16 text-lg">
-                    No lessons available yet
-                  </p>
-                )}
-              </div>
+              <p className="text-center text-slate-600 dark:text-gray-500 py-16 text-lg">
+                No lessons available yet. Check back soon!
+              </p>
             )}
           </div>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-8">
+
           {/* Instructor */}
           {course.teacher && (
             <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
@@ -316,10 +217,10 @@ export default function CourseDetail() {
                   {course.teacher.firstName[0]}{course.teacher.lastName[0]}
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-white">
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">
                     {course.teacher.firstName} {course.teacher.lastName}
                   </p>
-                  <p className="text-gray-400">Instructor</p>
+                  <p className="text-slate-600 dark:text-gray-400 capitalize">{course.teacher.role}</p>
                 </div>
               </div>
             </div>
@@ -355,7 +256,7 @@ export default function CourseDetail() {
                 "Get real-time help from your personal AI Tutor",
                 "Earn certificates and unlock achievements"
               ].map((item, i) => (
-                <li key={i} className="flex items-start gap-4 text-gray-300">
+                <li key={i} className="flex items-start gap-4 text-slate-700 dark:text-gray-300">
                   <CheckCircle className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-0.5" />
                   <span className="leading-relaxed">{item}</span>
                 </li>
@@ -367,3 +268,5 @@ export default function CourseDetail() {
     </div>
   );
 }
+
+

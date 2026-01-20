@@ -1,11 +1,10 @@
-// server\src\controllers\lesson.controller.ts
 import { Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
 
-export const getLessonById = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getLessonById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
@@ -13,19 +12,18 @@ export const getLessonById = async (req: AuthRequest, res: Response): Promise<vo
     const lesson = await prisma.lesson.findUnique({
       where: { id },
       include: {
-        course: {
+        Course: {
           select: {
             id: true,
             title: true,
           },
         },
-        resources: true,
+        Resource: true,
       },
     });
 
     if (!lesson) {
-      res.status(404).json({ error: 'Lesson not found' });
-      return;
+      return res.status(404).json({ error: 'Lesson not found' });
     }
 
     // Check if user is enrolled in the course
@@ -40,8 +38,7 @@ export const getLessonById = async (req: AuthRequest, res: Response): Promise<vo
       });
 
       if (!enrollment) {
-        res.status(403).json({ error: 'Not enrolled in this course' });
-        return;
+        return res.status(403).json({ error: 'Not enrolled in this course' });
       }
 
       // Get or create progress for this lesson
@@ -59,29 +56,29 @@ export const getLessonById = async (req: AuthRequest, res: Response): Promise<vo
           data: {
             userId,
             lessonId: id,
+            updatedAt: new Date(),
           },
         });
       }
 
-      res.json({ lesson, progress });
+      return res.json({ lesson, progress });
     } else {
-      res.json({ lesson });
+      return res.json({ lesson });
     }
   } catch (error) {
     console.error('Get lesson error:', error);
-    res.status(500).json({ error: 'Server error fetching lesson' });
+    return res.status(500).json({ error: 'Server error fetching lesson' });
   }
 };
 
-export const updateProgress = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateProgress = async (req: AuthRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
     const userId = req.user?.userId;
     const { completed, timeSpent, lastPosition, score } = req.body;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Verify enrollment
@@ -90,8 +87,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (!lesson) {
-      res.status(404).json({ error: 'Lesson not found' });
-      return;
+      return res.status(404).json({ error: 'Lesson not found' });
     }
 
     const enrollment = await prisma.enrollment.findUnique({
@@ -104,8 +100,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (!enrollment) {
-      res.status(403).json({ error: 'Not enrolled in this course' });
-      return;
+      return res.status(403).json({ error: 'Not enrolled in this course' });
     }
 
     const progress = await prisma.progress.upsert({
@@ -121,6 +116,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
         lastPosition: lastPosition !== undefined ? lastPosition : undefined,
         score: score !== undefined ? score : undefined,
         completedAt: completed ? new Date() : undefined,
+        updatedAt: new Date(),
       },
       create: {
         userId,
@@ -130,6 +126,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
         lastPosition,
         score,
         completedAt: completed ? new Date() : undefined,
+        updatedAt: new Date(),
       },
     });
 
@@ -143,7 +140,7 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
         where: {
           userId,
           completed: true,
-          lesson: {
+          Lesson: {
             courseId: lesson.courseId,
           },
         },
@@ -166,27 +163,26 @@ export const updateProgress = async (req: AuthRequest, res: Response): Promise<v
       });
     }
 
-    res.json({ progress });
+    return res.json({ progress });
   } catch (error) {
     console.error('Update progress error:', error);
-    res.status(500).json({ error: 'Server error updating progress' });
+    return res.status(500).json({ error: 'Server error updating progress' });
   }
 };
 
-export const getMyProgress = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getMyProgress = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { courseId } = req.query;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const where: any = { userId };
 
     if (courseId) {
-      where.lesson = {
+      where.Lesson = {
         courseId: courseId as string,
       };
     }
@@ -194,7 +190,7 @@ export const getMyProgress = async (req: AuthRequest, res: Response): Promise<vo
     const progressRecords = await prisma.progress.findMany({
       where,
       include: {
-        lesson: {
+        Lesson: {
           select: {
             id: true,
             title: true,
@@ -208,9 +204,9 @@ export const getMyProgress = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    res.json({ progress: progressRecords });
+    return res.json({ progress: progressRecords });
   } catch (error) {
     console.error('Get progress error:', error);
-    res.status(500).json({ error: 'Server error fetching progress' });
+    return res.status(500).json({ error: 'Server error fetching progress' });
   }
 };

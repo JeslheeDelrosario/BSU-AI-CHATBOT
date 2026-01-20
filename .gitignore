@@ -45,3 +45,5 @@ server/prisma/migrations/
 # Markdown files (except README.md)
 *.md
 !README.md
+credentials.txt
+*.env.production

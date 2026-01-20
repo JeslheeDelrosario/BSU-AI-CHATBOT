@@ -1,10 +1,11 @@
 // client/src/pages/AITutor.tsx
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
-import { Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare } from 'lucide-react'; // Re-added Menu icon
+import { Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare, MoreVertical, Star, Edit2 } from 'lucide-react'; // Re-added Menu icon
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
 
 interface Message {
   role: 'user' | 'ai';
@@ -16,9 +17,11 @@ interface Chat {
   title: string;
   messages: Message[];
   updatedAt: string | number;
+  isStarred: boolean;
 }
 
 export default function AITutor() {
+  const { settings: accessibilitySettings } = useAccessibility();
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,6 +29,10 @@ export default function AITutor() {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [greeting, setGreeting] = useState<string>('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showGreeting, setShowGreeting] = useState(true);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   
   // Re-added: to control main navigation sidebar from Layout.tsx
   // const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,13 +47,6 @@ export default function AITutor() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Generate smart title from first message
-  const generateTitle = (text: string) => {
-    const clean = text.replace(/[^\w\s]/gi, '').trim();
-    const base = clean.substring(0, 40) || 'New Chat';
-    return base + (clean.length > 40 ? '...' : '');
-  };
 
   // Load chats on mount
   useEffect(() => {
@@ -69,12 +69,37 @@ export default function AITutor() {
 
   const startNewChat = async () => {
     try {
-      const res = await api.post('/chat-sessions', { title: 'New Chat', messages: [] });
-      const created: Chat = res.data;
-      setChats(prev => [created, ...prev]);
-      setCurrentChatId(created.id);
+      // Check if current chat is already empty - don't create duplicate
+      if (currentChatId && messages.length === 0) {
+        // Already have an empty chat, fetch new randomized suggestions
+        setShowGreeting(true);
+        setChatHistoryOpen(false);
+        
+        // Fetch fresh randomized suggestions
+        try {
+          const greetingRes = await api.get('/ai-tutor/greeting');
+          setGreeting(greetingRes.data.greeting);
+          setSuggestions(greetingRes.data.suggestions || []);
+        } catch (err) {
+          console.error('Failed to fetch greeting', err);
+        }
+        return;
+      }
+
+      // Clear current chat and prepare for new one (don't create in DB yet)
+      setCurrentChatId(null);
       setMessages([]);
+      setShowGreeting(true);
       setChatHistoryOpen(false);
+      
+      // Fetch greeting and randomized conversation starters for new chat
+      try {
+        const greetingRes = await api.get('/ai-tutor/greeting');
+        setGreeting(greetingRes.data.greeting);
+        setSuggestions(greetingRes.data.suggestions || []);
+      } catch (err) {
+        console.error('Failed to fetch greeting', err);
+      }
     } catch (err) {
       console.error('startNewChat error', err);
     }
@@ -83,6 +108,8 @@ export default function AITutor() {
   const selectChat = async (chat: Chat) => {
     setCurrentChatId(chat.id);
     setMessages(chat.messages ?? []);
+    setShowGreeting(false);
+    setSuggestions([]);
     setChatHistoryOpen(false);
   };
 
@@ -118,6 +145,21 @@ export default function AITutor() {
     }
   };
 
+  const toggleStarChat = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      const res = await api.put(`/chat-sessions/${id}/star`);
+      const updated = res.data;
+
+      setChats(prev =>
+        prev.map(c => (c.id === id ? { ...c, isStarred: updated.isStarred } : c))
+      );
+      setOpenMenuId(null);
+    } catch (err) {
+      console.error("toggleStarChat error", err);
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -128,40 +170,54 @@ export default function AITutor() {
     setLoading(true);
 
     try {
-      const title = messages.length === 0 ? generateTitle(userMsg.content) : currentChat?.title || 'New Chat';
+      // Use temporary title for new chats, will be updated with AI-generated title
+      const tempTitle = accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat';
       let chatId = currentChatId;
 
       if (!chatId) {
-        const createRes = await api.post('/chat-sessions', { title, messages: tempMessages });
+        const createRes = await api.post('/chat-sessions', { title: tempTitle, messages: tempMessages });
         chatId = createRes.data.id;
         setCurrentChatId(chatId);
         setChats(prev => [createRes.data, ...prev]);
       } else {
-        await api.put(`/chat-sessions/${chatId}`, { title, messages: tempMessages });
+        await api.put(`/chat-sessions/${chatId}`, { title: currentChat?.title || tempTitle, messages: tempMessages });
         setChats(prev =>
           prev
-            .map(c => (c.id === chatId ? { ...c, messages: tempMessages, title, updatedAt: Date.now() } : c))
+            .map(c => (c.id === chatId ? { ...c, messages: tempMessages, updatedAt: Date.now() } : c))
             .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
         );
       }
 
-      const res = await api.post('/ai-tutor/ask', { message: userMsg.content, type: 'QUESTION' });
+      const res = await api.post('/ai-tutor/ask', { 
+        message: userMsg.content, 
+        type: 'QUESTION',
+        chatSessionId: chatId 
+      });
       const aiText = res.data?.response ?? '*No response*';
       const aiMsg: Message = { role: 'ai', content: aiText };
       const finalMessages = [...tempMessages, aiMsg];
+      
+      // Update suggestions from AI response
+      if (res.data?.suggestions) {
+        setSuggestions(res.data.suggestions);
+      }
+      setShowGreeting(false);
 
       setMessages(finalMessages);
 
+      // Use AI-generated title if available, otherwise keep current title
+      const finalTitle = res.data?.generatedTitle || currentChat?.title || tempTitle;
+
       if (chatId) {
-        await api.put(`/chat-sessions/${chatId}`, { title, messages: finalMessages });
+        await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
         setChats(prev => {
-          const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title, updatedAt: Date.now() } : c));
+          const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
           return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
         });
       }
     } catch (err) {
       console.error('sendMessage error', err);
-      const errorMsg: Message = { role: 'ai', content: '*Sorry, I encountered an error. Please try again.*' };
+      const errorMsg: Message = { role: 'ai', content: accessibilitySettings.language === 'fil' ? '*Paumanhin, may naganap na error. Pakisubukan muli.*' : '*Sorry, I encountered an error. Please try again.*' };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
@@ -233,7 +289,7 @@ export default function AITutor() {
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-                Chat History
+                {accessibilitySettings.language === 'fil' ? 'Kasaysayan ng Chat' : 'Chat History'}
               </h2>
               <button 
                 onClick={() => setChatHistoryOpen(false)} 
@@ -248,15 +304,24 @@ export default function AITutor() {
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
-              New Chat
+              {accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat'}
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto scrollbar-cyberpunk p-3 space-y-2">
             {chats.length === 0 ? (
-              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">No chats yet</p>
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">{accessibilitySettings.language === 'fil' ? 'Wala pang mga chat' : 'No chats yet'}</p>
             ) : (
-              chats.map(chat => (
+              <>
+                {/* Starred Section */}
+                {chats.filter(c => c.isStarred).length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5">
+                      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        {accessibilitySettings.language === 'fil' ? 'Naka-star' : 'Starred'}
+                      </h3>
+                    </div>
+                    {chats.filter(c => c.isStarred).map(chat => (
                 <div
                   key={chat.id}
                   onClick={() => selectChat(chat)}
@@ -292,12 +357,7 @@ export default function AITutor() {
                         />
                       ) : (
                         <p
-                          className="text-sm font-medium text-slate-900 dark:text-white truncate cursor-text"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingChatId(chat.id);
-                            setTempTitle(chat.title);
-                          }}
+                          className="text-sm font-medium text-slate-900 dark:text-white truncate"
                           title={chat.title}
                         >
                           {chat.title}
@@ -305,15 +365,190 @@ export default function AITutor() {
                       )}
                     </div>
 
-                    <button
-                      onClick={(e) => deleteChat(chat.id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-all flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* Three-dot menu button */}
+                    <div className="relative flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === chat.id ? null : chat.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {/* Dropdown menu */}
+                      {openMenuId === chat.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                            }}
+                          />
+                          <div className="absolute right-0 top-8 z-50 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1">
+                            <button
+                              onClick={(e) => toggleStarChat(chat.id, e)}
+                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                            >
+                              <Star className={`w-4 h-4 ${chat.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                              {chat.isStarred 
+                                ? (accessibilitySettings.language === 'fil' ? 'Alisin sa star' : 'Unstar')
+                                : (accessibilitySettings.language === 'fil' ? 'I-star' : 'Star')
+                              }
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setEditingChatId(chat.id);
+                                setTempTitle(chat.title);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              {accessibilitySettings.language === 'fil' ? 'Palitan ang pangalan' : 'Rename'}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                deleteChat(chat.id);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              {accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))
+              ))}
+                  </>
+                )}
+
+                {/* Recents Section */}
+                {chats.filter(c => !c.isStarred).length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 mt-4">
+                      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        {accessibilitySettings.language === 'fil' ? 'Kamakailan' : 'Recents'}
+                      </h3>
+                    </div>
+                    {chats.filter(c => !c.isStarred).map(chat => (
+                <div
+                  key={chat.id}
+                  onClick={() => selectChat(chat)}
+                  className={`p-3 rounded-lg cursor-pointer transition-all group relative
+                    ${chat.id === currentChatId
+                      ? 'bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
+                    }`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      {editingChatId === chat.id ? (
+                        <input
+                          type="text"
+                          value={tempTitle}
+                          autoFocus
+                          onChange={(e) => setTempTitle(e.target.value)}
+                          onBlur={async () => {
+                            if (tempTitle.trim().length > 0) {
+                              await renameChat(chat.id, tempTitle.trim());
+                            }
+                            setEditingChatId(null);
+                            setTempTitle('');
+                          }}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') {
+                              setEditingChatId(null);
+                              setTempTitle('');
+                            }
+                          }}
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-slate-900 dark:text-white font-medium truncate focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                      ) : (
+                        <p
+                          className="text-sm font-medium text-slate-900 dark:text-white truncate"
+                          title={chat.title}
+                        >
+                          {chat.title}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Three-dot menu button */}
+                    <div className="relative flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === chat.id ? null : chat.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {/* Dropdown menu */}
+                      {openMenuId === chat.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                            }}
+                          />
+                          <div className="absolute right-0 top-8 z-50 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1">
+                            <button
+                              onClick={(e) => toggleStarChat(chat.id, e)}
+                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                            >
+                              <Star className={`w-4 h-4 ${chat.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                              {chat.isStarred 
+                                ? (accessibilitySettings.language === 'fil' ? 'Alisin sa star' : 'Unstar')
+                                : (accessibilitySettings.language === 'fil' ? 'I-star' : 'Star')
+                              }
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setEditingChatId(chat.id);
+                                setTempTitle(chat.title);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              {accessibilitySettings.language === 'fil' ? 'Palitan ang pangalan' : 'Rename'}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                deleteChat(chat.id);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              {accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+                  </>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -363,6 +598,44 @@ export default function AITutor() {
                 <p className="text-base text-slate-600 dark:text-slate-400">
                   Your Student Assistant. Ask anything about College of Science.
                 </p>
+                
+                {/* Greeting Message */}
+                {showGreeting && greeting && (
+                  <div className="mt-8 max-w-2xl mx-auto">
+                    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-lg">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                        <div className="text-slate-900 dark:text-slate-100 whitespace-pre-line">
+                          {greeting.split('**').map((part, i) => 
+                            i % 2 === 0 ? part : <strong key={i}>{part}</strong>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Smart Suggestions Bubbles */}
+                {suggestions.length > 0 && (
+                  <div className="mt-6 max-w-2xl mx-auto">
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">
+                      {accessibilitySettings.language === 'fil' ? 'Mga mungkahing tanong:' : 'Suggested questions:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {suggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(suggestion);
+                            sendMessage();
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-sm text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm hover:shadow-md"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -429,6 +702,29 @@ export default function AITutor() {
                     </div>
                   </div>
                 )}
+                
+                {/* Smart Follow-up Suggestions After Messages */}
+                {!loading && messages.length > 0 && suggestions.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+                      {accessibilitySettings.language === 'fil' ? 'Susunod na tanong:' : 'Follow-up questions:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {suggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(suggestion);
+                            setTimeout(() => sendMessage(), 100);
+                          }}
+                          className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-xs text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
             <div ref={messagesEndRef} />
@@ -444,7 +740,7 @@ export default function AITutor() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Ask TISA anything..."
+                placeholder={accessibilitySettings.language === 'fil' ? 'Magtanong kay TISA ng kahit ano...' : 'Ask TISA anything...'}
                 className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base lg:text-[17px] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm"
                 disabled={loading}
               />
@@ -454,7 +750,7 @@ export default function AITutor() {
                 className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
               >
                 <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">Send</span>
+                <span className="hidden sm:inline">{accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}</span>
               </button>
             </div>
           </div>

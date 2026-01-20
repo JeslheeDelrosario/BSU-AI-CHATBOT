@@ -15,7 +15,24 @@ router.get('/:programId', async (req: AuthRequest, res: Response) => {
   try {
     const entries = await prisma.curriculumEntry.findMany({
       where: { programId },
-      orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }]
+      orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }],
+      select: {
+        id: true,
+        programId: true,
+        courseCode: true,
+        subjectName: true,
+        yearLevel: true,
+        semester: true,
+        lec: true,
+        lab: true,
+        totalUnits: true,
+        lecHours: true,
+        labHours: true,
+        totalHours: true,
+        prerequisites: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
     res.json(entries);
   } catch (err) {
@@ -25,9 +42,11 @@ router.get('/:programId', async (req: AuthRequest, res: Response) => {
 });
 
 // POST add new curriculum entry
-// POST add new curriculum entry
 router.post('/', async (req: AuthRequest, res: Response) => {
-  const { programId, courseCode, subjectName, yearLevel, semester, units, prerequisites } = req.body;
+  const { 
+    programId, courseCode, subjectName, yearLevel, semester, 
+    lec, lab, totalUnits, lecHours, labHours, totalHours, prerequisites 
+  } = req.body;
 
   try {
     const entry = await prisma.curriculumEntry.create({
@@ -35,11 +54,16 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         programId,
         courseCode,
         subjectName,
-        yearLevel,
-        semester,
-        units,
-        // pass an array directly
-        prerequisites: Array.isArray(prerequisites) ? prerequisites : []
+        yearLevel: parseInt(yearLevel),
+        semester: parseInt(semester),
+        lec: parseInt(lec) || 0,
+        lab: parseInt(lab) || 0,
+        totalUnits: parseInt(totalUnits) || 0,
+        lecHours: parseInt(lecHours) || 0,
+        labHours: parseInt(labHours) || 0,
+        totalHours: parseInt(totalHours) || 0,
+        prerequisites: Array.isArray(prerequisites) ? prerequisites : [],
+        updatedAt: new Date(),
       }
     });
 
@@ -53,7 +77,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // PUT edit entry
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { courseCode, subjectName, yearLevel, semester, units, prerequisites } = req.body;
+  const { 
+    courseCode, subjectName, yearLevel, semester,
+    lec, lab, totalUnits, lecHours, labHours, totalHours, prerequisites 
+  } = req.body;
 
   try {
     const updated = await prisma.curriculumEntry.update({
@@ -61,9 +88,14 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       data: {
         courseCode,
         subjectName,
-        yearLevel,
-        semester,
-        units,
+        yearLevel: parseInt(yearLevel),
+        semester: parseInt(semester),
+        lec: parseInt(lec) || 0,
+        lab: parseInt(lab) || 0,
+        totalUnits: parseInt(totalUnits) || 0,
+        lecHours: parseInt(lecHours) || 0,
+        labHours: parseInt(labHours) || 0,
+        totalHours: parseInt(totalHours) || 0,
         prerequisites: Array.isArray(prerequisites) ? prerequisites : []
       }
     });
@@ -77,57 +109,15 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 
 
 // DELETE an entry
-// DELETE single entry - safe version
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-
-  if (!id) {
-    return res.status(400).json({ error: 'Entry ID is required' });
-  }
-
   try {
-    // Optional: Check existence first (prevents unnecessary error)
-    const entry = await prisma.curriculumEntry.findUnique({
-      where: { id },
-      select: { id: true } // minimal select
-    });
-
-    if (!entry) {
-      // Idempotent: treat as already deleted (best UX)
-      return res.json({ 
-        success: true, 
-        message: 'Entry already deleted or does not exist' 
-      });
-      // Alternative strict version:
-      // return res.status(404).json({ error: 'Curriculum entry not found' });
-    }
-
-    // If it exists, delete it
     await prisma.curriculumEntry.delete({ where: { id } });
-
-    return res.json({ success: true, message: 'Entry deleted successfully' });
-  } catch (err: any) {
-    console.error('DELETE single entry error:', {
-      id,
-      code: err.code,
-      message: err.message,
-      meta: err.meta
-    });
-
-    if (err.code === 'P2025') {
-      return res.json({
-        success: true,
-        message: 'Entry not found (already deleted)'
-      });
-    }
-
-    return res.status(500).json({
-      error: 'Failed to delete entry',
-      message: err.message || 'Unknown error'
-    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Unable to delete curriculum entry' });
   }
 });
-
-
 
 export default router;

@@ -24,11 +24,10 @@ interface LoginBody {
 }
 
 // USER SIGNUP
-export const register = async (req: Request<object, object, RegisterBody>, res: Response): Promise<void> => {
+export const register = async (req: Request<object, object, RegisterBody>, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    res.status(400).json({ errors: errors.array() });
-    return;
+    return res.status(400).json({ errors: errors.array() });
   }
 
   try {
@@ -39,8 +38,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
     });
 
     if (existingUser) {
-      res.status(400).json({ error: 'User already exists' });
-      return;
+      return res.status(400).json({ error: 'User already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -54,6 +52,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
         role: role || UserRole.STUDENT,
         learningStyle: learningStyle as any,
         gradeLevel,
+        updatedAt: new Date(),
       },
     });
 
@@ -61,6 +60,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
     await prisma.accessibilitySettings.create({
       data: {
         userId: user.id,
+        updatedAt: new Date(),
       },
     });
 
@@ -70,7 +70,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       token,
       user: {
         id: user.id,
@@ -84,16 +84,15 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error during registration' });
+    return res.status(500).json({ error: 'Server error during registration' });
   }
 };
 
 // USER LOGIN
-export const login = async (req: Request<object, object, LoginBody>, res: Response): Promise<void> => {
+export const login = async (req: Request<object, object, LoginBody>, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    res.status(400).json({ errors: errors.array() });
-    return;
+    return res.status(400).json({ errors: errors.array() });
   }
 
   try {
@@ -102,34 +101,22 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        accessibilitySettings: true,
+        AccessibilitySettings: true,
       },
     });
 
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     if (!user.isActive) {
-      res.status(403).json({ error: 'Account is inactive' });
-      return;
+      return res.status(403).json({ error: 'Account is inactive' });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-
-    // ✅ CREATE NEW CHAT SESSION AUTOMATICALLY ON LOGIN
-    await prisma.chatSession.create({
-      data: {
-        userId: user.id,
-        title: "New Chat",
-        messages: [],
-      },
-    });
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
@@ -137,7 +124,7 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
       { expiresIn: '7d' }
     );
 
-    res.json({
+    return res.json({
       token,
       user: {
         id: user.id,
@@ -147,24 +134,28 @@ export const login = async (req: Request<object, object, LoginBody>, res: Respon
         role: user.role,
         learningStyle: user.learningStyle,
         gradeLevel: user.gradeLevel,
-        accessibilitySettings: user.accessibilitySettings,
+        accessibilitySettings: user.AccessibilitySettings,
       },
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json({ 
+      error: 'Server error during login',
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+    });
   }
 };
 
 
 // USER LOGOUT - Clean up empty chats
-export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
+export const logout = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     
     if (!userId) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     // Delete all empty chat sessions (no messages)
@@ -175,23 +166,106 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
       },
     });
 
-    res.json({ success: true, message: 'Logged out successfully' });
+    return res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ error: 'Server error during logout' });
+    return res.status(500).json({ error: 'Server error during logout' });
+  }
+};
+
+// UPDATE USER PROFILE
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { firstName, lastName, phoneNumber, course, section } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+        phoneNumber: phoneNumber || null,
+        course: course || null,
+        section: section || null,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        avatar: true,
+        phoneNumber: true,
+        course: true,
+        section: true,
+      },
+    });
+
+    return res.json(updatedUser);
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ error: 'Server error updating profile' });
+  }
+};
+
+// UPDATE ACCESSIBILITY SETTINGS
+export const updateAccessibilitySettings = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { fontSize, fontFamily, colorScheme, textToSpeechEnabled, captionsEnabled, ttsSpeed, language } = req.body;
+
+    // Upsert accessibility settings (create if not exists, update if exists)
+    const settings = await prisma.accessibilitySettings.upsert({
+      where: { userId },
+      update: {
+        ...(fontSize !== undefined && { fontSize }),
+        ...(fontFamily && { fontFamily }),
+        ...(colorScheme && { colorScheme }),
+        ...(textToSpeechEnabled !== undefined && { textToSpeechEnabled }),
+        ...(captionsEnabled !== undefined && { captionsEnabled }),
+        ...(ttsSpeed !== undefined && { ttsSpeed }),
+        ...(language && { language }),
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        fontSize: fontSize || 16,
+        fontFamily: fontFamily || 'Inter',
+        colorScheme: colorScheme || 'default',
+        textToSpeechEnabled: textToSpeechEnabled || false,
+        captionsEnabled: captionsEnabled || false,
+        ttsSpeed: ttsSpeed || 1.0,
+        language: language || 'en',
+        updatedAt: new Date(),
+      },
+    });
+
+    return res.json({ settings, message: 'Accessibility settings updated successfully' });
+  } catch (error) {
+    console.error('Update accessibility settings error:', error);
+    return res.status(500).json({ error: 'Server error updating accessibility settings' });
   }
 };
 
 // USER DATA
-export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getCurrentUser = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user?.userId },
       include: {
-        accessibilitySettings: true,
-        enrollments: {
+        AccessibilitySettings: true,
+        Enrollment: {
           include: {
-            course: {
+            Course: {
               select: {
                 id: true,
                 title: true,
@@ -204,24 +278,26 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({
+    return res.json({
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
       avatar: user.avatar,
+      phoneNumber: user.phoneNumber,
+      course: user.course,
+      section: user.section,
       learningStyle: user.learningStyle,
       gradeLevel: user.gradeLevel,
-      accessibilitySettings: user.accessibilitySettings,
-      enrollments: user.enrollments,
+      accessibilitySettings: user.AccessibilitySettings,
+      enrollments: user.Enrollment,
     });
   } catch (error) {
     console.error('Get current user error:', error);
-    res.status(500).json({ error: 'Server error fetching user' });
+    return res.status(500).json({ error: 'Server error fetching user' });
   }
 };
