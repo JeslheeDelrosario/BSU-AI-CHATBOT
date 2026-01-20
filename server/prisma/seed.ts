@@ -103,7 +103,7 @@ async function main() {
       tags: ['Math', 'Algebra', 'Beginner', 'STEM'],
       creatorId: teacher.id,
       teacherId: teacher.id,
-      lessons: {
+      Lesson: {
         create: [
           {
             title: 'Welcome to Algebra',
@@ -164,7 +164,7 @@ async function main() {
       tags: ['Science', 'Biology', 'Cells', 'Life Science'],
       creatorId: teacher.id,
       teacherId: teacher.id,
-      lessons: {
+      Lesson: {
         create: [
           {
             title: 'Introduction to Cells',
@@ -274,7 +274,7 @@ async function main() {
       description: 'A group for students learning algebra together',
       courseId: mathCourse.id,
       maxMembers: 10,
-      members: {
+      StudyGroupMember: {
         create: [
           {
             userId: student1.id,
