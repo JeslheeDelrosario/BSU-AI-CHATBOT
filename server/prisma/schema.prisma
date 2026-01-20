@@ -84,6 +84,7 @@ model Course {
   reviews     CourseReview[]
   enrollments Enrollment[]
   lessons     Lesson[]
+  modules     Module[]
 
   @@index([status])
   @@index([creatorId])
@@ -95,6 +96,8 @@ model Lesson {
   courseId    String
   title       String
   description String?
+  moduleId    String?
+  module      Module?    @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   type        LessonType
   content     String
   videoUrl    String?
@@ -384,14 +387,14 @@ model ChatSession {
 }
 
 model Faculty {
-  id        String           @id @default(uuid())
-  firstName String
+  id         String           @id @default(uuid())
+  firstName  String
   middleName String?
-  lastName  String
-  email     String?
-  position  String
-  college   String           @default("College of Science")
-  subjects  FacultySubject[]
+  lastName   String
+  email      String?
+  position   String
+  college    String           @default("College of Science")
+  subjects   FacultySubject[]
 }
 
 model Subject {
@@ -508,4 +511,52 @@ enum AchievementType {
   NIGHT_OWL
   HELPFUL_PEER
   MILESTONE
+}
+
+model Module {
+  id          String  @id @default(uuid())
+  courseId    String
+  title       String
+  description String? // optional rich text / markdown
+  order       Int // 1, 2, 3... for sorting
+  estTimeMin  Int? // optional: estimated time in minutes
+  difficulty  String? // optional: "Easy", "Medium", "Hard" (can be enum later)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[] // lessons now belong to a module
+  quizzes Quiz[] // ← NEW: back-relation from Quiz to Module
+
+  @@index([courseId, order])
+}
+
+model Quiz {
+  id           String   @id @default(uuid())
+  moduleId     String
+  title        String
+  description  String?
+  passingScore Float?   @default(70) // percentage
+  order        Int // order inside module
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  module    Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@index([moduleId, order])
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  quizId        String
+  questionText  String
+  options       Json // ["A: Option 1", "B: Option 2", ...]
+  correctOption Int // index of correct answer (0-based)
+  explanation   String? // shown after answering
+  points        Float?   @default(1)
+  createdAt     DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }

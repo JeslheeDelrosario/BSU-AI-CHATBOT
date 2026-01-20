@@ -1,7 +1,5 @@
 // client/src/App.tsx
 // Main application routing
-// Fixed: Removed duplicate /signup route from private section
-// All private pages now render correctly, including Settings
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -21,9 +19,10 @@ import AITutor from './pages/AITutor';
 import Settings from './pages/Settings';
 
 // Admin Pages
-import AdminCOSPrograms from './pages/AdminCOSPrograms';
-import AdminFaculty from './pages/AdminFaculty';
-import AdminCurriculum from './pages/AdminCurriculum';
+import AdminCOSPrograms from './pages/Admin/AdminCOSPrograms';
+import AdminFaculty from './pages/Admin/AdminFaculty';
+import AdminCurriculum from './pages/Admin/AdminCurriculum';
+import AdminModules from './pages/Admin/AdminModules';
 
 function App() {
   return (
@@ -56,6 +55,7 @@ function App() {
                   <Route path="/AdminCOSPrograms" element={<AdminCOSPrograms />} />
                   <Route path="/AdminFaculty" element={<AdminFaculty />} />
                   <Route path="/AdminCurriculum" element={<AdminCurriculum />} />
+                  <Route path="/AdminModules/:courseId" element={<AdminModules />} />
 
                   {/* Catch-all: redirect to dashboard if unknown route */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -77,15 +77,57 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 
 
 // DELETE an entry
+// DELETE single entry - safe version
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Entry ID is required' });
+  }
+
   try {
+    // Optional: Check existence first (prevents unnecessary error)
+    const entry = await prisma.curriculumEntry.findUnique({
+      where: { id },
+      select: { id: true } // minimal select
+    });
+
+    if (!entry) {
+      // Idempotent: treat as already deleted (best UX)
+      return res.json({ 
+        success: true, 
+        message: 'Entry already deleted or does not exist' 
+      });
+      // Alternative strict version:
+      // return res.status(404).json({ error: 'Curriculum entry not found' });
+    }
+
+    // If it exists, delete it
     await prisma.curriculumEntry.delete({ where: { id } });
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Unable to delete curriculum entry' });
+
+    return res.json({ success: true, message: 'Entry deleted successfully' });
+  } catch (err: any) {
+    console.error('DELETE single entry error:', {
+      id,
+      code: err.code,
+      message: err.message,
+      meta: err.meta
+    });
+
+    if (err.code === 'P2025') {
+      return res.json({
+        success: true,
+        message: 'Entry not found (already deleted)'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to delete entry',
+      message: err.message || 'Unknown error'
+    });
   }
 });
+
+
 
 export default router;

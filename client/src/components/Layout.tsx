@@ -36,12 +36,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Auto-collapse sidebar on AI Tutor page
   useEffect(() => {
-    if (isAITutorPage && window.innerWidth >= 1024) {
-      setMainSidebarCollapsed(true);
-    }
-    setSidebarOpen(false);
-  }, [isAITutorPage]);
-
+  if (isAITutorPage && window.innerWidth >= 1024) {
+    setMainSidebarCollapsed(true);
+  }
+  setSidebarOpen(false);
+}, [isAITutorPage, setSidebarOpen]);  // ← ← ← ADD setSidebarOpen here
 
   // Global theme state (light/dark)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -71,6 +70,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'CS Programs', href: '/AdminCOSPrograms', icon: GraduationCap },
     { name: 'Faculty Management', href: '/AdminFaculty', icon: Users },
     { name: 'Curriculum', href: '/AdminCurriculum', icon: BookMarked },
+    { name: 'Manage Courses & Modules', href: '/admin/courses', icon: BookOpen },
   ];
 
   const handleLogout = () => {
