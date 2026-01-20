@@ -106,7 +106,7 @@ model Assignment {
   instructions        String
   rubric              String?
   createdAt           DateTime       @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime       @updatedAt
   Submission          Submission[]
 
   @@index([courseId])
@@ -119,7 +119,7 @@ model ChatSession {
   messages  Json
   isStarred Boolean  @default(false)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([updatedAt])
@@ -140,7 +140,7 @@ model ConsultationBooking {
   meetingLink String?
   location    String?
   createdAt   DateTime            @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime            @updatedAt
   Faculty     Faculty             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
   Student     User                @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -171,7 +171,7 @@ model Course {
   creatorId                   String
   teacherId                   String?
   createdAt                   DateTime       @default(now())
-  updatedAt                   DateTime
+  updatedAt                   DateTime       @updatedAt
   User_Course_creatorIdToUser User           @relation("Course_creatorIdToUser", fields: [creatorId], references: [id])
   User_Course_teacherIdToUser User?          @relation("Course_teacherIdToUser", fields: [teacherId], references: [id])
   CourseReview                CourseReview[]
@@ -191,7 +191,7 @@ model CourseReview {
   rating    Int
   comment   String?
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -215,7 +215,7 @@ model CurriculumEntry {
   totalHours        Int               @default(0)
   prerequisites     String[]          @default([])
   createdAt         DateTime          @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime          @updatedAt
   UniversityProgram UniversityProgram @relation(fields: [programId], references: [id])
 }
 
@@ -248,7 +248,7 @@ model FAQ {
   isPublished Boolean  @default(true)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
 
   @@index([category])
   @@index([isPublished])
@@ -321,7 +321,7 @@ model Lesson {
   order       Int
   isPublished Boolean    @default(false)
   createdAt   DateTime   @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime   @updatedAt
   Course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   Progress    Progress[]
   Resource    Resource[]
@@ -373,7 +373,7 @@ model Progress {
   score        Float?
   startedAt    DateTime  @default(now())
   completedAt  DateTime?
-  updatedAt    DateTime
+  updatedAt    DateTime  @updatedAt
   Lesson       Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   User         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -402,7 +402,7 @@ model StudyGroup {
   courseId         String?
   maxMembers       Int                @default(10)
   createdAt        DateTime           @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime           @updatedAt
   GroupMessage     GroupMessage[]
   StudyGroupMember StudyGroupMember[]
 }
@@ -441,7 +441,7 @@ model Submission {
   gradedAt     DateTime?
   submittedAt  DateTime?
   createdAt    DateTime         @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime         @updatedAt
   Assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   User         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -458,7 +458,7 @@ model UniversityProgram {
   isActive        Boolean           @default(true)
   order           Int               @default(0)
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime          @updatedAt
   CurriculumEntry CurriculumEntry[]
 
   @@index([college])
@@ -615,7 +615,7 @@ model Classroom {
   inviteCode      String            @unique @default(cuid())
   isArchived      Boolean           @default(false)
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime          @updatedAt
   Course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   ClassroomPosts  ClassroomPost[]
   ClassroomMembers ClassroomMember[]
@@ -657,7 +657,7 @@ model ClassroomJoinRequest {
   status      JoinRequestStatus   @default(PENDING)
   message     String?             // Optional message from student
   createdAt   DateTime            @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime            @updatedAt
   reviewedBy  String?             // Teacher who approved/rejected
   reviewedAt  DateTime?
   Classroom   Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
@@ -691,7 +691,7 @@ model ClassroomPost {
   points          Int?
   allowLateSubmission Boolean         @default(true)
   createdAt       DateTime            @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime            @updatedAt
   Classroom       Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   Author          User                @relation("ClassroomPostAuthor", fields: [authorId], references: [id])
   Comments        ClassroomComment[]
@@ -798,7 +798,7 @@ model ClassroomComment {
   attachments Json              @default("[]")
   isPrivate   Boolean           @default(false)
   createdAt   DateTime          @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime          @updatedAt
   Post        ClassroomPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
   Author      User              @relation("ClassroomCommentAuthor", fields: [authorId], references: [id])
   Parent      ClassroomComment? @relation("CommentReplies", fields: [parentId], references: [id])
@@ -849,7 +849,7 @@ model AssignmentSubmission {
   feedback        String?
   isLate          Boolean             @default(false)
   createdAt       DateTime            @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime            @updatedAt
   Assignment      ClassroomPost       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   Student         User                @relation("AssignmentSubmissionStudent", fields: [studentId], references: [id])
   
