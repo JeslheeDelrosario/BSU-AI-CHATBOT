@@ -178,6 +178,7 @@ model Course {
   Enrollment                  Enrollment[]
   Lesson                      Lesson[]
   Classrooms                  Classroom[]
+  modules Module[]  @relation("CourseModules")
 
   @@index([creatorId])
   @@index([status])
@@ -325,6 +326,9 @@ model Lesson {
   Course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   Progress    Progress[]
   Resource    Resource[]
+  moduleId String?
+  module   Module? @relation(fields: [moduleId], references: [id])
+
 
   @@index([courseId])
   @@index([order])
@@ -509,6 +513,7 @@ model User {
   ReviewedJoinRequests             ClassroomJoinRequest[] @relation("JoinRequestReviewer")
   User                             User?                  @relation("UserToUser", fields: [parentId], references: [id])
   other_User                       User[]                 @relation("UserToUser")
+  userModuleProgresses             UserModuleProgress[]   @relation("UserModuleProgresses")  
 
   @@index([email])
   @@index([role])
@@ -858,3 +863,73 @@ model AssignmentSubmission {
   @@index([studentId])
   @@index([status])
 }
+
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  order       Int
+  courseId    String
+
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade, name: "CourseModules")
+  lessons     Lesson[]
+  quiz        Quiz?
+  progresses  UserModuleProgress[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Quiz {
+  id           String   @id @default(cuid())
+  moduleId     String   @unique
+  passingScore Int      @default(70)
+
+  module       Module   @relation(fields: [moduleId], references: [id])
+  questions    Question[]
+
+  createdAt    DateTime @default(now())
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  quizId    String
+  text      String
+  type      QuestionType
+
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+  answers   Answer[]
+
+  createdAt DateTime @default(now())
+}
+
+model Answer {
+  id          String   @id @default(cuid())
+  questionId  String
+  text        String
+  isCorrect   Boolean @default(false)
+
+  question    Question @relation(fields: [questionId], references: [id])
+}
+
+model UserModuleProgress {
+  id         String   @id @default(cuid())
+  userId     String
+  moduleId   String
+  completed  Boolean  @default(false)
+  score      Int?
+  completedAt DateTime?
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, name: "UserModuleProgresses")
+
+  @@unique([userId, moduleId])
+}
+
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+}
+
+
