@@ -70,25 +70,40 @@ app.use(helmet({
 app.use(compression());
 
 // CORS configuration
+
+// tomas code
+// const allowedOrigins = isProduction
+//   ? [
+//       process.env.CORS_ORIGIN || 'https://bsu-ai-chatbot.netlify.app',
+//       'https://bsu-ai-tutor.netlify.app',
+//     ].filter(Boolean)
+//   : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+
+// app.use(cors({
+//   origin: (origin, callback) => {
+//     // Allow requests with no origin (mobile apps, curl, etc.)
+//     if (!origin) return callback(null, true);
+//     if (allowedOrigins.includes(origin)) {
+//       return callback(null, true);
+//     }
+//     callback(new Error('Not allowed by CORS'));
+//   },
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+// }));
+
+// CORS configuration
 const allowedOrigins = isProduction
   ? [
       process.env.CORS_ORIGIN || 'https://bsu-ai-chatbot.netlify.app',
       'https://bsu-ai-tutor.netlify.app',
     ].filter(Boolean)
-  : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+  : true;
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    callback(new Error('Not allowed by CORS'));
-  },
+  origin: allowedOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Rate limiting

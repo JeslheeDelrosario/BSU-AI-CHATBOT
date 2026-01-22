@@ -1,3 +1,4 @@
+// server/prisma/seed.ts
 import { PrismaClient, UserRole, LearningStyle, CourseLevel, CourseStatus, LessonType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
