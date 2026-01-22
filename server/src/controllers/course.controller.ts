@@ -1,3 +1,4 @@
+// server\src\controllers\course.controller.ts
 import { Response } from 'express';
 import { PrismaClient, CourseStatus, CourseLevel } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';

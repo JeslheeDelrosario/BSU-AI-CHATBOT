@@ -1,3 +1,5 @@
+
+// server\prisma\seed-bs-food-tech-curriculum.ts
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
