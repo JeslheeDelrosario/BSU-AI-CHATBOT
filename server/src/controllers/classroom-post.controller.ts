@@ -10,12 +10,15 @@ export const getClassroomPosts = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
     const { type, page = '1', limit = '20' } = req.query;
 
-    // Verify user is a member
+    // Verify user is a member or admin
     const member = await prisma.classroomMember.findFirst({
       where: { classroomId, userId }
     });
 
-    if (!member) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const isAdmin = user?.role === 'ADMIN';
+
+    if (!member && !isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

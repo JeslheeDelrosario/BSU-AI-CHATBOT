@@ -174,9 +174,12 @@ export const getClassroom = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Classroom not found' });
     }
 
-    // Check if user is a member
+    // Check if user is a member or admin
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     const isMember = classroom.ClassroomMembers.some(m => m.userId === userId);
-    if (!isMember) {
+    const isAdmin = user?.role === 'ADMIN';
+    
+    if (!isMember && !isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

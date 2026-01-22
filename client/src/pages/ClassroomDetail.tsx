@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
-import { Users, BookOpen, MessageSquare, ArrowLeft, Loader2, Edit, Shield, Crown, Plus } from 'lucide-react';
+import { Users, BookOpen, MessageSquare, ArrowLeft, Loader2, Edit, Shield, Crown, Plus, Calendar } from 'lucide-react';
 import api from '../lib/api';
+import ClassroomCalendar from '../components/ClassroomCalendar';
+import CreateMeetingModal from '../components/CreateMeetingModal';
+import MeetingDetailsModal from '../components/MeetingDetailsModal';
 
 interface ClassroomMember {
   id: string;
@@ -72,8 +75,11 @@ export default function ClassroomDetail() {
   const { settings } = useAccessibility();
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'stream' | 'people' | 'about'>('stream');
+  const [activeTab, setActiveTab] = useState<'stream' | 'people' | 'about' | 'calendar'>('stream');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
+  const [showMeetingDetailsModal, setShowMeetingDetailsModal] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', section: '', sections: '', description: '' });
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [announcementForm, setAnnouncementForm] = useState({ content: '', visibility: 'ALL_STUDENTS' });
@@ -148,7 +154,7 @@ export default function ClassroomDetail() {
 
   const teacher = classroom.ClassroomMembers.find(m => m.role === 'TEACHER');
   const currentMember = classroom.ClassroomMembers.find(m => m.User.id === user?.id);
-  const isTeacher = currentMember?.role === 'TEACHER';
+  const isTeacher = currentMember?.role === 'TEACHER' || user?.role === 'ADMIN';
   const canPost = isTeacher || currentMember?.role === 'PRESIDENT' || currentMember?.role === 'VICE_PRESIDENT' || currentMember?.role === 'MODERATOR';
   
   const canViewPost = (post: Post) => {
@@ -395,6 +401,17 @@ export default function ClassroomDetail() {
           >
             <BookOpen className="w-5 h-5 inline mr-2" />
             {settings.language === 'fil' ? 'Tungkol' : 'About'}
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`px-6 py-3 font-semibold transition-colors ${
+              activeTab === 'calendar'
+                ? 'text-cyan-500 border-b-2 border-cyan-500'
+                : 'text-slate-600 dark:text-gray-400 hover:text-cyan-500'
+            }`}
+          >
+            <Calendar className="w-5 h-5 inline mr-2" />
+            {settings.language === 'fil' ? 'Kalendaryo' : 'Calendar'}
           </button>
         </div>
 
@@ -647,6 +664,18 @@ export default function ClassroomDetail() {
             </div>
           )}
 
+          {activeTab === 'calendar' && (
+            <ClassroomCalendar
+              classroomId={classroom.id}
+              isTeacher={isTeacher}
+              onCreateMeeting={() => setShowCreateMeetingModal(true)}
+              onViewMeeting={(meeting) => {
+                setSelectedMeeting(meeting);
+                setShowMeetingDetailsModal(true);
+              }}
+            />
+          )}
+
           {activeTab === 'about' && (
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
               <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
@@ -679,41 +708,6 @@ export default function ClassroomDetail() {
                 </div>
               </div>
 
-              {/* Google Meet Integration */}
-              {isTeacher && (
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 mt-6">
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-                    {settings.language === 'fil' ? 'Google Meet' : 'Google Meet'}
-                  </h3>
-                  <div className="space-y-4">
-                    <button className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M15 12c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3z"/>
-                        <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
-                      </svg>
-                      {settings.language === 'fil' ? 'Gumawa ng Meeting' : 'Create Meeting'}
-                    </button>
-                    <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                      <p className="text-sm text-gray-400 mb-2">
-                        {settings.language === 'fil' ? 'Mga Nakaplanong Meeting' : 'Scheduled Meetings'}
-                      </p>
-                      <p className="text-gray-500 text-sm italic">
-                        {settings.language === 'fil' 
-                          ? 'Walang nakaplanong meeting. Gumawa ng meeting para sa iyong klase.' 
-                          : 'No scheduled meetings. Create a meeting for your class.'}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                      <p className="text-sm text-blue-400">
-                        <strong>{settings.language === 'fil' ? 'Tandaan:' : 'Note:'}</strong>{' '}
-                        {settings.language === 'fil'
-                          ? 'Ang Google Meet integration ay nangangailangan ng Google Calendar API setup.'
-                          : 'Google Meet integration requires Google Calendar API setup.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -1042,6 +1036,38 @@ export default function ClassroomDetail() {
           </div>
         )}
       </div>
+
+      {/* Meeting Modals */}
+      {showCreateMeetingModal && (
+        <CreateMeetingModal
+          classroomId={classroom.id}
+          onClose={() => setShowCreateMeetingModal(false)}
+          onSuccess={() => {
+            setShowCreateMeetingModal(false);
+            if (activeTab === 'calendar') {
+              window.location.reload();
+            }
+          }}
+        />
+      )}
+
+      {showMeetingDetailsModal && selectedMeeting && (
+        <MeetingDetailsModal
+          meeting={selectedMeeting}
+          classroomId={classroom.id}
+          isTeacher={isTeacher}
+          currentUserId={user?.id || ''}
+          onClose={() => {
+            setShowMeetingDetailsModal(false);
+            setSelectedMeeting(null);
+          }}
+          onUpdate={() => {
+            if (activeTab === 'calendar') {
+              window.location.reload();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import * as postController from '../controllers/classroom-post.controller';
 import * as commentController from '../controllers/classroom-comment.controller';
 import * as assignmentController from '../controllers/classroom-assignment.controller';
 import * as joinRequestController from '../controllers/classroom-join-request.controller';
+import classroomMeetingRoutes from './classroomMeeting.routes';
 
 const router = Router();
 
@@ -54,5 +55,8 @@ router.get('/assignments/:assignmentId/my-submission', assignmentController.getM
 router.get('/assignments/:assignmentId/submissions', assignmentController.getAssignmentSubmissions);
 router.post('/submissions/:id/grade', assignmentController.gradeSubmission);
 router.post('/submissions/:id/return', assignmentController.returnSubmission);
+
+// Classroom Meetings (Calendar)
+router.use('/:classroomId/meetings', classroomMeetingRoutes);
 
 export default router;

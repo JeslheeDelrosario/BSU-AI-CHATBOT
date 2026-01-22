@@ -24,9 +24,29 @@ import progressRoutes from './routes/progress.routes';
 import consultationRoutes from './routes/consultation.routes';
 import programRoutes from './routes/program.routes';
 import classroomRoutes from './routes/classroom.routes';
+import meetingRoutes from './routes/meeting.routes';
+import adminRoomRoutes from './routes/adminRoom.routes';
+import googleAuthRoutes from './routes/googleAuth.routes';
 
 // Load environment variables
 dotenv.config();
+
+// Validate environment variables
+import { validateEnv, isGoogleCalendarConfigured } from './config/env.validation';
+
+try {
+  validateEnv();
+  console.log('✓ Environment variables validated');
+  
+  if (isGoogleCalendarConfigured()) {
+    console.log('✓ Google Calendar integration enabled');
+  } else {
+    console.warn('⚠ Google Calendar integration disabled (credentials not configured)');
+  }
+} catch (error) {
+  console.error('✗ Environment validation failed:', error);
+  process.exit(1);
+}
 
 const app = express();
 
@@ -127,6 +147,9 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/programs', programRoutes);
 app.use('/api/classrooms', classroomRoutes);
+app.use('/api/meetings', meetingRoutes);
+app.use('/api/admin/rooms', adminRoomRoutes);
+app.use('/api', googleAuthRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {
