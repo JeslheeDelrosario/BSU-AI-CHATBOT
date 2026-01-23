@@ -6,6 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
+import QuizModal from '../components/QuizModal';
+import QuizCard from '../components/QuizCard';
 
 interface Message {
   role: 'user' | 'ai';
@@ -33,6 +35,12 @@ export default function AITutor() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showGreeting, setShowGreeting] = useState(true);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
+  // Quiz state
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [currentExam, setCurrentExam] = useState<any>(null);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [generatedExams, setGeneratedExams] = useState<Map<string, any>>(new Map());
   
   // Re-added: to control main navigation sidebar from Layout.tsx
   // const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -193,6 +201,44 @@ export default function AITutor() {
         type: 'QUESTION',
         chatSessionId: chatId 
       });
+      
+      // Check if AI wants to generate a quiz
+      if (res.data?.generateQuiz) {
+        setGeneratingQuiz(true);
+        try {
+          const examResponse = await api.post('/practice-exams', res.data.quizParams);
+          const exam = examResponse.data.exam;
+          
+          // Store exam in map for later access
+          setGeneratedExams(prev => new Map(prev).set(exam.id, exam));
+          
+          // Add AI message with quiz card (using special marker)
+          const aiMsg: Message = { 
+            role: 'ai', 
+            content: `__QUIZ_CARD__${exam.id}__${res.data.response}` 
+          };
+          const finalMessages = [...tempMessages, aiMsg];
+          setMessages(finalMessages);
+          
+          if (chatId) {
+            await api.put(`/chat-sessions/${chatId}`, { messages: finalMessages });
+          }
+        } catch (error) {
+          console.error('Failed to generate quiz:', error);
+          const errorMsg: Message = { 
+            role: 'ai', 
+            content: accessibilitySettings.language === 'fil' 
+              ? 'Paumanhin, nabigo ang paglikha ng quiz. Pakisubukan muli.' 
+              : 'Sorry, failed to generate quiz. Please try again.' 
+          };
+          setMessages([...tempMessages, errorMsg]);
+        } finally {
+          setGeneratingQuiz(false);
+        }
+        setLoading(false);
+        return;
+      }
+      
       const aiText = res.data?.response ?? '*No response*';
       const aiMsg: Message = { role: 'ai', content: aiText };
       const finalMessages = [...tempMessages, aiMsg];
@@ -655,7 +701,41 @@ export default function AITutor() {
                     </div>
 
                     <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
-                      <div className={`inline-block max-w-full px-4 py-3 rounded-2xl shadow-md
+                      {/* Check if message contains quiz card marker */}
+                      {msg.role === 'ai' && msg.content.startsWith('__QUIZ_CARD__') ? (
+                        <div className="space-y-3">
+                          {(() => {
+                            const parts = msg.content.split('__');
+                            const examId = parts[2];
+                            const responseText = parts.slice(3).join('__');
+                            const exam = generatedExams.get(examId);
+                            
+                            return (
+                              <>
+                                {responseText && (
+                                  <div className="inline-block max-w-full px-4 py-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {responseText}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+                                {exam && (
+                                  <QuizCard
+                                    exam={exam}
+                                    onClick={() => {
+                                      setCurrentExam(exam);
+                                      setShowQuiz(true);
+                                    }}
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <div className={`inline-block max-w-full px-4 py-3 rounded-2xl shadow-md
                         ${msg.role === 'ai'
                           ? 'bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
                           : 'bg-gradient-to-r from-cyan-500/10 to-purple-600/10 border border-cyan-500/20 dark:border-cyan-500/30'
@@ -684,6 +764,7 @@ export default function AITutor() {
                           </p>
                         )}
                       </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -756,6 +837,37 @@ export default function AITutor() {
           </div>
         </div>
       </div>
+
+      {/* Quiz Modal */}
+      {showQuiz && currentExam && (
+        <QuizModal
+          exam={currentExam}
+          onClose={() => {
+            setShowQuiz(false);
+            setCurrentExam(null);
+          }}
+          onComplete={(results) => {
+            console.log('Quiz completed:', results);
+            setShowQuiz(false);
+            setCurrentExam(null);
+            
+            // Add completion message to chat
+            const completionMsg: Message = {
+              role: 'ai',
+              content: accessibilitySettings.language === 'fil'
+                ? `🎉 Natapos mo ang quiz! Nakakuha ka ng **${results.score}%** (${results.correctAnswers}/${results.totalQuestions} tama). ${results.passed ? 'Pumasa ka!' : 'Subukan muli para mas mapabuti!'}`
+                : `🎉 Quiz completed! You scored **${results.score}%** (${results.correctAnswers}/${results.totalQuestions} correct). ${results.passed ? 'You passed!' : 'Try again to improve!'}`
+            };
+            setMessages(prev => [...prev, completionMsg]);
+            
+            // Update chat session with completion message
+            if (currentChatId) {
+              const updatedMessages = [...messages, completionMsg];
+              api.put(`/chat-sessions/${currentChatId}`, { messages: updatedMessages }).catch(console.error);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

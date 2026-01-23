@@ -113,17 +113,18 @@ model Assignment {
 }
 
 model ChatSession {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  messages  Json
-  isStarred Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  userId        String
+  title         String
+  messages      Json           @default("[]")
+  isStarred     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  User          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  PracticeExams PracticeExam[]
 
-  @@index([updatedAt])
   @@index([userId])
+  @@index([createdAt])
   @@index([isStarred])
 }
 
@@ -523,6 +524,8 @@ model User {
   googleAccessToken                String?
   googleRefreshToken               String?
   googleTokenExpiry                DateTime?
+  PracticeExams                    PracticeExam[]
+  PracticeExamResults              PracticeExamResult[]
 
   @@index([email])
   @@index([role])
@@ -1130,4 +1133,47 @@ enum AttendeeStatus {
   DECLINED
   ATTENDED
   ABSENT
+}
+
+model PracticeExam {
+  id              String        @id @default(cuid())
+  userId          String
+  title           String
+  description     String?
+  subject         String
+  difficulty      String
+  totalQuestions  Int
+  estimatedTime   Int           // in minutes
+  questions       Json          // Array of quiz questions
+  chatSessionId   String?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  User            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ChatSession     ChatSession?  @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+  Results         PracticeExamResult[]
+
+  @@index([userId])
+  @@index([chatSessionId])
+  @@index([createdAt])
+}
+
+model PracticeExamResult {
+  id              String        @id @default(cuid())
+  examId          String
+  userId          String
+  score           Int           // percentage
+  correctAnswers  Int
+  incorrectAnswers Int
+  passed          Boolean
+  timeSpent       Int?          // in seconds
+  answers         Json          // User's answers
+  detailedResults Json          // Detailed results per question
+  createdAt       DateTime      @default(now())
+  Exam            PracticeExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  User            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([userId])
+  @@index([createdAt])
 }

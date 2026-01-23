@@ -28,6 +28,7 @@ import classroomRoutes from './routes/classroom.routes';
 import meetingRoutes from './routes/meeting.routes';
 import adminRoomRoutes from './routes/adminRoom.routes';
 import googleAuthRoutes from './routes/googleAuth.routes';
+import practiceExamRoutes from './routes/practice-exam.routes';
 
 // Load environment variables
 dotenv.config();
@@ -120,7 +121,7 @@ const limiter = rateLimit({
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 attempts per window
+  max: 50, // 50 attempts per window (increased for development/testing)
   message: { error: 'Too many login attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -144,6 +145,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Serve uploaded files
 app.use('/uploads/join-requests', express.static(path.join(__dirname, '../uploads/join-requests')));
 app.use('/uploads/post-attachments', express.static(path.join(__dirname, '../uploads/post-attachments')));
+app.use('/uploads/post-images', express.static(path.join(__dirname, '../uploads/post-images')));
 
 // Logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));
@@ -171,6 +173,7 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/admin/rooms', adminRoomRoutes);
 app.use('/api/notifications', require('./routes/notification.routes').default);
 app.use('/api', googleAuthRoutes);
+app.use('/api/practice-exams', practiceExamRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

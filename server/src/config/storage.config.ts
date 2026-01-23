@@ -1,55 +1,45 @@
-import { Storage } from '@google-cloud/storage';
 import path from 'path';
+import fs from 'fs';
 
-const keyFilePath = process.env.GCS_KEY_FILE || path.join(__dirname, '../../gcp-service-account-key.json');
+// Local storage configuration
+const uploadsDir = path.join(__dirname, '../../uploads/post-images');
 
-export const storage = new Storage({
-  keyFilename: keyFilePath,
-  projectId: process.env.GCP_PROJECT_ID
-});
+// Ensure uploads directory exists
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('✓ Created uploads directory for images');
+}
 
-export const bucketName = process.env.GCS_BUCKET_NAME || 'bsu-ai-chatbot-images';
-export const bucket = storage.bucket(bucketName);
-
-export const uploadImageToGCS = async (
+export const uploadImageToLocal = async (
   file: Express.Multer.File,
   folder: string = 'posts'
 ): Promise<string> => {
   const timestamp = Date.now();
-  const fileName = `${folder}/${timestamp}-${file.originalname.replace(/\s+/g, '-')}`;
-  const blob = bucket.file(fileName);
+  const sanitizedFilename = file.originalname.replace(/\s+/g, '-');
+  const fileName = `${timestamp}-${sanitizedFilename}`;
+  const filePath = path.join(uploadsDir, fileName);
 
-  const blobStream = blob.createWriteStream({
-    resumable: false,
-    metadata: {
-      contentType: file.mimetype,
-      cacheControl: 'public, max-age=31536000',
-    },
-  });
+  // Write file to disk
+  await fs.promises.writeFile(filePath, file.buffer);
 
-  return new Promise((resolve, reject) => {
-    blobStream.on('error', (err: Error) => {
-      console.error('GCS upload error:', err);
-      reject(err);
-    });
-
-    blobStream.on('finish', async () => {
-      await blob.makePublic();
-      const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
-      resolve(publicUrl);
-    });
-
-    blobStream.end(file.buffer);
-  });
+  // Return URL path
+  const publicUrl = `/uploads/post-images/${fileName}`;
+  console.log('✓ Image saved locally:', publicUrl);
+  return publicUrl;
 };
 
-export const deleteImageFromGCS = async (imageUrl: string): Promise<void> => {
+export const deleteImageFromLocal = async (imageUrl: string): Promise<void> => {
   try {
-    const fileName = imageUrl.split(`${bucketName}/`)[1];
+    // Extract filename from URL
+    const fileName = imageUrl.split('/uploads/post-images/')[1];
     if (fileName) {
-      await bucket.file(fileName).delete();
+      const filePath = path.join(uploadsDir, fileName);
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+        console.log('✓ Image deleted:', fileName);
+      }
     }
   } catch (error) {
-    console.error('GCS delete error:', error);
+    console.error('Image delete error:', error);
   }
 };

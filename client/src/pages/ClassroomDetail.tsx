@@ -1365,10 +1365,98 @@ export default function ClassroomDetail() {
                 </button>
               </div>
 
+              {/* Post Title */}
+              {selectedPost.title && (
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-white">{selectedPost.title}</h2>
+                </div>
+              )}
+
               {/* Post Content */}
               <div className="mb-6">
                 <p className="text-gray-200 text-lg whitespace-pre-wrap">{selectedPost.content}</p>
               </div>
+
+              {/* Post Metadata */}
+              {(selectedPost.dueDate || selectedPost.points) && (
+                <div className="flex gap-4 mb-6">
+                  {selectedPost.dueDate && (
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{new Date(selectedPost.dueDate).toLocaleDateString(settings.language === 'fil' ? 'fil-PH' : 'en-US')}</span>
+                    </div>
+                  )}
+                  {selectedPost.points && (
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                      </svg>
+                      <span>{selectedPost.points} {settings.language === 'fil' ? 'puntos' : 'points'}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Images Display */}
+              {selectedPost.images && selectedPost.images.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white mb-3">
+                    {settings.language === 'fil' ? 'Mga Larawan' : 'Images'}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {selectedPost.images.map((image: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className={`relative rounded-xl overflow-hidden ${
+                          selectedPost.images.length === 1 ? 'col-span-2' : ''
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt={`Post image ${idx + 1}`}
+                          className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(image, '_blank');
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Attachments Display */}
+              {selectedPost.attachments && Array.isArray(selectedPost.attachments) && selectedPost.attachments.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white mb-3">
+                    {settings.language === 'fil' ? 'Mga Attachment' : 'Attachments'}
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedPost.attachments.map((file: any, idx: number) => (
+                      <a
+                        key={idx}
+                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${file.path || file.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+                      >
+                        <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-white text-sm font-medium">{file.filename || file.name}</p>
+                          {file.size && (
+                            <p className="text-gray-400 text-xs">{(file.size / 1024).toFixed(2)} KB</p>
+                          )}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Comments Section */}
               <div className="border-t border-white/10 pt-6">

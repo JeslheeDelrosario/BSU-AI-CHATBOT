@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, Edit, Trash2, Pin, PinOff, ThumbsUp, Heart, Smile, FileText, Calendar, Award, X, Image as ImageIcon } from 'lucide-react';
+import { MoreVertical, Edit, Trash2, Pin, PinOff, ThumbsUp, Smile, FileText, Calendar, Award, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 
@@ -244,6 +244,35 @@ export default function PostCard({
               />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Attachments Display */}
+      {post.attachments && Array.isArray(post.attachments) && post.attachments.length > 0 && (
+        <div className="mb-4">
+          <div className="space-y-2">
+            {post.attachments.map((file: any, idx: number) => (
+              <a
+                key={idx}
+                href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${file.path || file.url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10"
+              >
+                <FileText className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{file.filename || file.name}</p>
+                  {file.size && (
+                    <p className="text-gray-400 text-xs">{(file.size / 1024).toFixed(2)} KB</p>
+                  )}
+                </div>
+                <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

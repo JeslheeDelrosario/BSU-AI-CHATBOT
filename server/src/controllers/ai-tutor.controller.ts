@@ -599,6 +599,29 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
     });
     const userLanguage = userSettings?.language || 'en';
 
+    // STEP 0: Check if user is requesting a quiz/practice exam
+    const quizKeywords = /create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|questions/i;
+    const isQuizRequest = quizKeywords.test(message) && 
+                         (/quiz|test|exam|practice|assessment/i.test(message));
+    
+    if (isQuizRequest) {
+      // Return special response indicating quiz generation
+      return res.json({
+        response: `I'll create a practice exam for you! 📝\n\nGenerating questions based on our conversation...`,
+        generateQuiz: true,
+        quizParams: {
+          topic: message.replace(/create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|on|about/gi, '').trim(),
+          questionCount: 10,
+          chatSessionId: chatSessionId || null
+        },
+        suggestions: [
+          'Show me my quiz history',
+          'Explain this topic in detail',
+          'Give me study tips'
+        ]
+      });
+    }
+
     // STEP 1: Analyze query scope BEFORE processing
     const scopeAnalysis = analyzeQueryScope(message);
     

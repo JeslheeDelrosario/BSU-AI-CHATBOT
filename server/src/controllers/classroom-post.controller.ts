@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { NotificationService } from '../services/notification.service';
-import { uploadImageToGCS } from '../config/storage.config';
+import { uploadImageToLocal } from '../config/storage.config';
 
 // Get classroom stream (posts)
 export const getClassroomPosts = async (req: AuthRequest, res: Response) => {
@@ -114,28 +114,41 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Content is required' });
     }
     
-    // Handle image uploads to GCP
+    // Handle image uploads to local storage
     const images: string[] = [];
-    if (files.images && Array.isArray(files.images)) {
+    if (files && files.images && Array.isArray(files.images)) {
       for (const imageFile of files.images.slice(0, 5)) {
         try {
-          const imageUrl = await uploadImageToGCS(imageFile, 'posts');
+          const imageUrl = await uploadImageToLocal(imageFile, 'posts');
           images.push(imageUrl);
         } catch (error) {
-          console.error('Image upload error:', error);
+          console.error('Image upload failed:', error instanceof Error ? error.message : error);
+          // Continue without this image - don't fail the entire post creation
         }
       }
     }
     
     // Handle regular file attachments
-    const attachments = files.attachments && Array.isArray(files.attachments)
-      ? files.attachments.map(file => ({
+    let attachments: any[] = [];
+    if (files) {
+      if (Array.isArray(files)) {
+        // files is an array (old format)
+        attachments = files.map(file => ({
           filename: file.originalname,
           path: `/uploads/post-attachments/${file.filename}`,
           size: file.size,
           mimetype: file.mimetype
-        }))
-      : [];
+        }));
+      } else if (files.attachments && Array.isArray(files.attachments)) {
+        // files is an object with attachments field
+        attachments = files.attachments.map(file => ({
+          filename: file.originalname,
+          path: `/uploads/post-attachments/${file.filename}`,
+          size: file.size,
+          mimetype: file.mimetype
+        }));
+      }
+    }
 
     // Verify user has permission to post (teacher, president, vice-president, moderator)
     const member = await prisma.classroomMember.findFirst({
