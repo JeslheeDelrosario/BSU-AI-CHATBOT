@@ -191,7 +191,7 @@ export class GoogleCalendarService {
       });
 
       const meetLink = response.data.conferenceData?.entryPoints?.find(
-        (entry) => entry.entryPointType === 'video'
+        (entry: any) => entry.entryPointType === 'video'
       )?.uri || '';
 
       if (!meetLink) {

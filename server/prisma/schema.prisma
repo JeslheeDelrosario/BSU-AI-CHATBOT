@@ -355,8 +355,9 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String
+  type      String   // NEW_POST, NEW_COMMENT, ROLE_ASSIGNED, etc.
   link      String?
+  metadata  Json?    // Additional data (classroomId, postId, etc.)
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -364,6 +365,7 @@ model Notification {
   @@index([createdAt])
   @@index([isRead])
   @@index([userId])
+  @@index([type])
 }
 
 model Progress {
@@ -669,6 +671,7 @@ model ClassroomJoinRequest {
   userId      String
   status      JoinRequestStatus   @default(PENDING)
   message     String?             // Optional message from student
+  attachments String[]            @default([]) // File URLs (PDF/DOCX proof of enrollment)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   reviewedBy  String?             // Teacher who approved/rejected
@@ -697,6 +700,7 @@ model ClassroomPost {
   title           String?
   content         String
   attachments     Json                @default("[]")
+  images          String[]            @default([])
   isPinned        Boolean             @default(false)
   visibility      PostVisibility      @default(ALL_STUDENTS)
   publishedAt     DateTime            @default(now())

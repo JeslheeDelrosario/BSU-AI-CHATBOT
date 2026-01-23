@@ -2,6 +2,8 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { NotificationService } from '../services/notification.service';
+import { uploadImageToGCS } from '../config/storage.config';
 
 // Get classroom stream (posts)
 export const getClassroomPosts = async (req: AuthRequest, res: Response) => {
@@ -99,7 +101,41 @@ export const createPost = async (req: AuthRequest, res: Response) => {
   try {
     const { classroomId } = req.params;
     const userId = req.user!.userId;
-    const { type, title, content, attachments, dueDate, points, allowLateSubmission, visibility } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    
+    // Extract data from body (works for both JSON and FormData)
+    const { type, title, content, dueDate, points, allowLateSubmission, visibility } = req.body;
+
+    // Validate required fields
+    if (!type) {
+      return res.status(400).json({ error: 'Post type is required' });
+    }
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    
+    // Handle image uploads to GCP
+    const images: string[] = [];
+    if (files.images && Array.isArray(files.images)) {
+      for (const imageFile of files.images.slice(0, 5)) {
+        try {
+          const imageUrl = await uploadImageToGCS(imageFile, 'posts');
+          images.push(imageUrl);
+        } catch (error) {
+          console.error('Image upload error:', error);
+        }
+      }
+    }
+    
+    // Handle regular file attachments
+    const attachments = files.attachments && Array.isArray(files.attachments)
+      ? files.attachments.map(file => ({
+          filename: file.originalname,
+          path: `/uploads/post-attachments/${file.filename}`,
+          size: file.size,
+          mimetype: file.mimetype
+        }))
+      : [];
 
     // Verify user has permission to post (teacher, president, vice-president, moderator)
     const member = await prisma.classroomMember.findFirst({
@@ -114,14 +150,20 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'You do not have permission to create posts' });
     }
 
+    const classroom = await prisma.classroom.findUnique({
+      where: { id: classroomId },
+      select: { name: true }
+    });
+
     const post = await prisma.classroomPost.create({
       data: {
         classroomId,
         authorId: userId,
         type,
         title: title || null,
-        content,
-        attachments: attachments || [],
+        content: content.trim(),
+        attachments,
+        images,
         visibility: visibility || 'ALL_STUDENTS',
         dueDate: dueDate ? new Date(dueDate) : null,
         points: points ? parseInt(points) : null,
@@ -139,6 +181,18 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    // Notify all classroom members about new post
+    if (classroom) {
+      NotificationService.notifyNewPost({
+        classroomId,
+        postId: post.id,
+        authorId: userId,
+        postTitle: title || content.substring(0, 50),
+        postType: type,
+        classroomName: classroom.name
+      }).catch(err => console.error('Failed to send notifications:', err));
+    }
 
     return res.status(201).json(post);
   } catch (error) {

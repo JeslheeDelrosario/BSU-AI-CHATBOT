@@ -1,13 +1,13 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NotificationService } from '../services/notification.service';
+import { prisma } from '../lib/prisma';
 
 export const createJoinRequest = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
     const { classroomId, message } = req.body;
+    const files = req.files as Express.Multer.File[];
 
     const classroom = await prisma.classroom.findUnique({
       where: { id: classroomId }
@@ -29,6 +29,9 @@ export const createJoinRequest = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Already a member of this classroom' });
     }
 
+    // Generate file URLs (relative paths for storage)
+    const attachments = files ? files.map(file => `/uploads/join-requests/${file.filename}`) : [];
+
     const existingRequest = await prisma.classroomJoinRequest.findUnique({
       where: { classroomId_userId: { classroomId, userId } }
     });
@@ -43,6 +46,7 @@ export const createJoinRequest = async (req: AuthRequest, res: Response) => {
           data: {
             status: 'PENDING',
             message,
+            attachments,
             updatedAt: new Date(),
             reviewedBy: null,
             reviewedAt: null
@@ -57,6 +61,7 @@ export const createJoinRequest = async (req: AuthRequest, res: Response) => {
         classroomId,
         userId,
         message,
+        attachments,
         updatedAt: new Date()
       },
       include: {
@@ -175,6 +180,36 @@ export const reviewJoinRequest = async (req: AuthRequest, res: Response) => {
           role: role || 'STUDENT'
         }
       });
+
+      // Notify user about approval
+      NotificationService.notifyJoinRequestApproved({
+        userId: joinRequest.userId,
+        classroomName: joinRequest.Classroom.name,
+        classroomId: joinRequest.classroomId,
+        role: role || 'STUDENT'
+      }).catch(err => console.error('Failed to send notification:', err));
+
+      // Notify other members about new member
+      const newMember = await prisma.user.findUnique({
+        where: { id: joinRequest.userId },
+        select: { firstName: true, lastName: true }
+      });
+
+      if (newMember) {
+        NotificationService.notifyMemberJoined({
+          classroomId: joinRequest.classroomId,
+          newMemberName: `${newMember.firstName} ${newMember.lastName}`,
+          newMemberId: joinRequest.userId,
+          classroomName: joinRequest.Classroom.name
+        }).catch(err => console.error('Failed to send notification:', err));
+      }
+    } else if (status === 'REJECTED') {
+      // Notify user about rejection
+      NotificationService.notifyJoinRequestRejected({
+        userId: joinRequest.userId,
+        classroomName: joinRequest.Classroom.name,
+        classroomId: joinRequest.classroomId
+      }).catch(err => console.error('Failed to send notification:', err));
     }
 
     return res.json({ message: `Join request ${status.toLowerCase()}` });
@@ -214,6 +249,11 @@ export const updateMemberRole = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Cannot change teacher role' });
     }
 
+    const classroom = await prisma.classroom.findUnique({
+      where: { id: classroomId },
+      select: { name: true }
+    });
+
     const updatedMember = await prisma.classroomMember.update({
       where: { id: memberId },
       data: { role },
@@ -229,6 +269,17 @@ export const updateMemberRole = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    // Notify user about role assignment
+    if (classroom) {
+      NotificationService.notifyRoleAssigned({
+        userId: member.userId,
+        role,
+        classroomName: classroom.name,
+        classroomId,
+        assignedBy: userId
+      }).catch(err => console.error('Failed to send notification:', err));
+    }
 
     return res.json(updatedMember);
   } catch (error) {

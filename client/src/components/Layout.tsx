@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../lib/translations';
+import NotificationBell from './NotificationBell';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -84,7 +85,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => {
+    if (href === '/dashboard') return location.pathname === href;
+    return location.pathname.startsWith(href);
+  };
   const isAdminRoute = location.pathname.startsWith('/admin') || adminNavigation.some(item => location.pathname.startsWith(item.href));
 
   // Label gradient classes for active / hover states (darker cyberpunk gradient)
@@ -303,7 +307,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 TISA
               </span>
             </div>
-            <div className="w-8"></div>
+            <NotificationBell />
+          </header>
+
+          {/* Desktop Header with Notification Bell */}
+          <header className="hidden lg:flex bg-card/60 backdrop-blur-2xl border-b border-border px-10 py-5 items-center justify-end">
+            <NotificationBell />
           </header>
 
           {/* Page Content */}

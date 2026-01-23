@@ -6,6 +6,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { ToastProvider } from './components/Toast';
 import { PrivateRoute } from './components/PrivateRoute';
 
@@ -44,8 +45,9 @@ function App() {
   return (
     <AuthProvider>
       <AccessibilityProvider>
-        <ToastProvider>
-          <Routes>
+        <NotificationProvider>
+          <ToastProvider>
+            <Routes>
         {/* PUBLIC ROUTES */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -93,7 +95,8 @@ function App() {
           }
         />
           </Routes>
-        </ToastProvider>
+          </ToastProvider>
+        </NotificationProvider>
       </AccessibilityProvider>
     </AuthProvider>
   );

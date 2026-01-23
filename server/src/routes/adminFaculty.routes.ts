@@ -1,8 +1,6 @@
 import { Router, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth.middleware";
-
-const prisma = new PrismaClient();
+import { prisma } from "../lib/prisma";
 const router = Router();
 
 // Middleware: only ADMIN can access

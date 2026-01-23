@@ -6,6 +6,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -140,6 +141,10 @@ app.use('/api', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve uploaded files
+app.use('/uploads/join-requests', express.static(path.join(__dirname, '../uploads/join-requests')));
+app.use('/uploads/post-attachments', express.static(path.join(__dirname, '../uploads/post-attachments')));
+
 // Logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
@@ -164,6 +169,7 @@ app.use('/api/programs', programRoutes);
 app.use('/api/classrooms', classroomRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/admin/rooms', adminRoomRoutes);
+app.use('/api/notifications', require('./routes/notification.routes').default);
 app.use('/api', googleAuthRoutes);
 
 // Health check route

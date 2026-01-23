@@ -1,9 +1,7 @@
 // server/src/routes/adminRoutes.ts
 import { Router, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { AuthRequest, authenticateToken } from '../middleware/auth.middleware';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const router = Router();
 
 // Middleware to check if user is ADMIN

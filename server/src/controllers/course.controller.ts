@@ -1,9 +1,8 @@
 // server\src\controllers\course.controller.ts
 import { Response } from 'express';
-import { PrismaClient, CourseStatus, CourseLevel } from '@prisma/client';
+import { CourseStatus, CourseLevel } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export const getCourses = async (req: AuthRequest, res: Response) => {
   try {

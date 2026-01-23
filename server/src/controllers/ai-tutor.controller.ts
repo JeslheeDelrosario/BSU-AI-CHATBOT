@@ -1,9 +1,10 @@
 // server/src/controllers/ai-tutor.controller.ts
 // STRICT RAG-BASED AI TUTOR - Only answers from database knowledge
 import { Response } from 'express';
-import { PrismaClient, AIInteractionType } from '@prisma/client';
+import { AIInteractionType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import OpenAI from 'openai';
+import { prisma } from '../lib/prisma';
 import { 
   generateSmartSuggestions, 
   generateGreeting, 
@@ -17,8 +18,6 @@ import {
   generateCourseRecommendation,
   RAGContext
 } from '../services/rag-context.service';
-
-const prisma = new PrismaClient();
 
 // Initialize OpenAI client
 let openai: OpenAI;

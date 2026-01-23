@@ -149,15 +149,17 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <CalendarIcon className="w-6 h-6 text-cyan-500" />
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Calendar</h2>
+          <div className="p-3 bg-gradient-to-br from-cyan-500/20 to-purple-600/20 rounded-2xl">
+            <CalendarIcon className="w-6 h-6 text-cyan-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white">Calendar</h2>
         </div>
         {isTeacher && (
           <button
             onClick={onCreateMeeting}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
           >
             <Plus className="w-5 h-5" />
             Create Meeting
@@ -167,21 +169,21 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
+        <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-6">
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={previousMonth}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-xl transition-all hover:scale-110"
             >
-              <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              <ChevronLeft className="w-6 h-6 text-gray-400 hover:text-white" />
             </button>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">{monthYear}</h3>
+            <h3 className="text-xl font-bold text-white">{monthYear}</h3>
             <button
               onClick={nextMonth}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-xl transition-all hover:scale-110"
             >
-              <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              <ChevronRight className="w-6 h-6 text-gray-400 hover:text-white" />
             </button>
           </div>
 
@@ -189,7 +191,7 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
           <div className="grid grid-cols-7 gap-2">
             {/* Day Headers */}
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center text-sm font-semibold text-slate-600 dark:text-slate-400 py-2">
+              <div key={day} className="text-center text-sm font-semibold text-gray-400 py-2">
                 {day}
               </div>
             ))}
@@ -207,20 +209,20 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
                 <div
                   key={day}
                   onClick={() => setSelectedDate(day)}
-                  className={`aspect-square border rounded-lg p-2 ${
+                  className={`aspect-square border rounded-xl p-2 ${
                     selectedDate === day
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-500'
+                      ? 'border-purple-500 bg-purple-500/20 ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
                       : today
-                      ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  } transition-colors cursor-pointer`}
+                      ? 'border-cyan-500 bg-cyan-500/20 ring-2 ring-cyan-500 shadow-lg shadow-cyan-500/50'
+                      : 'border-white/10 hover:bg-white/10 hover:border-white/20'
+                  } transition-all cursor-pointer`}
                 >
                   <div className={`text-sm font-semibold mb-1 ${
                     selectedDate === day
-                      ? 'text-purple-600 dark:text-purple-400'
+                      ? 'text-purple-400'
                       : today 
-                      ? 'text-cyan-600 dark:text-cyan-400' 
-                      : 'text-slate-900 dark:text-white'
+                      ? 'text-cyan-400' 
+                      : 'text-white'
                   }`}>
                     {day}
                   </div>
@@ -232,14 +234,14 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
                           e.stopPropagation();
                           onViewMeeting(meeting);
                         }}
-                        className={`${MEETING_TYPE_COLORS[meeting.meetingType] || 'bg-gray-500'} text-white text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80`}
+                        className={`${MEETING_TYPE_COLORS[meeting.meetingType] || 'bg-gray-500'} text-white text-xs px-1 py-0.5 rounded-md truncate cursor-pointer hover:opacity-80 hover:scale-105 transition-all`}
                         title={meeting.title}
                       >
                         {formatTime(meeting.startTime)}
                       </div>
                     ))}
                     {dayMeetings.length > 2 && (
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                      <div className="text-xs text-gray-400 font-medium">
                         +{dayMeetings.length - 2} more
                       </div>
                     )}
@@ -250,13 +252,13 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
           </div>
 
           {/* Legend */}
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Meeting Types</h4>
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <h4 className="text-sm font-semibold text-white mb-3">Meeting Types</h4>
             <div className="flex flex-wrap gap-3">
               {Object.entries(MEETING_TYPE_LABELS).map(([type, label]) => (
-                <div key={type} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded ${MEETING_TYPE_COLORS[type]}`} />
-                  <span className="text-xs text-slate-600 dark:text-slate-400">{label}</span>
+                <div key={type} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                  <div className={`w-3 h-3 rounded-full ${MEETING_TYPE_COLORS[type]} shadow-lg`} />
+                  <span className="text-xs text-gray-300">{label}</span>
                 </div>
               ))}
             </div>
@@ -264,11 +266,11 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
         </div>
 
         {/* Selected Day View or Upcoming Meetings */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-6">
           {selectedDate ? (
             <>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                <h3 className="text-lg font-bold text-white">
                   {new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDate).toLocaleDateString('en-US', { 
                     month: 'long', 
                     day: 'numeric',
@@ -277,7 +279,7 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
                 </h3>
                 <button
                   onClick={() => setSelectedDate(null)}
-                  className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  className="text-sm text-gray-400 hover:text-white px-3 py-1.5 hover:bg-white/10 rounded-lg transition-all"
                 >
                   Clear
                 </button>
@@ -286,7 +288,7 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
               {(() => {
                 const dayMeetings = getMeetingsForDay(selectedDate);
                 return dayMeetings.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                  <div className="text-center py-8 text-gray-400">
                     No meetings scheduled
                   </div>
                 ) : (
@@ -295,28 +297,28 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
                       <div
                         key={meeting.id}
                         onClick={() => onViewMeeting(meeting)}
-                        className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                        className="p-4 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 cursor-pointer transition-all hover:shadow-lg"
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`w-1 h-full ${MEETING_TYPE_COLORS[meeting.meetingType]} rounded`} />
+                          <div className={`w-1 h-full ${MEETING_TYPE_COLORS[meeting.meetingType]} rounded-full shadow-lg`} />
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-slate-900 dark:text-white">
+                            <h4 className="font-semibold text-white">
                               {meeting.title}
                             </h4>
                             {meeting.description && (
-                              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                              <p className="text-sm text-gray-400 mt-1 line-clamp-2">
                                 {meeting.description}
                               </p>
                             )}
-                            <div className="flex items-center gap-2 mt-2 text-sm text-slate-600 dark:text-slate-400">
+                            <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
                               <Clock className="w-4 h-4" />
                               <span>{formatTime(meeting.startTime)} - {formatTime(meeting.endTime)}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <span className={`text-xs px-2 py-1 rounded ${MEETING_TYPE_COLORS[meeting.meetingType]} text-white`}>
+                              <span className={`text-xs px-2 py-1 rounded-lg ${MEETING_TYPE_COLORS[meeting.meetingType]} text-white shadow-md`}>
                                 {MEETING_TYPE_LABELS[meeting.meetingType]}
                               </span>
-                              <span className="text-xs px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded">
+                              <span className="text-xs px-2 py-1 bg-white/10 text-gray-300 rounded-lg">
                                 {meeting._count.Attendees} attendees
                               </span>
                               <span className={`text-xs px-2 py-1 rounded ${
@@ -328,7 +330,7 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
                                 {meeting.status}
                               </span>
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                            <div className="text-xs text-gray-500 mt-2">
                               By {meeting.CreatedBy.firstName} {meeting.CreatedBy.lastName}
                             </div>
                           </div>
@@ -341,12 +343,12 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
             </>
           ) : (
             <>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Upcoming Meetings</h3>
+              <h3 className="text-lg font-bold text-white mb-4">Upcoming Meetings</h3>
               
               {loading ? (
-                <div className="text-center py-8 text-slate-500">Loading...</div>
+                <div className="text-center py-8 text-gray-400">Loading...</div>
               ) : upcomingMeetings.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                <div className="text-center py-8 text-gray-400">
                   No upcoming meetings
                 </div>
               ) : (
@@ -355,26 +357,26 @@ export default function ClassroomCalendar({ classroomId, isTeacher, onCreateMeet
                     <div
                       key={meeting.id}
                       onClick={() => onViewMeeting(meeting)}
-                      className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                      className="p-4 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 cursor-pointer transition-all hover:shadow-lg"
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`w-1 h-full ${MEETING_TYPE_COLORS[meeting.meetingType]} rounded`} />
+                        <div className={`w-1 h-full ${MEETING_TYPE_COLORS[meeting.meetingType]} rounded-full shadow-lg`} />
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-slate-900 dark:text-white truncate">
+                          <h4 className="font-semibold text-white truncate">
                             {meeting.title}
                           </h4>
-                          <div className="flex items-center gap-2 mt-1 text-sm text-slate-600 dark:text-slate-400">
+                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
                             <Clock className="w-4 h-4" />
                             <span>{formatDate(meeting.startTime)}</span>
                           </div>
-                          <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          <div className="text-sm text-gray-400 mt-1">
                             {formatTime(meeting.startTime)} - {formatTime(meeting.endTime)}
                           </div>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className={`text-xs px-2 py-1 rounded ${MEETING_TYPE_COLORS[meeting.meetingType]} text-white`}>
+                            <span className={`text-xs px-2 py-1 rounded-lg ${MEETING_TYPE_COLORS[meeting.meetingType]} text-white shadow-md`}>
                               {MEETING_TYPE_LABELS[meeting.meetingType]}
                             </span>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                            <span className="text-xs text-gray-500">
                               {meeting._count.Attendees} attendees
                             </span>
                           </div>

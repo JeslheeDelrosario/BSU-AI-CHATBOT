@@ -179,11 +179,31 @@ export const getClassroom = async (req: AuthRequest, res: Response) => {
     const isMember = classroom.ClassroomMembers.some(m => m.userId === userId);
     const isAdmin = user?.role === 'ADMIN';
     
+    // Check for existing join request
+    const joinRequest = await prisma.classroomJoinRequest.findUnique({
+      where: { classroomId_userId: { classroomId: id, userId } }
+    });
+    
+    // If not a member and not admin, return limited info with join request status
     if (!isMember && !isAdmin) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.json({
+        id: classroom.id,
+        name: classroom.name,
+        section: classroom.section,
+        description: classroom.description,
+        Course: classroom.Course,
+        ClassroomMembers: classroom.ClassroomMembers,
+        isMember: false,
+        joinRequest: joinRequest ? {
+          id: joinRequest.id,
+          status: joinRequest.status,
+          createdAt: joinRequest.createdAt,
+          reviewedAt: joinRequest.reviewedAt
+        } : null
+      });
     }
 
-    return res.json(classroom);
+    return res.json({ ...classroom, isMember: true, joinRequest: null });
   } catch (error) {
     console.error('Get classroom error:', error);
     return res.status(500).json({ error: 'Failed to fetch classroom' });

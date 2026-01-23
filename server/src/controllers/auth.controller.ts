@@ -3,10 +3,9 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 interface RegisterBody {
   email: string;

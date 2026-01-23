@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
-import { Users, BookOpen, MessageSquare, ArrowLeft, Loader2, Edit, Shield, Crown, Plus, Calendar } from 'lucide-react';
+import { Users, BookOpen, MessageSquare, ArrowLeft, Loader2, Edit, Shield, Crown, Plus, Calendar, Clock, CheckCircle, XCircle, Upload, FileText, X } from 'lucide-react';
 import api from '../lib/api';
 import ClassroomCalendar from '../components/ClassroomCalendar';
 import CreateMeetingModal from '../components/CreateMeetingModal';
 import MeetingDetailsModal from '../components/MeetingDetailsModal';
+import PostCard from '../components/PostCard';
 
 interface ClassroomMember {
   id: string;
@@ -29,6 +30,9 @@ interface Post {
   visibility: string;
   isPinned: boolean;
   publishedAt: string;
+  dueDate?: string;
+  points?: number;
+  attachments?: any[];
   Author: {
     id: string;
     firstName: string;
@@ -40,6 +44,7 @@ interface Post {
     Comments: number;
     Reactions: number;
   };
+  Reactions?: any[];
 }
 
 interface Comment {
@@ -53,19 +58,28 @@ interface Comment {
   };
 }
 
+interface JoinRequest {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  reviewedAt?: string;
+}
+
 interface Classroom {
   id: string;
   name: string;
   section?: string;
   sections?: string;
   description?: string;
-  inviteCode: string;
+  inviteCode?: string;
   Course: {
     id: string;
     title: string;
     description: string;
   };
   ClassroomMembers: ClassroomMember[];
+  isMember?: boolean;
+  joinRequest?: JoinRequest | null;
 }
 
 export default function ClassroomDetail() {
@@ -75,7 +89,7 @@ export default function ClassroomDetail() {
   const { settings } = useAccessibility();
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'stream' | 'people' | 'about' | 'calendar'>('stream');
+  const [activeTab, setActiveTab] = useState<'stream' | 'people' | 'about' | 'calendar' | 'requests'>('stream');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
   const [showMeetingDetailsModal, setShowMeetingDetailsModal] = useState(false);
@@ -91,11 +105,24 @@ export default function ClassroomDetail() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
   const [showTaskDropdown, setShowTaskDropdown] = useState(false);
   const [taskType, setTaskType] = useState('ANNOUNCEMENT');
   const [taskForm, setTaskForm] = useState({ title: '', content: '', dueDate: '', points: '' });
+  const [joinRequestMessage, setJoinRequestMessage] = useState('');
+  const [submittingJoinRequest, setSubmittingJoinRequest] = useState(false);
+  const [joinRequests, setJoinRequests] = useState<any[]>([]);
+  const [loadingJoinRequests, setLoadingJoinRequests] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [showEditPostModal, setShowEditPostModal] = useState(false);
+  const [editPostForm, setEditPostForm] = useState({ title: '', content: '', dueDate: '', points: '' });
+  const [postFilter, setPostFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
 
   const fetchClassroom = useCallback(async () => {
     try {
@@ -108,23 +135,61 @@ export default function ClassroomDetail() {
     }
   }, [id]);
 
-  const fetchPosts = useCallback(async () => {
-    if (!id) return;
-    setLoadingPosts(true);
+  const fetchPosts = useCallback(async (pageNum = 1, filterType = 'all', append = false) => {
+    if (!id || !classroom?.isMember) return;
+    if (!append) setLoadingPosts(true);
+    else setLoadingMorePosts(true);
     try {
-      const res = await api.get(`/classrooms/${id}/posts`);
-      setPosts(res.data.posts || res.data);
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '10'
+      });
+      if (filterType !== 'all') {
+        params.append('type', filterType);
+      }
+      const res = await api.get(`/classrooms/${id}/posts?${params}`);
+      const newPosts = res.data.posts || res.data;
+      if (append) {
+        setPosts(prev => [...prev, ...newPosts]);
+      } else {
+        setPosts(newPosts);
+      }
+      setHasMorePosts(newPosts.length === 10);
     } catch (error) {
       console.error('Failed to fetch posts:', error);
     } finally {
       setLoadingPosts(false);
+      setLoadingMorePosts(false);
     }
-  }, [id]);
+  }, [id, classroom?.isMember]);
+
+  const fetchJoinRequests = useCallback(async () => {
+    if (!id || !classroom?.isMember) return;
+    setLoadingJoinRequests(true);
+    try {
+      const res = await api.get(`/classrooms/${id}/join-requests`);
+      setJoinRequests(res.data);
+    } catch (error) {
+      console.error('Failed to fetch join requests:', error);
+    } finally {
+      setLoadingJoinRequests(false);
+    }
+  }, [id, classroom?.isMember]);
 
   useEffect(() => {
     fetchClassroom();
-    fetchPosts();
-  }, [fetchClassroom, fetchPosts]);
+  }, [fetchClassroom]);
+
+  useEffect(() => {
+    if (classroom?.isMember) {
+      fetchPosts(1, 'all', false);
+      const currentMember = classroom.ClassroomMembers.find(m => m.User.id === user?.id);
+      const isTeacherRole = currentMember?.role === 'TEACHER' || user?.role === 'ADMIN';
+      if (isTeacherRole) {
+        fetchJoinRequests();
+      }
+    }
+  }, [classroom?.isMember, classroom?.ClassroomMembers, user?.id, user?.role, fetchJoinRequests]);
 
   if (loading) {
     return (
@@ -155,6 +220,8 @@ export default function ClassroomDetail() {
   const teacher = classroom.ClassroomMembers.find(m => m.role === 'TEACHER');
   const currentMember = classroom.ClassroomMembers.find(m => m.User.id === user?.id);
   const isTeacher = currentMember?.role === 'TEACHER' || user?.role === 'ADMIN';
+  const isMember = classroom.isMember !== false;
+  const hasJoinRequest = classroom.joinRequest !== null && classroom.joinRequest !== undefined;
   const canPost = isTeacher || currentMember?.role === 'PRESIDENT' || currentMember?.role === 'VICE_PRESIDENT' || currentMember?.role === 'MODERATOR';
   
   const canViewPost = (post: Post) => {
@@ -248,7 +315,11 @@ export default function ClassroomDetail() {
         }
         
         attachments.forEach((file) => {
-          formData.append('files', file);
+          formData.append('attachments', file);
+        });
+        
+        imageFiles.forEach((file) => {
+          formData.append('images', file);
         });
 
         await api.post(`/classrooms/${classroom.id}/posts`, formData, {
@@ -260,6 +331,7 @@ export default function ClassroomDetail() {
       setAnnouncementForm({ content: '', visibility: 'ALL_STUDENTS' });
       setTaskForm({ title: '', content: '', dueDate: '', points: '' });
       setAttachments([]);
+      setImageFiles([]);
       setMeetingDate('');
       setMeetingTime('');
       setTaskType('ANNOUNCEMENT');
@@ -297,9 +369,152 @@ export default function ClassroomDetail() {
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files).slice(0, 5);
+      setImageFiles(files);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const openPostModal = (post: Post) => {
     setSelectedPost(post);
     setShowPostModal(true);
+  };
+
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setEditPostForm({
+      title: post.title || '',
+      content: post.content,
+      dueDate: post.dueDate ? new Date(post.dueDate).toISOString().slice(0, 16) : '',
+      points: post.points?.toString() || ''
+    });
+    setShowEditPostModal(true);
+  };
+
+  const handleSaveEditPost = async () => {
+    if (!editingPost) return;
+    try {
+      await api.put(`/classrooms/posts/${editingPost.id}`, {
+        title: editPostForm.title,
+        content: editPostForm.content,
+        dueDate: editPostForm.dueDate ? new Date(editPostForm.dueDate).toISOString() : null,
+        points: editPostForm.points ? parseInt(editPostForm.points) : null
+      });
+      setShowEditPostModal(false);
+      setEditingPost(null);
+      fetchPosts(page, postFilter, false);
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      alert('Failed to update post');
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await api.delete(`/classrooms/posts/${postId}`);
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      alert('Failed to delete post');
+    }
+  };
+
+  const handlePinPost = async (postId: string, isPinned: boolean) => {
+    try {
+      await api.put(`/classrooms/posts/${postId}`, { isPinned: !isPinned });
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !isPinned } : p));
+    } catch (error) {
+      console.error('Failed to pin post:', error);
+      alert('Failed to pin post');
+    }
+  };
+
+  const handleReaction = async (postId: string, emoji: string) => {
+    try {
+      await api.post(`/classrooms/posts/${postId}/reactions`, { emoji });
+      fetchPosts(page, postFilter, false);
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchPosts(nextPage, postFilter, true);
+  };
+
+  const handleFilterChange = (filter: string) => {
+    setPostFilter(filter);
+    setPage(1);
+    fetchPosts(1, filter, false);
+  };
+
+  const handleSubmitJoinRequest = async () => {
+    if (submittingJoinRequest) return;
+    setSubmittingJoinRequest(true);
+    try {
+      const formData = new FormData();
+      formData.append('classroomId', classroom.id);
+      if (joinRequestMessage) {
+        formData.append('message', joinRequestMessage);
+      }
+      uploadedFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      await api.post('/classrooms/join-requests', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      await fetchClassroom();
+      setJoinRequestMessage('');
+      setUploadedFiles([]);
+    } catch (error: any) {
+      console.error('Failed to submit join request:', error);
+      alert(error.response?.data?.error || 'Failed to submit join request');
+    } finally {
+      setSubmittingJoinRequest(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => {
+        const isValidType = file.type === 'application/pdf' || 
+                           file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                           file.type === 'application/msword';
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+        if (!isValidType) {
+          alert(`${file.name} is not a valid file type. Only PDF and DOCX are allowed.`);
+          return false;
+        }
+        if (!isValidSize) {
+          alert(`${file.name} is too large. Maximum file size is 5MB.`);
+          return false;
+        }
+        return true;
+      });
+      setUploadedFiles(prev => [...prev, ...validFiles].slice(0, 3)); // Max 3 files
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleReviewJoinRequest = async (requestId: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await api.put(`/classrooms/join-requests/${requestId}/review`, { status, role: 'STUDENT' });
+      await fetchJoinRequests();
+    } catch (error) {
+      console.error('Failed to review join request:', error);
+    }
   };
 
   const getRoleBadge = (role: string) => {
@@ -328,6 +543,192 @@ export default function ClassroomDetail() {
         return null;
     }
   };
+
+  // If user is not a member, show join request form
+  if (!isMember) {
+    return (
+      <div className="min-h-screen py-6 px-4 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => navigate('/classrooms')}
+            className="flex items-center gap-2 text-slate-600 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            {settings.language === 'fil' ? 'Bumalik sa Classrooms' : 'Back to Classrooms'}
+          </button>
+
+          <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-cyan-500/20 rounded-3xl p-8 shadow-2xl">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-10 h-10 text-white" />
+              </div>
+              <h1 className="text-3xl font-black bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                {classroom.name}
+              </h1>
+              {classroom.section && (
+                <p className="text-lg text-cyan-300 mb-2">{classroom.section}</p>
+              )}
+              <p className="text-gray-400">{classroom.Course.title}</p>
+              {teacher && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {settings.language === 'fil' ? 'Guro' : 'Teacher'}: {teacher.User.firstName} {teacher.User.lastName}
+                </p>
+              )}
+            </div>
+
+            {hasJoinRequest ? (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <div className="text-center">
+                  {classroom.joinRequest?.status === 'PENDING' && (
+                    <>
+                      <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-8 h-8 text-yellow-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">
+                        {settings.language === 'fil' ? 'Naghihintay ng Approval' : 'Pending Approval'}
+                      </h3>
+                      <p className="text-gray-400">
+                        {settings.language === 'fil' 
+                          ? 'Ang iyong kahilingan ay naghihintay ng pagsusuri ng guro.'
+                          : 'Your join request is waiting for teacher approval.'}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {settings.language === 'fil' ? 'Isinumite noong' : 'Submitted on'}: {new Date(classroom.joinRequest!.createdAt).toLocaleDateString()}
+                      </p>
+                    </>
+                  )}
+                  {classroom.joinRequest?.status === 'REJECTED' && (
+                    <>
+                      <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">
+                        {settings.language === 'fil' ? 'Tinanggihan ang Kahilingan' : 'Request Rejected'}
+                      </h3>
+                      <p className="text-gray-400 mb-4">
+                        {settings.language === 'fil' 
+                          ? 'Ang iyong kahilingan ay tinanggihan ng guro. Maaari kang magsumite ng bagong kahilingan.'
+                          : 'Your join request was rejected. You can submit a new request.'}
+                      </p>
+                      <button
+                        onClick={handleSubmitJoinRequest}
+                        disabled={submittingJoinRequest}
+                        className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-cyan-500/50 transition-all disabled:opacity-50"
+                      >
+                        {submittingJoinRequest ? (
+                          settings.language === 'fil' ? 'Isinusumite...' : 'Submitting...'
+                        ) : (
+                          settings.language === 'fil' ? 'Magsumite Ulit' : 'Resubmit Request'
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {settings.language === 'fil' ? 'Mensahe (Opsyonal)' : 'Message (Optional)'}
+                  </label>
+                  <textarea
+                    value={joinRequestMessage}
+                    onChange={(e) => setJoinRequestMessage(e.target.value)}
+                    rows={4}
+                    placeholder={settings.language === 'fil' 
+                      ? 'Ipakilala ang iyong sarili o magbigay ng dahilan kung bakit gusto mong sumali...'
+                      : 'Introduce yourself or provide a reason why you want to join...'}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 resize-none"
+                  />
+                </div>
+
+                {/* File Upload Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {settings.language === 'fil' ? 'Mag-upload ng Proof of Enrollment (PDF/DOCX)' : 'Upload Proof of Enrollment (PDF/DOCX)'}
+                  </label>
+                  <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-cyan-500/50 transition-colors">
+                    <input
+                      type="file"
+                      id="file-upload"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Upload className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                      <p className="text-gray-300 mb-1">
+                        {settings.language === 'fil' ? 'I-click upang mag-upload' : 'Click to upload'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {settings.language === 'fil' ? 'PDF o DOCX (Max 5MB, hanggang 3 files)' : 'PDF or DOCX (Max 5MB, up to 3 files)'}
+                      </p>
+                    </label>
+                  </div>
+
+                  {/* Uploaded Files Preview */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-cyan-400" />
+                            <div>
+                              <p className="text-sm text-white font-medium">{file.name}</p>
+                              <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(2)} KB</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4 text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleSubmitJoinRequest}
+                  disabled={submittingJoinRequest || uploadedFiles.length === 0}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-cyan-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {submittingJoinRequest ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {settings.language === 'fil' ? 'Isinusumite...' : 'Submitting...'}
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-5 h-5" />
+                      {settings.language === 'fil' ? 'Magsumite ng Kahilingan na Sumali' : 'Submit Join Request'}
+                    </>
+                  )}
+                </button>
+                {uploadedFiles.length === 0 && (
+                  <p className="text-sm text-center text-yellow-400">
+                    {settings.language === 'fil'
+                      ? '⚠️ Kailangan ang proof of enrollment para magsumite'
+                      : '⚠️ Proof of enrollment is required to submit'}
+                  </p>
+                )}
+                <p className="text-sm text-center text-gray-500">
+                  {settings.language === 'fil'
+                    ? 'Susuriin ng guro ang iyong kahilingan at mga dokumento. Makakatanggap ka ng notification kapag naaprubahan.'
+                    : 'The teacher will review your request and documents. You will be notified when approved.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-6 px-4 lg:px-8">
@@ -413,12 +814,93 @@ export default function ClassroomDetail() {
             <Calendar className="w-5 h-5 inline mr-2" />
             {settings.language === 'fil' ? 'Kalendaryo' : 'Calendar'}
           </button>
+          {isTeacher && (
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`px-6 py-3 font-semibold transition-colors relative ${
+                activeTab === 'requests'
+                  ? 'text-cyan-500 border-b-2 border-cyan-500'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-cyan-500'
+              }`}
+            >
+              <Users className="w-5 h-5 inline mr-2" />
+              {settings.language === 'fil' ? 'Mga Kahilingan' : 'Join Requests'}
+              {joinRequests.filter(r => r.status === 'PENDING').length > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                  {joinRequests.filter(r => r.status === 'PENDING').length}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
         <div className="space-y-6">
           {activeTab === 'stream' && (
             <div className="space-y-6">
+              {/* Post Type Filter */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => handleFilterChange('all')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
+                    postFilter === 'all'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  {settings.language === 'fil' ? 'Lahat' : 'All'}
+                </button>
+                <button
+                  onClick={() => handleFilterChange('ANNOUNCEMENT')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
+                    postFilter === 'ANNOUNCEMENT'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  📢 {settings.language === 'fil' ? 'Anunsyo' : 'Announcements'}
+                </button>
+                <button
+                  onClick={() => handleFilterChange('ASSIGNMENT')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
+                    postFilter === 'ASSIGNMENT'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  ✍️ {settings.language === 'fil' ? 'Takdang-aralin' : 'Assignments'}
+                </button>
+                <button
+                  onClick={() => handleFilterChange('PROJECT')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
+                    postFilter === 'PROJECT'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  📁 {settings.language === 'fil' ? 'Proyekto' : 'Projects'}
+                </button>
+                <button
+                  onClick={() => handleFilterChange('QUIZ')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
+                    postFilter === 'QUIZ'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  📝 {settings.language === 'fil' ? 'Pagsusulit' : 'Quizzes'}
+                </button>
+                <button
+                  onClick={() => handleFilterChange('EXAMINATION')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
+                    postFilter === 'EXAMINATION'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  📖 {settings.language === 'fil' ? 'Eksamen' : 'Exams'}
+                </button>
+              </div>
               {canPost && (
                 <div className="relative">
                   <button
@@ -505,97 +987,43 @@ export default function ClassroomDetail() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {visiblePosts.map((post) => (
-                    <div 
-                      key={post.id} 
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onEdit={handleEditPost}
+                      onDelete={handleDeletePost}
+                      onPin={handlePinPost}
+                      onReact={handleReaction}
+                      onComment={(postId) => handleAddComment(postId)}
                       onClick={() => openPostModal(post)}
-                      className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 cursor-pointer hover:bg-white/10 transition-all"
-                    >
-                      {/* Post Header */}
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                          {post.Author.firstName[0]}{post.Author.lastName[0]}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-white">
-                              {post.Author.firstName} {post.Author.lastName}
-                            </p>
-                            {post.visibility === 'MODERATORS_ONLY' && (
-                              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">
-                                {settings.language === 'fil' ? 'Mga Moderator' : 'Moderators'}
-                              </span>
-                            )}
-                            {post.isPinned && (
-                              <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 text-xs rounded-full">
-                                {settings.language === 'fil' ? 'Naka-pin' : 'Pinned'}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-400">
-                            {new Date(post.publishedAt).toLocaleDateString(settings.language === 'fil' ? 'fil-PH' : 'en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Post Content */}
-                      <div className="mb-4">
-                        <p className="text-gray-200 whitespace-pre-wrap">{post.content}</p>
-                      </div>
-
-                      {/* Post Stats */}
-                      <div className="flex items-center gap-4 text-sm text-gray-400 pb-4 border-b border-white/10">
-                        <span>{post._count.Comments} {settings.language === 'fil' ? 'komento' : 'comments'}</span>
-                      </div>
-
-                      {/* Comments Section */}
-                      <div className="mt-4 space-y-3">
-                        {post.Comments.slice(0, 3).map((comment) => (
-                          <div key={comment.id} className="flex gap-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                              {comment.Author.firstName[0]}{comment.Author.lastName[0]}
-                            </div>
-                            <div className="flex-1 bg-white/5 rounded-xl p-3">
-                              <p className="text-sm font-semibold text-white mb-1">
-                                {comment.Author.firstName} {comment.Author.lastName}
-                              </p>
-                              <p className="text-sm text-gray-300">{comment.content}</p>
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* Add Comment */}
-                        <div className="flex gap-3 mt-4">
-                          <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                            {user?.firstName?.[0]}{user?.lastName?.[0]}
-                          </div>
-                          <div className="flex-1 flex gap-2">
-                            <input
-                              type="text"
-                              value={commentText[post.id] || ''}
-                              onChange={(e) => setCommentText({ ...commentText, [post.id]: e.target.value })}
-                              onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post.id)}
-                              placeholder={settings.language === 'fil' ? 'Magkomento...' : 'Add a comment...'}
-                              className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm"
-                            />
-                            <button
-                              onClick={() => handleAddComment(post.id)}
-                              disabled={!commentText[post.id]?.trim()}
-                              className="px-4 py-2 bg-cyan-500 text-white rounded-xl text-sm font-semibold hover:bg-cyan-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {settings.language === 'fil' ? 'I-post' : 'Post'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      canEdit={post.Author.id === user?.id || isTeacher}
+                      canDelete={post.Author.id === user?.id || isTeacher}
+                      canPin={isTeacher}
+                      commentText={commentText[post.id] || ''}
+                      onCommentChange={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
+                      submittingComment={submittingComment[post.id] || false}
+                    />
                   ))}
+                  
+                  {/* Load More Button */}
+                  {hasMorePosts && (
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={loadingMorePosts}
+                      className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold transition-all disabled:opacity-50"
+                    >
+                      {loadingMorePosts ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>{settings.language === 'fil' ? 'Naglo-load...' : 'Loading...'}</span>
+                        </div>
+                      ) : (
+                        settings.language === 'fil' ? 'Mag-load ng Higit Pa' : 'Load More'
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -674,6 +1102,129 @@ export default function ClassroomDetail() {
                 setShowMeetingDetailsModal(true);
               }}
             />
+          )}
+
+          {activeTab === 'requests' && isTeacher && (
+            <div className="space-y-6">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                  {settings.language === 'fil' ? 'Mga Kahilingan na Sumali' : 'Join Requests'}
+                </h3>
+                {loadingJoinRequests ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+                  </div>
+                ) : joinRequests.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-400">
+                      {settings.language === 'fil' ? 'Walang mga kahilingan' : 'No join requests'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {joinRequests.map((request) => (
+                      <div key={request.id} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1">
+                            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                              {request.User.firstName[0]}{request.User.lastName[0]}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-white">
+                                  {request.User.firstName} {request.User.lastName}
+                                </p>
+                                {request.status === 'PENDING' && (
+                                  <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> Pending
+                                  </span>
+                                )}
+                                {request.status === 'APPROVED' && (
+                                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" /> Approved
+                                  </span>
+                                )}
+                                {request.status === 'REJECTED' && (
+                                  <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full flex items-center gap-1">
+                                    <XCircle className="w-3 h-3" /> Rejected
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-400 mb-2">{request.User.email}</p>
+                              {request.message && (
+                                <p className="text-sm text-gray-300 bg-white/5 rounded-lg p-3 mb-2">
+                                  {request.message}
+                                </p>
+                              )}
+                              {request.attachments && request.attachments.length > 0 && (
+                                <div className="mb-2">
+                                  <p className="text-xs font-semibold text-gray-400 mb-2">
+                                    {settings.language === 'fil' ? 'Mga Naka-attach na File:' : 'Attached Files:'}
+                                  </p>
+                                  <div className="space-y-1">
+                                    {request.attachments.map((file: string, idx: number) => (
+                                      <a
+                                        key={idx}
+                                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${file}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-xs text-cyan-400 hover:text-cyan-300 bg-white/5 rounded-lg p-2 transition-colors"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                        <span>{file.split('/').pop()}</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-500">
+                                {settings.language === 'fil' ? 'Isinumite noong' : 'Submitted on'}: {new Date(request.createdAt).toLocaleDateString(settings.language === 'fil' ? 'fil-PH' : 'en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              {request.reviewedAt && (
+                                <p className="text-xs text-gray-500">
+                                  {settings.language === 'fil' ? 'Sinuri noong' : 'Reviewed on'}: {new Date(request.reviewedAt).toLocaleDateString(settings.language === 'fil' ? 'fil-PH' : 'en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {request.status === 'PENDING' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleReviewJoinRequest(request.id, 'APPROVED')}
+                                className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg font-semibold transition-all flex items-center gap-2"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                {settings.language === 'fil' ? 'Aprubahan' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => handleReviewJoinRequest(request.id, 'REJECTED')}
+                                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg font-semibold transition-all flex items-center gap-2"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                {settings.language === 'fil' ? 'Tanggihan' : 'Reject'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {activeTab === 'about' && (
@@ -958,10 +1509,26 @@ export default function ClassroomDetail() {
                 {/* Action Icons */}
                 <div className="flex items-center gap-3 pt-3 border-t border-white/10">
                   <label className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg cursor-pointer transition-colors">
+                    <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm text-gray-300">{settings.language === 'fil' ? 'Larawan' : 'Images'}</span>
+                    <span className="text-xs text-gray-500">({imageFiles.length}/5)</span>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*" 
+                      onChange={handleImageSelect} 
+                      className="hidden" 
+                      disabled={imageFiles.length >= 5}
+                    />
+                  </label>
+                  
+                  <label className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg cursor-pointer transition-colors">
                     <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                     </svg>
-                    <span className="text-sm text-gray-300">{settings.language === 'fil' ? 'File' : 'Attach'}</span>
+                    <span className="text-sm text-gray-300">{settings.language === 'fil' ? 'File' : 'Files'}</span>
                     <input type="file" multiple onChange={handleFileSelect} className="hidden" />
                   </label>
                   
@@ -975,6 +1542,30 @@ export default function ClassroomDetail() {
                     <span className="text-sm text-gray-300">{settings.language === 'fil' ? 'Meeting' : 'Schedule'}</span>
                   </button>
                 </div>
+
+                {/* Image Preview */}
+                {imageFiles.length > 0 && (
+                  <div className="mt-3 p-3 bg-white/5 rounded-lg">
+                    <p className="text-sm text-gray-400 mb-2">{imageFiles.length} {settings.language === 'fil' ? 'larawan' : 'image(s)'}</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {imageFiles.map((file, idx) => (
+                        <div key={idx} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-20 object-cover rounded-lg"
+                          />
+                          <button
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* File Preview */}
                 {attachments.length > 0 && (
@@ -1031,6 +1622,102 @@ export default function ClassroomDetail() {
                 >
                   {settings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Post Modal */}
+        {showEditPostModal && editingPost && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-6">
+            <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">
+                  {settings.language === 'fil' ? 'I-edit ang Post' : 'Edit Post'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowEditPostModal(false);
+                    setEditingPost(null);
+                  }}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {editingPost.type !== 'ANNOUNCEMENT' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {settings.language === 'fil' ? 'Pamagat' : 'Title'}
+                    </label>
+                    <input
+                      type="text"
+                      value={editPostForm.title}
+                      onChange={(e) => setEditPostForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {settings.language === 'fil' ? 'Nilalaman' : 'Content'}
+                  </label>
+                  <textarea
+                    value={editPostForm.content}
+                    onChange={(e) => setEditPostForm(prev => ({ ...prev, content: e.target.value }))}
+                    rows={6}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 resize-none"
+                  />
+                </div>
+
+                {editingPost.type !== 'ANNOUNCEMENT' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        {settings.language === 'fil' ? 'Deadline' : 'Due Date'}
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={editPostForm.dueDate}
+                        onChange={(e) => setEditPostForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        {settings.language === 'fil' ? 'Puntos' : 'Points'}
+                      </label>
+                      <input
+                        type="number"
+                        value={editPostForm.points}
+                        onChange={(e) => setEditPostForm(prev => ({ ...prev, points: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowEditPostModal(false);
+                      setEditingPost(null);
+                    }}
+                    className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition-all"
+                  >
+                    {settings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={handleSaveEditPost}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                  >
+                    {settings.language === 'fil' ? 'I-save' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
