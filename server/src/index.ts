@@ -6,6 +6,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -24,9 +25,30 @@ import progressRoutes from './routes/progress.routes';
 import consultationRoutes from './routes/consultation.routes';
 import programRoutes from './routes/program.routes';
 import classroomRoutes from './routes/classroom.routes';
+import meetingRoutes from './routes/meeting.routes';
+import adminRoomRoutes from './routes/adminRoom.routes';
+import googleAuthRoutes from './routes/googleAuth.routes';
+import practiceExamRoutes from './routes/practice-exam.routes';
 
 // Load environment variables
 dotenv.config();
+
+// Validate environment variables
+import { validateEnv, isGoogleCalendarConfigured } from './config/env.validation';
+
+try {
+  validateEnv();
+  console.log('✓ Environment variables validated');
+  
+  if (isGoogleCalendarConfigured()) {
+    console.log('✓ Google Calendar integration enabled');
+  } else {
+    console.warn('⚠ Google Calendar integration disabled (credentials not configured)');
+  }
+} catch (error) {
+  console.error('✗ Environment validation failed:', error);
+  process.exit(1);
+}
 
 const app = express();
 
@@ -99,7 +121,7 @@ const limiter = rateLimit({
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 attempts per window
+  max: 50, // 50 attempts per window (increased for development/testing)
   message: { error: 'Too many login attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -119,6 +141,11 @@ app.use('/api', limiter);
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Serve uploaded files
+app.use('/uploads/join-requests', express.static(path.join(__dirname, '../uploads/join-requests')));
+app.use('/uploads/post-attachments', express.static(path.join(__dirname, '../uploads/post-attachments')));
+app.use('/uploads/post-images', express.static(path.join(__dirname, '../uploads/post-images')));
 
 // Logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));
@@ -142,6 +169,11 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/programs', programRoutes);
 app.use('/api/classrooms', classroomRoutes);
+app.use('/api/meetings', meetingRoutes);
+app.use('/api/admin/rooms', adminRoomRoutes);
+app.use('/api/notifications', require('./routes/notification.routes').default);
+app.use('/api', googleAuthRoutes);
+app.use('/api/practice-exams', practiceExamRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

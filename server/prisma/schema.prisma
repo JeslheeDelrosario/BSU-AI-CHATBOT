@@ -113,17 +113,18 @@ model Assignment {
 }
 
 model ChatSession {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  messages  Json
-  isStarred Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  userId        String
+  title         String
+  messages      Json           @default("[]")
+  isStarred     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  User          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  PracticeExams PracticeExam[]
 
-  @@index([updatedAt])
   @@index([userId])
+  @@index([createdAt])
   @@index([isStarred])
 }
 
@@ -355,8 +356,9 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String
+  type      String   // NEW_POST, NEW_COMMENT, ROLE_ASSIGNED, etc.
   link      String?
+  metadata  Json?    // Additional data (classroomId, postId, etc.)
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -364,6 +366,7 @@ model Notification {
   @@index([createdAt])
   @@index([isRead])
   @@index([userId])
+  @@index([type])
 }
 
 model Progress {
@@ -513,7 +516,16 @@ model User {
   ReviewedJoinRequests             ClassroomJoinRequest[] @relation("JoinRequestReviewer")
   User                             User?                  @relation("UserToUser", fields: [parentId], references: [id])
   other_User                       User[]                 @relation("UserToUser")
-  userModuleProgresses             UserModuleProgress[]   @relation("UserModuleProgresses")  
+  userModuleProgresses             UserModuleProgress[]   @relation("UserModuleProgresses")
+  OrganizedMeetings                Meeting[]              @relation("MeetingOrganizer")
+  MeetingParticipations            MeetingParticipant[]   @relation("MeetingParticipants")
+  createdClassroomMeetings         ClassroomMeeting[]     @relation("ClassroomMeetingCreator")
+  classroomMeetingAttendances      ClassroomMeetingAttendee[] @relation("ClassroomMeetingAttendees")
+  googleAccessToken                String?
+  googleRefreshToken               String?
+  googleTokenExpiry                DateTime?
+  PracticeExams                    PracticeExam[]
+  PracticeExamResults              PracticeExamResult[]
 
   @@index([email])
   @@index([role])
@@ -625,6 +637,7 @@ model Classroom {
   ClassroomPosts  ClassroomPost[]
   ClassroomMembers ClassroomMember[]
   ClassroomJoinRequests ClassroomJoinRequest[]
+  ClassroomMeetings ClassroomMeeting[]
   
   @@index([courseId])
   @@index([inviteCode])
@@ -661,6 +674,7 @@ model ClassroomJoinRequest {
   userId      String
   status      JoinRequestStatus   @default(PENDING)
   message     String?             // Optional message from student
+  attachments String[]            @default([]) // File URLs (PDF/DOCX proof of enrollment)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   reviewedBy  String?             // Teacher who approved/rejected
@@ -689,6 +703,7 @@ model ClassroomPost {
   title           String?
   content         String
   attachments     Json                @default("[]")
+  images          String[]            @default([])
   isPinned        Boolean             @default(false)
   visibility      PostVisibility      @default(ALL_STUDENTS)
   publishedAt     DateTime            @default(now())
@@ -932,4 +947,233 @@ enum QuestionType {
   TRUE_FALSE
 }
 
+// ============================================
+// ROOM & MEETING MANAGEMENT MODELS
+// ============================================
 
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  building    String
+  floor       Int?
+  capacity    Int
+  type        RoomType @default(CLASSROOM)
+  facilities  String[] @default([])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Meetings    Meeting[]
+  
+  @@unique([name, building])
+  @@index([building])
+  @@index([type])
+  @@index([isActive])
+}
+
+enum RoomType {
+  CLASSROOM
+  LABORATORY
+  CONFERENCE
+  LECTURE_HALL
+  COMPUTER_LAB
+  LIBRARY
+  STUDY_ROOM
+  AUDITORIUM
+}
+
+model Meeting {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  organizerId     String
+  roomId          String?
+  meetingType     MeetingType
+  googleMeetLink  String?
+  startTime       DateTime
+  endTime         DateTime
+  isRecurring     Boolean       @default(false)
+  recurrenceRule  String?
+  status          MeetingStatus @default(SCHEDULED)
+  maxParticipants Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  Organizer       User          @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  Room            Room?         @relation(fields: [roomId], references: [id])
+  Participants    MeetingParticipant[]
+  
+  @@index([organizerId])
+  @@index([roomId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@index([meetingType])
+}
+
+enum MeetingType {
+  ONLINE
+  IN_PERSON
+  HYBRID
+  CONSULTATION
+  CLASS
+  EXAM
+  WORKSHOP
+  SEMINAR
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+model MeetingParticipant {
+  id         String              @id @default(cuid())
+  meetingId  String
+  userId     String
+  role       ParticipantRole     @default(ATTENDEE)
+  status     ParticipantStatus   @default(INVITED)
+  joinedAt   DateTime?
+  leftAt     DateTime?
+  createdAt  DateTime            @default(now())
+  Meeting    Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  User       User                @relation("MeetingParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum ParticipantRole {
+  ORGANIZER
+  CO_ORGANIZER
+  PRESENTER
+  ATTENDEE
+}
+
+enum ParticipantStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  ATTENDED
+  ABSENT
+}
+
+// Classroom Meeting Management
+model ClassroomMeeting {
+  id                    String                    @id @default(cuid())
+  classroomId           String
+  title                 String
+  description           String?
+  meetingType           ClassroomMeetingType      @default(LECTURE)
+  googleMeetLink        String
+  googleCalendarEventId String?
+  startTime             DateTime
+  endTime               DateTime
+  status                ClassroomMeetingStatus    @default(SCHEDULED)
+  createdById           String
+  isRecurring           Boolean                   @default(false)
+  recurrenceRule        String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  
+  Classroom       Classroom                 @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  CreatedBy       User                      @relation("ClassroomMeetingCreator", fields: [createdById], references: [id])
+  Attendees       ClassroomMeetingAttendee[]
+  
+  @@index([classroomId])
+  @@index([startTime])
+  @@index([status])
+  @@index([createdById])
+}
+
+model ClassroomMeetingAttendee {
+  id              String                    @id @default(cuid())
+  meetingId       String
+  userId          String
+  status          AttendeeStatus            @default(INVITED)
+  joinedAt        DateTime?
+  leftAt          DateTime?
+  createdAt       DateTime                  @default(now())
+  
+  Meeting         ClassroomMeeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  User            User                      @relation("ClassroomMeetingAttendees", fields: [userId], references: [id])
+  
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum ClassroomMeetingType {
+  LECTURE
+  LAB_SESSION
+  DISCUSSION
+  EXAM
+  QUIZ
+  OFFICE_HOURS
+  REVIEW_SESSION
+  WORKSHOP
+  SEMINAR
+  GROUP_WORK
+}
+
+enum ClassroomMeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendeeStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  ATTENDED
+  ABSENT
+}
+
+model PracticeExam {
+  id              String        @id @default(cuid())
+  userId          String
+  title           String
+  description     String?
+  subject         String
+  difficulty      String
+  totalQuestions  Int
+  estimatedTime   Int           // in minutes
+  questions       Json          // Array of quiz questions
+  chatSessionId   String?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  User            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ChatSession     ChatSession?  @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+  Results         PracticeExamResult[]
+
+  @@index([userId])
+  @@index([chatSessionId])
+  @@index([createdAt])
+}
+
+model PracticeExamResult {
+  id              String        @id @default(cuid())
+  examId          String
+  userId          String
+  score           Int           // percentage
+  correctAnswers  Int
+  incorrectAnswers Int
+  passed          Boolean
+  timeSpent       Int?          // in seconds
+  answers         Json          // User's answers
+  detailedResults Json          // Detailed results per question
+  createdAt       DateTime      @default(now())
+  Exam            PracticeExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  User            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([userId])
+  @@index([createdAt])
+}

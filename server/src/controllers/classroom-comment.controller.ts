@@ -2,6 +2,7 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { NotificationService } from '../services/notification.service';
 
 // Get comments for a post
 export const getComments = async (req: AuthRequest, res: Response) => {
@@ -136,6 +137,24 @@ export const createComment = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    // Notify post author about new comment (if not commenting on own post)
+    if (!isPrivate && post.authorId !== userId) {
+      const author = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true }
+      });
+      
+      if (author) {
+        NotificationService.notifyNewComment({
+          postId,
+          postAuthorId: post.authorId,
+          commentAuthorId: userId,
+          commentAuthorName: `${author.firstName} ${author.lastName}`,
+          classroomId: post.Classroom.id
+        }).catch(err => console.error('Failed to send notification:', err));
+      }
+    }
 
     return res.status(201).json(comment);
   } catch (error) {

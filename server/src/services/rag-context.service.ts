@@ -3,12 +3,10 @@
 // This service retrieves relevant database context for AI responses
 // CRITICAL: AI must ONLY answer based on this retrieved context
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 // Import modular components
 export { analyzeQueryScope } from '../modules/rag/scope-analyzer';
-
-const prisma = new PrismaClient();
 
 export interface RAGContext {
   programs: ProgramContext[];

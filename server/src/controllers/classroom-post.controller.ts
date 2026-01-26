@@ -2,6 +2,8 @@
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { NotificationService } from '../services/notification.service';
+import { uploadImageToLocal } from '../config/storage.config';
 
 // Get classroom stream (posts)
 export const getClassroomPosts = async (req: AuthRequest, res: Response) => {
@@ -10,12 +12,15 @@ export const getClassroomPosts = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
     const { type, page = '1', limit = '20' } = req.query;
 
-    // Verify user is a member
+    // Verify user is a member or admin
     const member = await prisma.classroomMember.findFirst({
       where: { classroomId, userId }
     });
 
-    if (!member) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const isAdmin = user?.role === 'ADMIN';
+
+    if (!member && !isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -96,7 +101,54 @@ export const createPost = async (req: AuthRequest, res: Response) => {
   try {
     const { classroomId } = req.params;
     const userId = req.user!.userId;
-    const { type, title, content, attachments, dueDate, points, allowLateSubmission, visibility } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    
+    // Extract data from body (works for both JSON and FormData)
+    const { type, title, content, dueDate, points, allowLateSubmission, visibility } = req.body;
+
+    // Validate required fields
+    if (!type) {
+      return res.status(400).json({ error: 'Post type is required' });
+    }
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    
+    // Handle image uploads to local storage
+    const images: string[] = [];
+    if (files && files.images && Array.isArray(files.images)) {
+      for (const imageFile of files.images.slice(0, 5)) {
+        try {
+          const imageUrl = await uploadImageToLocal(imageFile, 'posts');
+          images.push(imageUrl);
+        } catch (error) {
+          console.error('Image upload failed:', error instanceof Error ? error.message : error);
+          // Continue without this image - don't fail the entire post creation
+        }
+      }
+    }
+    
+    // Handle regular file attachments
+    let attachments: any[] = [];
+    if (files) {
+      if (Array.isArray(files)) {
+        // files is an array (old format)
+        attachments = files.map(file => ({
+          filename: file.originalname,
+          path: `/uploads/post-attachments/${file.filename}`,
+          size: file.size,
+          mimetype: file.mimetype
+        }));
+      } else if (files.attachments && Array.isArray(files.attachments)) {
+        // files is an object with attachments field
+        attachments = files.attachments.map(file => ({
+          filename: file.originalname,
+          path: `/uploads/post-attachments/${file.filename}`,
+          size: file.size,
+          mimetype: file.mimetype
+        }));
+      }
+    }
 
     // Verify user has permission to post (teacher, president, vice-president, moderator)
     const member = await prisma.classroomMember.findFirst({
@@ -111,14 +163,20 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'You do not have permission to create posts' });
     }
 
+    const classroom = await prisma.classroom.findUnique({
+      where: { id: classroomId },
+      select: { name: true }
+    });
+
     const post = await prisma.classroomPost.create({
       data: {
         classroomId,
         authorId: userId,
         type,
         title: title || null,
-        content,
-        attachments: attachments || [],
+        content: content.trim(),
+        attachments,
+        images,
         visibility: visibility || 'ALL_STUDENTS',
         dueDate: dueDate ? new Date(dueDate) : null,
         points: points ? parseInt(points) : null,
@@ -136,6 +194,18 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    // Notify all classroom members about new post
+    if (classroom) {
+      NotificationService.notifyNewPost({
+        classroomId,
+        postId: post.id,
+        authorId: userId,
+        postTitle: title || content.substring(0, 50),
+        postType: type,
+        classroomName: classroom.name
+      }).catch(err => console.error('Failed to send notifications:', err));
+    }
 
     return res.status(201).json(post);
   } catch (error) {

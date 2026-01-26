@@ -34,6 +34,7 @@ export default function Classrooms() {
   const { settings } = useAccessibility();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingBrowse, setLoadingBrowse] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'my-room' | 'browse'>('my-room');
@@ -58,11 +59,14 @@ export default function Classrooms() {
   };
 
   const fetchAllClassrooms = async () => {
+    setLoadingBrowse(true);
     try {
       const res = await api.get('/classrooms/browse/all');
       setAllClassrooms(res.data);
     } catch (error) {
       console.error('Failed to fetch all classrooms:', error);
+    } finally {
+      setLoadingBrowse(false);
     }
   };
 
@@ -142,7 +146,11 @@ export default function Classrooms() {
 
       {/* Classrooms Grid */}
       <div className="max-w-7xl mx-auto mt-6">
-        {displayedClassrooms.length === 0 ? (
+        {(activeTab === 'browse' && loadingBrowse) ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-12 h-12 text-cyan-500 animate-spin" />
+          </div>
+        ) : displayedClassrooms.length === 0 ? (
           <div className="text-center py-20">
             <Users className="w-20 h-20 mx-auto text-gray-400 mb-4" />
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">

@@ -6,6 +6,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { ToastProvider } from './components/Toast';
 import { PrivateRoute } from './components/PrivateRoute';
 
@@ -26,6 +27,7 @@ import Consultations from './pages/Consultations';
 import Profile from './pages/Profile';
 import Classrooms from './pages/Classrooms';
 import ClassroomDetail from './pages/ClassroomDetail';
+import Calendar from './pages/Calendar';
 
 // Admin Pages
 import AdminCOSPrograms from './pages/AdminCOSPrograms';
@@ -34,6 +36,7 @@ import AdminCurriculum from './pages/AdminCurriculum';
 import AdminFAQs from './pages/AdminFAQs';
 import AdminStudents from './pages/AdminStudents';
 import AdminAnalytics from './pages/AdminAnalytics';
+import AdminRooms from './pages/AdminRooms';
 
 // Public Pages
 import FAQs from './pages/FAQs';
@@ -42,8 +45,9 @@ function App() {
   return (
     <AuthProvider>
       <AccessibilityProvider>
-        <ToastProvider>
-          <Routes>
+        <NotificationProvider>
+          <ToastProvider>
+            <Routes>
         {/* PUBLIC ROUTES */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -69,6 +73,7 @@ function App() {
                   <Route path="/classrooms" element={<Classrooms />} />
                   <Route path="/classrooms/:id" element={<ClassroomDetail />} />
                   <Route path="/consultations" element={<Consultations />} />
+                  <Route path="/calendar" element={<Calendar />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/progress" element={<Progress />} />
@@ -80,6 +85,7 @@ function App() {
                   <Route path="/AdminFAQs" element={<AdminFAQs />} />
                   <Route path="/AdminStudents" element={<AdminStudents />} />
                   <Route path="/AdminAnalytics" element={<AdminAnalytics />} />
+                  <Route path="/AdminRooms" element={<AdminRooms />} />
 
                   {/* Catch-all: redirect to dashboard if unknown route */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -89,7 +95,8 @@ function App() {
           }
         />
           </Routes>
-        </ToastProvider>
+          </ToastProvider>
+        </NotificationProvider>
       </AccessibilityProvider>
     </AuthProvider>
   );
