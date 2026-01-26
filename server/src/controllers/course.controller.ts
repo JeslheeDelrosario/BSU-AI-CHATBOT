@@ -7,14 +7,20 @@ const prisma = new PrismaClient();
 
 export const getCourses = async (req: AuthRequest, res: Response) => {
   try {
+
     const { status, level, search } = req.query;
 
     const where: any = {};
 
     if (status) {
       where.status = status as CourseStatus;
-    } else {
-      where.status = CourseStatus.PUBLISHED; // Default to published only
+    } else if (req.user?.role?.toUpperCase() !== 'ADMIN') {
+      where.status = CourseStatus.PUBLISHED; // non-admins see only published
+    }
+    
+    //pansamantalang log for checking sa terminal
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`getCourses: User ${req.user?.email || 'anonymous'} (role: ${req.user?.role || 'none'}) - showing ${status ? `status=${status}` : 'all statuses'}`);
     }
 
     if (level) {
@@ -207,11 +213,22 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
     const userRole = req.user?.role;
 
-    if (!userId || (userRole !== 'TEACHER' && userRole !== 'ADMIN' && userRole !== 'CONTENT_CREATOR')) {
-      return res.status(403).json({ error: 'Only teachers, admins, and content creators can create courses' });
+    // CHANGED: Restrict to ADMIN only (extra safety even if middleware already checks)
+    if (!userId || userRole !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can create courses' });
     }
 
-    const { title, description, level, duration, price, tags } = req.body;
+    // NEW: Accept status from request body
+    const { title, description, level, duration, price, tags, status } = req.body;
+
+    // NEW: Validate status if provided
+    let finalStatus: CourseStatus = CourseStatus.DRAFT; // default
+    if (status) {
+      if (status !== CourseStatus.DRAFT && status !== CourseStatus.PUBLISHED) {
+        return res.status(400).json({ error: 'Invalid status. Must be "DRAFT" or "PUBLISHED"' });
+      }
+      finalStatus = status;
+    }
 
     const course = await prisma.course.create({
       data: {
@@ -222,7 +239,8 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
         price,
         tags: tags || [],
         creatorId: userId,
-        teacherId: userRole === 'TEACHER' ? userId : undefined,
+        teacherId: undefined, // CHANGED: No auto-assign teacher since only ADMIN creates
+        status: finalStatus,  // NEW: Use the provided or default status
         updatedAt: new Date(),
       },
     });
@@ -231,5 +249,113 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Create course error:', error);
     return res.status(500).json({ error: 'Server error creating course' });
+  }
+};
+
+export const updateCourse = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user?.role;
+
+    if (userRole !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can update courses' });
+    }
+
+    const { title, description, level, duration, price, tags, status, teacherId } = req.body;
+
+    // Validate status if sent
+    if (status && status !== CourseStatus.DRAFT && status !== CourseStatus.PUBLISHED) {
+      return res.status(400).json({ error: 'Invalid status. Must be "DRAFT" or "PUBLISHED"' });
+    }
+
+    // Build update object
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (level !== undefined) updateData.level = level;
+    if (duration !== undefined) updateData.duration = duration;
+    if (price !== undefined) updateData.price = price;
+    if (tags !== undefined) updateData.tags = tags;
+    if (status !== undefined) updateData.status = status;
+
+    // FIXED: Handle teacherId properly
+    if (teacherId !== undefined) {
+      if (teacherId === '' || teacherId === null) {
+        // Allow clearing teacher assignment (set to null)
+        updateData.teacherId = null;
+      } else {
+        // Validate that teacherId exists in User table
+        const teacherExists = await prisma.user.findUnique({
+          where: { id: teacherId },
+          select: { id: true, role: true },
+        });
+
+        if (!teacherExists) {
+          return res.status(400).json({ error: 'Invalid teacher ID - user not found' });
+        }
+
+        if (teacherExists.role !== 'TEACHER') {
+          return res.status(400).json({ error: 'Assigned user must have TEACHER role' });
+        }
+
+        updateData.teacherId = teacherId;
+      }
+    }
+
+    const updatedCourse = await prisma.course.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return res.json({ course: updatedCourse });
+  } catch (error: any) {
+    console.error('Update course error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Invalid teacher ID - foreign key constraint failed' });
+    }
+    return res.status(500).json({ error: 'Server error updating course' });
+  }
+};
+
+export const deleteCourse = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user?.role;
+
+    if (userRole !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can delete courses' });
+    }
+
+    const course = await prisma.course.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    // RESTRICTION: Only allow delete if status is DRAFT
+    if (course.status !== CourseStatus.DRAFT) {
+      return res.status(400).json({ error: 'Cannot delete a published course. Set status to DRAFT first.' });
+    }
+
+    await prisma.course.delete({
+      where: { id },
+    });
+
+    return res.status(200).json({ message: 'Course deleted successfully' });
+  } catch (error: any) {
+    console.error('Delete course error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+    return res.status(500).json({ error: 'Server error deleting course' });
   }
 };

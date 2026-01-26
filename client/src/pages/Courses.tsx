@@ -1,21 +1,25 @@
 // client/src/pages/Courses.tsx
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useToast } from '../components/Toast';
 import api from '../lib/api';
-import { BookOpen, Clock, Users, Search, Plus, Filter, X } from 'lucide-react';
+import { BookOpen, Clock, Users, Search, Plus, Filter, X, Edit, Trash2 } from 'lucide-react'; // ADDED: Edit icon
 
 export default function Courses() {
+
   const { user } = useAuth();
   const { settings: accessibilitySettings } = useAccessibility();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<any[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
+
+  // Create modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCourse, setNewCourse] = useState({
@@ -24,9 +28,28 @@ export default function Courses() {
     level: 'BEGINNER',
     duration: 60,
     tags: '',
+    status: 'DRAFT', // NEW: default status
   });
 
-  const canCreateCourse = user?.role === 'ADMIN' || user?.role === 'TEACHER';
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    level: 'BEGINNER',
+    duration: 60,
+    tags: '',
+    status: 'DRAFT',
+    teacherId: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     fetchCourses();
@@ -60,6 +83,7 @@ export default function Courses() {
     }
   };
 
+  // MODIFIED: Now includes status in payload
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourse.title.trim() || !newCourse.description.trim()) {
@@ -73,14 +97,85 @@ export default function Courses() {
         tags: newCourse.tags.split(',').map(t => t.trim()).filter(t => t),
       });
       setShowCreateModal(false);
-      setNewCourse({ title: '', description: '', level: 'BEGINNER', duration: 60, tags: '' });
+      setNewCourse({ title: '', description: '', level: 'BEGINNER', duration: 60, tags: '', status: 'DRAFT' });
       showToast({ type: 'success', title: accessibilitySettings.language === 'fil' ? 'Kurso ay Nalikha' : 'Course Created', message: accessibilitySettings.language === 'fil' ? 'Matagumpay na nalikha ang iyong bagong kurso!' : 'Your new course has been created successfully!' });
       fetchCourses();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create course:', error);
-      showToast({ type: 'error', title: accessibilitySettings.language === 'fil' ? 'Nabigo ang Paglikha' : 'Creation Failed', message: accessibilitySettings.language === 'fil' ? 'Hindi nalikha ang kurso. Subukan muli.' : 'Failed to create course. Please try again.' });
+      showToast({ type: 'error', title: accessibilitySettings.language === 'fil' ? 'Nabigo ang Paglikha' : 'Creation Failed', message: error.response?.data?.error || 'Failed to create course. Please try again.' });
     } finally {
       setCreating(false);
+    }
+  };
+
+  // NEW: Open edit modal with pre-filled data
+  const openEditModal = (course: any) => {
+    setEditingCourse(course);
+    setEditForm({
+      title: course.title,
+      description: course.description || '',
+      level: course.level,
+      duration: course.duration || 60,
+      tags: course.tags?.join(', ') || '',
+      status: course.status || 'DRAFT',
+      teacherId: course.teacherId || '',
+    });
+    setShowEditModal(true);
+  };
+
+  // NEW: Submit edit form
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse) return;
+
+    if (!editForm.title.trim() || !editForm.description.trim()) {
+      showToast({ type: 'warning', title: 'Missing Fields', message: 'Title and description are required' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await api.put(`/courses/${editingCourse.id}`, {
+        ...editForm,
+        tags: editForm.tags.split(',').map(t => t.trim()).filter(t => t),
+      });
+      showToast({ type: 'success', title: 'Course Updated', message: 'Course details saved successfully!' });
+      setShowEditModal(false);
+      fetchCourses(); // Refresh list to show changes
+    } catch (error: any) {
+      console.error('Failed to update course:', error);
+      showToast({ type: 'error', title: 'Update Failed', message: error.response?.data?.error || 'Failed to update course' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openDeleteModal = (course: any) => {
+    if (course.status !== 'DRAFT') {
+      showToast({ type: 'error', title: 'Cannot Delete', message: 'Only draft courses can be deleted. Set status to Draft first.' });
+      return;
+    }
+    setCourseToDelete(course);
+    setShowDeleteModal(true);
+  };
+
+  // NEW: Handle delete after confirmation
+  const handleConfirmDelete = async () => {
+    if (!courseToDelete) return;
+
+    setDeleting(true);
+    try {
+      await api.delete(`/courses/${courseToDelete.id}`);
+      showToast({ type: 'success', title: 'Course Deleted', message: 'The course has been successfully removed.' });
+      setShowDeleteModal(false);
+      setCourseToDelete(null);
+      navigate('/courses'); // Redirect to list page
+      fetchCourses(); // Refresh list
+    } catch (error: any) {
+      console.error('Failed to delete course:', error);
+      showToast({ type: 'error', title: 'Delete Failed', message: error.response?.data?.error || 'Failed to delete course' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -95,7 +190,7 @@ export default function Courses() {
   return (
     <div className="py-8 lg:py-10">
 
-     {/* Hero Header */}
+      {/* Hero Header */}
       <div className="text-center mb-8 lg:mb-10 px-6">
         <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 pb-1 md:pb-2 leading-tight md:leading-snug inline-block">
           {accessibilitySettings.language === 'fil' ? 'Tuklasin ang mga Kurso' : 'Explore Courses'}
@@ -130,7 +225,9 @@ export default function Courses() {
               <option value="ADVANCED">{accessibilitySettings.language === 'fil' ? 'Advanced' : 'Advanced'}</option>
               <option value="EXPERT">{accessibilitySettings.language === 'fil' ? 'Eksperto' : 'Expert'}</option>
             </select>
-            {canCreateCourse && (
+
+            {/* CHANGED: Show create button ONLY to ADMIN */}
+            {isAdmin && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-cyan-500/50"
@@ -141,6 +238,7 @@ export default function Courses() {
             )}
           </div>
         </div>
+
         {(searchQuery || levelFilter) && (
           <div className="mt-3 flex items-center gap-2 text-sm text-gray-400">
             <Filter className="w-4 h-4" />
@@ -160,61 +258,106 @@ export default function Courses() {
       {/* Course Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 max-w-7xl mx-auto px-6">
         {filteredCourses.map((course) => (
-          <Link key={course.id} to={`/courses/${course.id}`} className="group block">
-            <div className="relative h-full bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:shadow-cyan-500/30 hover:border-cyan-500/50">
+          <div key={course.id} className="relative group block">
+            <Link to={`/courses/${course.id}`} className="block">
+              <div className="relative h-full bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-500 hover:scale-[1.04] hover:shadow-cyan-500/30 hover:border-cyan-500/50">
 
-              {/* Course Header Image */}
-              <div className="h-56 relative flex items-center justify-center bg-gradient-to-br from-cyan-600/30 via-purple-600/20 to-indigo-700/30">
-                <div className="absolute inset-0 bg-black/25"></div>
-                <div className="relative z-10 p-8 bg-black/50 backdrop-blur-xl rounded-3xl shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                  <BookOpen className="w-20 h-20 text-cyan-400 drop-shadow-2xl" />
+                {/* Course Header Image */}
+                <div className="h-56 relative flex items-center justify-center bg-gradient-to-br from-cyan-600/30 via-purple-600/20 to-indigo-700/30">
+                  <div className="absolute inset-0 bg-black/25"></div>
+                  <div className="relative z-10 p-8 bg-black/50 backdrop-blur-xl rounded-3xl shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                    <BookOpen className="w-20 h-20 text-cyan-400 drop-shadow-2xl" />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-              </div>
 
-              {/* Card Content */}
-              <div className="p-7">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 line-clamp-2 group-hover:text-cyan-400 transition-colors">
-                  {course.title}
-                </h3>
-                <p className="text-slate-600 dark:text-gray-400 text-sm leading-relaxed line-clamp-3 mb-6">
-                  {course.description}
-                </p>
+                {/* Card Content */}
+                <div className="p-7">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 line-clamp-2 group-hover:text-cyan-400 transition-colors">
+                    {course.title}
+                  </h3>
+                  <p className="text-slate-600 dark:text-gray-400 text-sm leading-relaxed line-clamp-3 mb-6">
+                    {course.description}
+                  </p>
 
-                {/* Stats */}
-                <div className="flex items-center justify-between text-sm mb-5">
-                  <span className="flex items-center gap-2 text-cyan-400">
-                    <Clock className="w-5 h-5" />
-                    <span className="text-slate-700 dark:text-gray-300">
-                      {course.duration ? `${Math.floor(course.duration / 60)}h` : 'Self-paced'}
+                  {/* Stats */}
+                  <div className="flex items-center justify-between text-sm mb-5">
+                    <span className="flex items-center gap-2 text-cyan-400">
+                      <Clock className="w-5 h-5" />
+                      <span className="text-slate-700 dark:text-gray-300">
+                        {course.duration ? `${Math.floor(course.duration / 60)}h` : 'Self-paced'}
+                      </span>
                     </span>
-                  </span>
-                  <span className="flex items-center gap-2 text-purple-400">
-                    <Users className="w-5 h-5" />
-                    <span className="text-slate-700 dark:text-gray-300">
-                      {course._count?.enrollments || 0} {accessibilitySettings.language === 'fil' ? 'nag-aaral' : 'learners'}
+                    <span className="flex items-center gap-2 text-purple-400">
+                      <Users className="w-5 h-5" />
+                      <span className="text-slate-700 dark:text-gray-300">
+                        {course._count?.enrollments || 0} {accessibilitySettings.language === 'fil' ? 'nag-aaral' : 'learners'}
+                      </span>
                     </span>
-                  </span>
+                  </div>
+
+                  {/* Level Badge */}
+                  <div className="flex justify-end">
+                    <span className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm ${
+                      course.level === 'Beginner' 
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/60' 
+                        : course.level === 'Intermediate'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/60'
+                        : 'bg-pink-500/20 text-pink-300 border-pink-500/60'
+                    }`}>
+                      {course.level}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Level Badge */}
-                <div className="flex justify-end">
-                  <span className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm ${
-                    course.level === 'Beginner' 
-                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/60' 
-                      : course.level === 'Intermediate'
-                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/60'
-                      : 'bg-pink-500/20 text-pink-300 border-pink-500/60'
-                  }`}>
-                    {course.level}
-                  </span>
-                </div>
+                {/* Hover Shine Effect */}
+                <div className="absolute inset-0 -z-10 bg-gradient-to-tr from-cyan-500/0 via-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 translate-x-full group-hover:translate-x-0 transition-transform duration-1000 pointer-events-none"></div>
+                  {/* Status Badge for Admin*/}
+                  {isAdmin && (
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm ${
+                        course.status === 'DRAFT'
+                          ? 'bg-gray-700/80 text-gray-200 border-gray-500'
+                          : 'bg-green-600/80 text-white border-green-400'
+                      }`}>
+                        {course.status === 'DRAFT' ? 'Draft' : 'Published'}
+                      </span>
+                    </div>
+                  )}
               </div>
+            </Link>
 
-              {/* Hover Shine Effect */}
-              <div className="absolute inset-0 -z-10 bg-gradient-to-tr from-cyan-500/0 via-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 translate-x-full group-hover:translate-x-0 transition-transform duration-1000 pointer-events-none"></div>
-            </div>
-          </Link>
+            {/* Admin Buttons */}
+            {isAdmin && (
+              <div className="absolute top-4 right-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                {/* Edit Button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openEditModal(course);
+                  }}
+                  className="p-3 bg-blue-600/90 hover:bg-blue-700 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                  title={accessibilitySettings.language === 'fil' ? 'I-edit ang Kurso' : 'Edit Course'}
+                >
+                  <Edit className="w-5 h-5" />
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDeleteModal(course);
+                  }}
+                  className="p-3 bg-red-600/90 hover:bg-red-700 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                  title={accessibilitySettings.language === 'fil' ? 'Tanggalin ang Kurso' : 'Delete Course'}
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
 
@@ -231,8 +374,8 @@ export default function Courses() {
         </div>
       )}
 
-      {/* Create Course Modal */}
-      {showCreateModal && (
+      {/* Create Course Modal - visible only to ADMIN */}
+      {showCreateModal && isAdmin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="backdrop-blur-2xl bg-gray-900/95 border border-white/10 rounded-3xl p-8 max-w-lg w-full shadow-2xl">
             <h2 className="text-2xl font-bold text-foreground mb-6">{accessibilitySettings.language === 'fil' ? 'Lumikha ng Bagong Kurso' : 'Create New Course'}</h2>
@@ -294,6 +437,20 @@ export default function Courses() {
                   placeholder={accessibilitySettings.language === 'fil' ? 'hal., programming, python, nagsisimula' : 'e.g., programming, python, beginner'}
                 />
               </div>
+
+              {/* NEW: Status select */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">{accessibilitySettings.language === 'fil' ? 'Status' : 'Status'}</label>
+                <select
+                  value={newCourse.status}
+                  onChange={(e) => setNewCourse({ ...newCourse, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                >
+                  <option value="DRAFT">{accessibilitySettings.language === 'fil' ? 'Draft (Hindi pa nakikita ng estudyante)' : 'Draft (Not visible to students)'}</option>
+                  <option value="PUBLISHED">{accessibilitySettings.language === 'fil' ? 'Published (Makikita ng estudyante)' : 'Published (Visible to students)'}</option>
+                </select>
+              </div>
+
               <div className="flex gap-4 pt-4">
                 <button
                   type="submit"
@@ -311,6 +468,139 @@ export default function Courses() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Edit Modal */}
+      {showEditModal && editingCourse && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="backdrop-blur-2xl bg-gray-900/95 border border-white/10 rounded-3xl p-8 max-w-lg w-full shadow-2xl my-8">
+            <h2 className="text-2xl font-bold text-foreground mb-6">{accessibilitySettings.language === 'fil' ? 'I-edit ang Kurso' : 'Edit Course'}</h2>
+            <form onSubmit={handleUpdateCourse} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Course Title *</label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Description *</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Level</label>
+                  <select
+                    value={editForm.level}
+                    onChange={(e) => setEditForm({ ...editForm, level: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  >
+                    <option value="BEGINNER">Beginner</option>
+                    <option value="INTERMEDIATE">Intermediate</option>
+                    <option value="ADVANCED">Advanced</option>
+                    <option value="EXPERT">Expert</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Duration (minutes)</label>
+                  <input
+                    type="number"
+                    value={editForm.duration}
+                    onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 60 })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                    min="1"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={editForm.tags}
+                  onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  placeholder="e.g., programming, python, beginner"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                >
+                  <option value="DRAFT">Draft (hidden from students)</option>
+                  <option value="PUBLISHED">Published (visible to students)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Teacher ID (optional)</label>
+                <input
+                  type="text"
+                  value={editForm.teacherId}
+                  onChange={(e) => setEditForm({ ...editForm, teacherId: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  placeholder="Enter teacher user ID"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:scale-105 transition-transform disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-6 py-3 bg-white/5 border border-white/10 text-foreground font-bold rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && courseToDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="backdrop-blur-2xl bg-gray-900/95 border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-2xl font-bold text-red-400 mb-6">Confirm Delete</h2>
+            <p className="text-lg text-foreground mb-8">
+              {accessibilitySettings.language === 'fil' 
+                ? 'Sigurado ka bang gusto mong tanggalin ang kurso na ito? Hindi na ito mababalik.' 
+                : 'Are you sure you want to delete this course? This action cannot be undone.'}
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-transform hover:scale-105 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : (accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete')}
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 px-6 py-3 bg-white/5 border border-white/10 text-foreground font-bold rounded-xl hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                {accessibilitySettings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
+              </button>
+            </div>
           </div>
         </div>
       )}
