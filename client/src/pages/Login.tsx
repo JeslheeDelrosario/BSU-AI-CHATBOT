@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, AlertCircle, Zap } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Zap, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -30,6 +30,43 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center relative overflow-hidden">
+      {/* Responsive Back to Home button:
+          - Mobile (<640px): compact icon-only button with smaller padding
+          - Desktop (≥640px): full arrow + "Home" text with normal padding
+          - Keeps gradient, shine effect, hover scale/glow on all sizes
+      */}
+      <Link
+        to="/"
+        className={`
+          absolute top-5 sm:top-6 left-5 sm:left-6 z-30
+          group inline-flex items-center gap-2 sm:gap-3
+          px-4 sm:px-6 py-3 sm:py-3.5
+          bg-gradient-to-r from-cyan-500 to-purple-600
+          rounded-xl font-semibold text-sm sm:text-base tracking-wide
+          shadow-xl hover:shadow-cyan-500/40
+          transition-all duration-300 hover:scale-105
+          focus:outline-none focus:ring-2 focus:ring-cyan-400/50
+          overflow-hidden
+        `}
+      >
+        {/* Shine overlay – behind content */}
+        <div className="
+          absolute inset-0
+          bg-white/20
+          translate-y-full
+          group-hover:translate-y-0
+          transition-transform duration-500
+        "></div>
+
+        {/* Content wrapper – stays on top */}
+        <div className="relative z-10 flex items-center gap-2 sm:gap-3">
+          <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:-translate-x-1" />
+          
+          {/* Text only visible on sm and larger screens */}
+          <span className="hidden sm:inline">Home</span>
+        </div>
+      </Link>
+      
       {/* Animated gradient orbs */}
       <div className="absolute inset-0">
         <div className="absolute top-20 -left-40 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl animate-pulse"></div>
@@ -100,9 +137,9 @@ export default function Login() {
                     text-white placeholder-gray-500 
                     focus:outline-none focus:border-cyan-400 focus:bg-white/15 
                     backdrop-blur-sm transition-all duration-300
-                    [-webkit-text-fill-color:white]            /* forces white text */
-                    [-webkit-background-clip:text]              /* needed for some browsers */
-                    shadow-[inset_0_0_0_1000px_rgba(30,41,59,0.8)] /* dark overlay */
+                    [-webkit-text-fill-color:white]            
+                    [-webkit-background-clip:text]              
+                    shadow-[inset_0_0_0_1000px_rgba(30,41,59,0.8)] 
                     [&::-webkit-autofill]:shadow-[inset_0_0_0_1000px_rgba(30,41,59,0.8)]
                     [&::-webkit-autofill]:[-webkit-text-fill-color:white]
                     [&::-webkit-autofill]:bg-transparent

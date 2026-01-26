@@ -2,7 +2,7 @@
 // CONVERTED TO SASS LANDING PAGE
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Users, BookOpen, Bot, Settings, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Users, BookOpen, Bot, Settings, Search, Calendar, MessageSquare, BarChart3, GraduationCap, Video, Bell } from 'lucide-react';
 
 interface Ripple { id: number; x: number; y: number; }
 interface MouseGradient { left: string; top: string; opacity: number; }
@@ -56,15 +56,15 @@ const DigitalSerenityWithSummary: React.FC = () => {
       if (!scrolled) {
         setScrolled(true);
         document.querySelectorAll('.float-particle').forEach((el, i) => {
-          setTimeout(() => el.classList.add('active'), i * 100, 200);
+          setTimeout(() => el.classList.add('active'), i * 100 + 200);
         });
       }
     };
-    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [scrolled]);
 
+  // FAQ
   const faqs = [
     {
       question: "How do I enroll in a course?",
@@ -153,8 +153,8 @@ const DigitalSerenityWithSummary: React.FC = () => {
     }
   `;
 
-  const scrollToSummary = () => {
-    const summarySection = document.getElementById('system-summary');
+  const scrollToMissionVision = () => {
+    const summarySection = document.getElementById('mission-vision');
     if (summarySection) {
       summarySection.scrollIntoView({ behavior: 'smooth' });
     }
@@ -213,7 +213,7 @@ const DigitalSerenityWithSummary: React.FC = () => {
         {/* Content Container */}
         <div className="relative z-10">
           {/* Hero Section */}
-          <section className="min-h-screen flex flex-col justify-center items-center px-6 py-20">
+          <section id="hero" className="min-h-screen flex flex-col justify-center items-center px-6 py-20">
             <div className="max-w-7xl mx-auto w-full">
               <p className="text-cyan-400 text-lg font-light tracking-widest uppercase mb-12 text-center">
                 <span className="word-animate">Future</span>{' '}
@@ -257,7 +257,7 @@ const DigitalSerenityWithSummary: React.FC = () => {
                 </div>
                 
                 <button
-                  onClick={scrollToSummary}
+                  onClick={scrollToMissionVision}
                   className="word-animate inline-flex items-center gap-3 px-8 py-6 border border-cyan-500/30 rounded-2xl font-medium text-lg hover:bg-cyan-500/10 hover:border-cyan-400 transition-all duration-300"
                   style={{ animationDelay: '3.2s' }}
                 >
@@ -271,6 +271,70 @@ const DigitalSerenityWithSummary: React.FC = () => {
                 <span className="mx-4">•</span>
                 <span className="word-animate" style={{ animationDelay: '3.8s' }}>AI-Powered Education</span>
               </p>
+            </div>
+          </section>
+          
+          {/* Mission & Vision Section */}
+          <section id="mission-vision" className="py-20 px-6 scroll-mt-20">
+            <div className="max-w-6xl mx-auto">
+              {/* Header */}
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent mb-4 pb-2 md:pb-3 leading-tight md:leading-snug">
+                  Our Guiding Purpose at Bulacan State University
+                </h2>
+                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                  Empowering every student in the College of Science and beyond with intelligent, always-available academic support.
+                </p>
+              </div>
+
+              {/* Vision – make it inspirational and forward-looking */}
+              <div className="mb-16">
+                <h3 className="text-3xl font-bold text-center mb-6 text-cyan-300">
+                  Vision
+                </h3>
+                <div className="bg-black/50 backdrop-blur-sm rounded-2xl p-8 md:p-10 border border-cyan-500/20 shadow-xl">
+                  <p className="text-lg md:text-xl leading-relaxed text-gray-200 text-center">
+                    To power the future of learning at Bulacan State University with an AI academic companion that’s always available, deeply personalized, and built for student success. We envision a smarter campus where every College of Science student gets instant guidance, makes confident academic decisions, and thrives in a digitally connected learning environment.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mission – more concrete, with pillars for scannability */}
+              <div>
+                <h3 className="text-3xl font-bold text-center mb-8 text-purple-300">
+                  Mission
+                </h3>
+                <p className="text-xl text-gray-300 text-center mb-10 max-w-4xl mx-auto">
+                  We deliver fast, reliable, and intelligent academic support so students and educators can focus on what truly matters.
+                </p>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-red-500/30 hover:border-red-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-red-300">Always On, Always Helpful</h4>
+                    <p className="text-gray-300">24/7 AI-driven support that answers questions instantly and removes academic friction.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-cyan-300">Personalized Student Success</h4>
+                    <p className="text-gray-300">Smart recommendations and tailored guidance that help students stay on track, stress less, and achieve more.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-purple-500/30 hover:border-purple-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-purple-300">Built for Educators</h4>
+                    <p className="text-gray-300">Automates repetitive inquiries, freeing faculty to focus on teaching, mentoring, and innovation.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-indigo-500/30 hover:border-indigo-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-indigo-300">Secure by Design</h4>
+                    <p className="text-gray-300">Enterprise-grade security and ethical AI ensure data privacy, trust, and academic integrity.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-green-500/30 hover:border-green-400/50 transition-all md:col-span-2 lg:col-span-1">
+                    <h4 className="text-lg font-semibold mb-3 text-green-300">Inclusive & Accessible</h4>
+                    <p className="text-gray-300">Designed to support every student anytime, anywhere promoting equal access to quality education.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -497,6 +561,110 @@ const DigitalSerenityWithSummary: React.FC = () => {
                   </div>
                 </section>
 
+                {/* For Students section */}
+                <section id="for-students" className="scroll-mt-20">
+                  <div className="flex items-center gap-5 mb-8">
+                    <div className="w-16 h-16 bg-cyan-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                      <GraduationCap className="w-9 h-9 text-cyan-400" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
+                      For Students: Personalized & Interactive Learning Hub
+                    </h2>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-3xl p-8 md:p-10 border border-cyan-500/30 shadow-2xl">
+                    <div className="grid md:grid-cols-2 gap-10">
+                      <div>
+                        <h3 className="text-2xl font-semibold mb-6 text-cyan-300">Key Student Features</h3>
+                        <ul className="space-y-5 text-lg">
+                          <li className="flex items-start gap-4">
+                            <Bot className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <span><strong>AI-Powered Tutor</strong> – 24/7 one-on-one help, instant explanations, step-by-step guidance</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <BookOpen className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <span><strong>Interactive Courses</strong> – Rich lessons, modules, embedded videos & content</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <BarChart3 className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <span><strong>Track Your Progress</strong> – Visual dashboards for completions, quiz scores & achievements</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Video className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <span><strong>Virtual Classrooms</strong> – Collaborate, discuss, share resources with peers & instructors</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Calendar className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <span><strong>Seamless Scheduling</strong> – Book faculty consultations & manage your calendar</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Search className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <span><strong>Practice & Assessment</strong> – Built-in quizzes, practice exams & self-testing tools</span>
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <h3 className="text-2xl font-semibold mb-6 text-cyan-300">Your Learning Experience</h3>
+                        <p className="text-gray-200 text-lg leading-relaxed mb-8">
+                          TISA transforms how you learn and get instant AI support, stay organized with smart scheduling, collaborate in virtual spaces, and clearly see your academic growth. Everything is designed to help you succeed with less stress.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* For Instructors & Administrators section */}
+                <section id="for-educators-admins" className="scroll-mt-20">
+                  <div className="flex items-center gap-5 mb-8">
+                    <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                      <Settings className="w-9 h-9 text-purple-400" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-300 to-purple-500 bg-clip-text text-transparent">
+                      For Instructors & Administrators: Powerful Management Tools
+                    </h2>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-3xl p-8 md:p-10 border border-purple-500/30 shadow-2xl">
+                    <div className="grid md:grid-cols-2 gap-10">
+                      <div>
+                        <h3 className="text-2xl font-semibold mb-6 text-purple-300">Powerful Management Capabilities</h3>
+                        <ul className="space-y-5 text-lg">
+                          <li className="flex items-start gap-4">
+                            <BarChart3 className="w-7 h-7 text-purple-400 mt-1 flex-shrink-0" />
+                            <span><strong>Administrator Dashboard</strong> – Comprehensive analytics on engagement, course popularity & performance</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <GraduationCap className="w-7 h-7 text-purple-400 mt-1 flex-shrink-0" />
+                            <span><strong>Curriculum & Programs</strong> – Create, update and organize university programs & curricula</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <BookOpen className="w-7 h-7 text-purple-400 mt-1 flex-shrink-0" />
+                            <span><strong>Courses & Lessons</strong> – Intuitive tools to build and manage courses, modules & lessons</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Users className="w-7 h-7 text-purple-400 mt-1 flex-shrink-0" />
+                            <span><strong>Faculty & Student Management</strong> – Full control over user accounts & roles</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Video className="w-7 h-7 text-purple-400 mt-1 flex-shrink-0" />
+                            <span><strong>Classrooms & Rooms</strong> – Manage virtual classrooms and physical room schedules</span>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Bell className="w-7 h-7 text-purple-400 mt-1 flex-shrink-0" />
+                            <span><strong>Communication Hub</strong> – Announcements, real-time notifications & integrated FAQ system</span>
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <h3 className="text-2xl font-semibold mb-6 text-purple-300">Empower Your Academic Environment</h3>
+                        <p className="text-gray-200 text-lg leading-relaxed mb-8">
+                          Give instructors powerful, time-saving tools and give administrators full visibility and control — all while maintaining security, data privacy, and academic integrity.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
                 {/* Additional Features Section */}
                 <section id="features" className="scroll-mt-20">
                   <h2 className="text-3xl font-bold mb-8 text-center">Additional Features</h2>
@@ -630,16 +798,41 @@ const DigitalSerenityWithSummary: React.FC = () => {
           </button>
 
           {/* Quick Navigation Dots */}
-          <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 hidden md:flex flex-col gap-4">
-            {['hero', 'ai-tutor', 'ils', 'user-accounts', 'features', 'faq'].map((section) => (
-              <a
-                key={section}
-                href={`#${section}`}
-                className="w-3 h-3 bg-gray-600 rounded-full hover:bg-cyan-400 transition-all duration-300"
-                title={section === 'hero' ? 'Top' : section.replace('-', ' ')}
-              />
-            ))}
+          <div className="fixed right-6 top-1/2 -translate-y-1/2 z-40 hidden md:flex">
+            <div className="flex flex-col gap-4 rounded-full px-3 py-4
+                            bg-white/10 backdrop-blur-lg border border-white/20
+                            shadow-lg">
+              {['hero', 'mission-vision', 'system-summary', 'ils', 'user-accounts', 'features', 'faq'].map((section) => (
+                <a
+                  key={section}
+                  href={`#${section}`}
+                  title={section === 'hero' ? 'Top' : section.replace('-', ' ')}
+                  className="
+                    group
+                    relative
+                    w-3 h-3
+                    rounded-full
+                    bg-white/40
+                    transition-all duration-300
+                    hover:scale-150
+                    hover:bg-cyan-400
+                    hover:shadow-[0_0_12px_rgba(34,211,238,0.8)]
+                  "
+                >
+                  {/* Hover ring */}
+                  <span className="
+                    absolute inset-0
+                    rounded-full
+                    scale-0
+                    group-hover:scale-100
+                    transition-transform duration-300
+                    border border-cyan-300/60
+                  " />
+                </a>
+              ))}
+            </div>
           </div>
+          
         </div>
       </div>
     </>
