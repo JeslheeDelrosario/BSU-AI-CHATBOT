@@ -1,6 +1,6 @@
 // server\src\controllers\course.controller.ts
 import { Response } from 'express';
-import { CourseStatus, CourseLevel } from '@prisma/client';
+import { CourseStatus, CourseLevel, LessonType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 
@@ -66,62 +66,107 @@ export const getCourses = async (req: AuthRequest, res: Response) => {
 export const getCourseById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.userId;
 
-    const course = await prisma.course.findUnique({
+    // Fetch course with modules and nested lessons (published only, ordered)
+    const courseData = await prisma.course.findUnique({
       where: { id },
       include: {
         User_Course_teacherIdToUser: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-          },
+          select: { id: true, firstName: true, lastName: true, avatar: true },
         },
-        Lesson: {
-          where: { isPublished: true },
+        modules: {
           orderBy: { order: 'asc' },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            type: true,
-            duration: true,
-            order: true,
+          include: {
+            lessons: {
+              where: { isPublished: true },
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                type: true,
+                duration: true,
+                order: true,
+                content: true,
+                videoUrl: true,
+                audioUrl: true,
+              },
+            },
           },
         },
         CourseReview: {
           include: {
-            User: {
-              select: {
-                firstName: true,
-                lastName: true,
-                avatar: true,
-              },
-            },
+            User: { select: { firstName: true, lastName: true, avatar: true } },
           },
         },
       },
     });
 
-    if (!course) {
+    if (!courseData) {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Check if user is enrolled
     let enrollment = null;
-    if (req.user?.userId) {
+    let progressMap: Record<string, any> = {};
+
+    if (userId) {
+      // Lookup enrollment for the current user
       enrollment = await prisma.enrollment.findUnique({
-        where: {
-          userId_courseId: {
-            userId: req.user.userId,
-            courseId: id,
-          },
-        },
+        where: { userId_courseId: { userId, courseId: id } },
       });
+
+      // Get progress for all lessons in this course
+      const progressRecords = await prisma.progress.findMany({
+        where: {
+          userId,
+          Lesson: { courseId: id },
+        },
+        select: { lessonId: true, completed: true, score: true },
+      });
+
+      progressMap = progressRecords.reduce((acc, p) => {
+        acc[p.lessonId] = p;
+        return acc;
+      }, {} as Record<string, any>);
     }
 
-    return res.json({ course, enrollment });
+    // Enrich lessons inside modules with progress & unlock status
+    const enrichedModules = courseData.modules.map((module) => {
+      const enrichedLessons = module.lessons.map((lesson, idx) => {
+        const progress = progressMap[lesson.id] || null;
+
+        let isUnlocked = idx === 0; // first lesson in module always unlocked
+
+        if (idx > 0) {
+          const prev = module.lessons[idx - 1];
+          const prevProg = progressMap[prev.id] || null;
+
+          if (prevProg?.completed) {
+            isUnlocked = prev.type === 'QUIZ'
+              ? (prevProg.score ?? 0) >= 85
+              : true;
+          }
+        }
+
+        return {
+          ...lesson,
+          completed: progress?.completed ?? false,
+          score: progress?.score ?? null,
+          isUnlocked,
+        };
+      });
+
+      return { ...module, lessons: enrichedLessons };
+    });
+
+    return res.json({
+      course: {
+        ...courseData,
+        modules: enrichedModules,
+      },
+      enrollment,
+    });
   } catch (error) {
     console.error('Get course error:', error);
     return res.status(500).json({ error: 'Server error fetching course' });
@@ -132,6 +177,8 @@ export const enrollInCourse = async (req: AuthRequest, res: Response) => {
   try {
     const { courseId } = req.body;
     const userId = req.user?.userId;
+
+    
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -356,5 +403,135 @@ export const deleteCourse = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Course not found' });
     }
     return res.status(500).json({ error: 'Server error deleting course' });
+  }
+};
+
+export const createModule = async (req: AuthRequest, res: Response) => {
+  try {
+    const { courseId } = req.params;
+    const { title, description } = req.body;
+
+    if (!title?.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    // Auto-calculate next order
+    const maxOrder = await prisma.module.aggregate({
+      where: { courseId },
+      _max: { order: true },
+    });
+
+    const nextOrder = (maxOrder._max.order || 0) + 1;
+
+    const module = await prisma.module.create({
+      data: {
+        title,
+        description: description || null,
+        order: nextOrder,
+        courseId,
+      },
+    });
+
+    return res.status(201).json({ module });
+  } catch (error) {
+    console.error('Create module error:', error);
+    return res.status(500).json({ error: 'Failed to create module' });
+  }
+};
+
+export const createLesson = async (req: AuthRequest, res: Response) => {
+  try {
+    const { moduleId } = req.params;
+    const {
+      title,
+      description,
+      type,
+      duration,
+      content,
+      videoUrl,
+      audioUrl,
+      isPublished = false,
+    } = req.body;
+
+    if (!title?.trim() || !type) {
+      return res.status(400).json({ error: 'Title and type are required' });
+    }
+
+    // Validate type
+    const validTypes = ['VIDEO', 'TEXT', 'AUDIO', 'INTERACTIVE', 'QUIZ', 'ASSIGNMENT'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ error: 'Invalid lesson type' });
+    }
+
+    // Auto order
+    const maxOrder = await prisma.lesson.aggregate({
+      where: { moduleId },
+      _max: { order: true },
+    });
+
+    const nextOrder = (maxOrder._max.order || 0) + 1;
+
+    // Find module to get courseId (safer version)
+    const module = await prisma.module.findUnique({
+      where: { id: moduleId },
+      select: { courseId: true },
+    });
+
+    if (!module) {
+      return res.status(404).json({ error: 'Module not found' });
+    }
+
+    const lesson = await prisma.lesson.create({
+      data: {
+        title,
+        description: description || null,
+        type: type as LessonType,
+        duration: duration ? Number(duration) : null,
+        content: content || null,
+        videoUrl: videoUrl || null,
+        audioUrl: audioUrl || null,
+        order: nextOrder,
+        isPublished: !!isPublished,
+        moduleId,
+        courseId: module.courseId,   // now safe
+      },
+    });
+
+    return res.status(201).json({ lesson });
+  } catch (error) {
+    console.error('Create lesson error:', error);
+    return res.status(500).json({ error: 'Failed to create lesson' });
+  }
+};
+
+export const deleteModule = async (req: AuthRequest, res: Response) => {
+  try {
+    const { moduleId } = req.params;
+
+    const module = await prisma.module.findUnique({ where: { id: moduleId } });
+    if (!module) return res.status(404).json({ error: 'Module not found' });
+
+    await prisma.module.delete({ where: { id: moduleId } });
+
+    return res.json({ message: 'Module deleted' });
+  } catch (error) {
+    console.error('Delete module error:', error);
+    return res.status(500).json({ error: 'Failed to delete module' });
+  }
+};
+
+export const deleteLesson = async (req: AuthRequest, res: Response) => {
+  try {
+    const { lessonId } = req.params;
+
+    const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
+    if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+
+    await prisma.lesson.delete({ where: { id: lessonId } });
+
+    return res.json({ message: 'Lesson deleted' });
+  } catch (error) {
+    console.error('Delete lesson error:', error);
+    return res.status(500).json({ error: 'Failed to delete lesson' });
   }
 };

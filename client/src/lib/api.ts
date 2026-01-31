@@ -9,16 +9,23 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 second timeout
+  timeout: 30000, // 30 second timeout — good default
 });
 
 // Request interceptor - add auth token if exists
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // Optional: remove or comment out in production
+      // console.log(`[API REQUEST] Adding Bearer token to: ${config.url}`);
+    } else {
+      // Optional: remove or comment out in production
+      // console.warn(`[API REQUEST] NO TOKEN FOUND for: ${config.url}`);
     }
+
     return config;
   },
   (error) => Promise.reject(error)
