@@ -1,6 +1,7 @@
 // server/prisma/seed.ts
 import { PrismaClient, UserRole, LearningStyle, CourseLevel, CourseStatus, LessonType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { seedHolidays } from './seeds/holidays.seed';
 
 const prisma = new PrismaClient();
 
@@ -314,6 +315,9 @@ async function main() {
   });
 
   console.log('Created notifications');
+
+  // Seed holidays
+  await seedHolidays();
 
   console.log('Seeding completed!');
   console.log('\n=== Login Credentials ===');

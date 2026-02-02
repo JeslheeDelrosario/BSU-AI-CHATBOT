@@ -29,6 +29,14 @@ import meetingRoutes from './routes/meeting.routes';
 import adminRoomRoutes from './routes/adminRoom.routes';
 import googleAuthRoutes from './routes/googleAuth.routes';
 import practiceExamRoutes from './routes/practice-exam.routes';
+import weatherRoutes from './routes/weather.routes';
+import ssoRoutes from './routes/sso.routes';
+import holidayRoutes from './routes/holiday.routes';
+import taskRoutes from './routes/task.routes';
+import calendarRoutes from './routes/calendar.routes';
+
+// Initialize Redis connection
+import './config/redis.config';
 
 // Load environment variables
 dotenv.config();
@@ -174,6 +182,11 @@ app.use('/api/admin/rooms', adminRoomRoutes);
 app.use('/api/notifications', require('./routes/notification.routes').default);
 app.use('/api', googleAuthRoutes);
 app.use('/api/practice-exams', practiceExamRoutes);
+app.use('/api/weather', weatherRoutes);
+app.use('/api/sso', ssoRoutes);
+app.use('/api/holidays', holidayRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

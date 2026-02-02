@@ -526,6 +526,10 @@ model User {
   googleTokenExpiry                DateTime?
   PracticeExams                    PracticeExam[]
   PracticeExamResults              PracticeExamResult[]
+  CalendarPreference               CalendarPreference?
+  CalendarVisibilities             CalendarVisibility[]
+  Tasks                            Task[]
+  SSOLinks                         UserSSOLink[]
 
   @@index([email])
   @@index([role])
@@ -635,9 +639,10 @@ model Classroom {
   updatedAt       DateTime          @updatedAt
   Course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   ClassroomPosts  ClassroomPost[]
-  ClassroomMembers ClassroomMember[]
+  ClassroomMembers      ClassroomMember[]
   ClassroomJoinRequests ClassroomJoinRequest[]
-  ClassroomMeetings ClassroomMeeting[]
+  ClassroomMeetings     ClassroomMeeting[]
+  Tasks                 Task[]
   
   @@index([courseId])
   @@index([inviteCode])
@@ -1176,4 +1181,175 @@ model PracticeExamResult {
   @@index([examId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ============================================
+// CALENDAR PREFERENCES & VISIBILITY
+// ============================================
+
+model CalendarPreference {
+  id        String           @id @default(cuid())
+  userId    String           @unique
+  viewType  CalendarViewType @default(MONTH)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  User      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum CalendarViewType {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+  SCHEDULE
+  HOLIDAY
+  WEATHER
+}
+
+model CalendarVisibility {
+  id           String   @id @default(cuid())
+  userId       String
+  calendarType String
+  calendarId   String?
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, calendarType, calendarId])
+  @@index([userId])
+}
+
+// ============================================
+// HOLIDAYS
+// ============================================
+
+model Holiday {
+  id          String      @id @default(cuid())
+  name        String
+  date        DateTime
+  type        HolidayType
+  region      String
+  description String?
+  isRecurring Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([date])
+  @@index([region])
+  @@index([type])
+}
+
+enum HolidayType {
+  NATIONAL
+  REGIONAL
+  LOCAL
+  SPECIAL_NON_WORKING
+  REGULAR_HOLIDAY
+}
+
+// ============================================
+// TASKS
+// ============================================
+
+model Task {
+  id          String       @id @default(cuid())
+  userId      String
+  classroomId String?
+  title       String
+  description String?
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(TODO)
+  dueDate     DateTime?
+  category    TaskCategory @default(PERSONAL)
+  tags        String[]
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  User        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Classroom   Classroom?   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([classroomId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskCategory {
+  PERSONAL
+  ACADEMIC
+  ASSIGNMENT
+  PROJECT
+  EXAM_PREP
+  MEETING_PREP
+  OTHER
+}
+
+// ============================================
+// WEATHER CACHE
+// ============================================
+
+model WeatherCache {
+  id        String   @id @default(cuid())
+  location  String
+  data      Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([location])
+  @@index([expiresAt])
+}
+
+// ============================================
+// SSO PROVIDERS
+// ============================================
+
+model SSOProvider {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  clientId      String
+  clientSecret  String
+  authUrl       String
+  tokenUrl      String
+  userInfoUrl   String
+  redirectUrl   String
+  scope         String
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  UserSSOLinks  UserSSOLink[]
+}
+
+model UserSSOLink {
+  id           String       @id @default(cuid())
+  userId       String
+  provider     String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  User         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  SSOProvider  SSOProvider? @relation(fields: [provider], references: [name])
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@index([provider])
 }

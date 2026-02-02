@@ -293,7 +293,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           mainSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-80'
         }`}>
           {/* Mobile Header */}
-          <header className="lg:hidden bg-card/60 backdrop-blur-2xl border-b border-border px-6 py-5 flex items-center justify-between">
+          <header className="lg:hidden sticky top-0 z-40 bg-card/60 backdrop-blur-2xl border-b border-border px-6 py-5 flex items-center justify-between">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
               className="text-cyan-400 hover:text-cyan-300 transition-colors"
@@ -311,7 +311,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Desktop Header with Notification Bell */}
-          <header className="hidden lg:flex bg-card/60 backdrop-blur-2xl border-b border-border px-10 py-5 items-center justify-end">
+          <header className="hidden lg:flex sticky top-0 z-40 bg-card/60 backdrop-blur-2xl border-b border-border px-10 py-5 items-center justify-end">
             <NotificationBell />
           </header>
 

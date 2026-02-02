@@ -87,9 +87,9 @@ export default function NotificationBell() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-cyan-500/10 z-50 overflow-hidden">
-          {/* Header */}
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="absolute right-0 mt-2 w-96 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-cyan-500/10 z-50 overflow-hidden flex flex-col max-h-[600px]">
+          {/* Fixed Header - Always Visible */}
+          <div className="sticky top-0 z-10 p-4 border-b border-white/10 flex items-center justify-between bg-slate-900/95 backdrop-blur-xl">
             <div>
               <h3 className="text-lg font-bold text-white">
                 {settings.language === 'fil' ? 'Mga Notipikasyon' : 'Notifications'}
@@ -128,8 +128,8 @@ export default function NotificationBell() {
             </div>
           </div>
 
-          {/* Notifications List */}
-          <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
+          {/* Scrollable Notifications List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />

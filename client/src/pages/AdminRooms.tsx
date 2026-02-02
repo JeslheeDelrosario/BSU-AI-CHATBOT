@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, MapPin, Users, Wifi, Monitor, Building2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, MapPin, Users, Wifi, Monitor, Building2, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 interface Room {
@@ -403,16 +403,31 @@ export default function AdminRooms() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={formData.isActive}
-            onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
           <label className="text-sm font-medium text-gray-700">
-            Active Room
+            Room Status
           </label>
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              formData.isActive
+                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+            }`}
+          >
+            {formData.isActive ? (
+              <>
+                <Eye className="w-4 h-4" />
+                <span className="text-sm font-semibold">Active</span>
+              </>
+            ) : (
+              <>
+                <EyeOff className="w-4 h-4" />
+                <span className="text-sm font-semibold">Inactive</span>
+              </>
+            )}
+          </button>
         </div>
 
         <div className="flex gap-3 pt-4">
