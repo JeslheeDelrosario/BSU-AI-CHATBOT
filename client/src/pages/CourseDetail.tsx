@@ -28,6 +28,13 @@ export default function CourseDetail() {
   const [showDeleteModuleConfirm, setShowDeleteModuleConfirm] = useState(false);
   const [showDeleteLessonConfirm, setShowDeleteLessonConfirm] = useState(false);
 
+  const [quizQuestions, setQuizQuestions] = useState<Array<{
+    text: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  }>>([]);
+
   // Form states
   const [newModule, setNewModule] = useState({ title: '', description: '' });
   const [newLesson, setNewLesson] = useState({
@@ -148,43 +155,65 @@ export default function CourseDetail() {
   };
 
   const handleCreateLesson = async () => {
-    if (!newLesson.title.trim()) {
-      return showToast({
-        type: 'error',
-        title: 'Missing Title',
-        message: 'Lesson title is required'
-      });
-    }
-    if (!selectedModuleId) {
-      return showToast({
-        type: 'error',
-        title: 'No Module Selected',
-        message: 'Please select a module first'
-      });
-    }
+  if (!newLesson.title.trim()) {
+    return showToast({
+      type: 'error',
+      title: 'Missing Title',
+      message: 'Lesson title is required'
+    });
+  }
+  if (!selectedModuleId) {
+    return showToast({
+      type: 'error',
+      title: 'No Module Selected',
+      message: 'Please select a module first'
+    });
+  }
+  if (newLesson.type === 'QUIZ' && quizQuestions.length === 0) {
+    return showToast({
+      type: 'error',
+      title: 'No Questions',
+      message: 'Add at least one question for a quiz'
+    });
+  }
 
-    try {
-      await api.post(`/courses/${id}/modules/${selectedModuleId}/lessons`, newLesson);
-      showToast({
-        type: 'success',
-        title: 'Lesson Created',
-        message: 'New lesson has been added successfully'
-      });
-      setShowCreateLessonModal(false);
-      setNewLesson({
-        title: '', description: '', type: 'TEXT', duration: '', content: '',
-        videoUrl: '', audioUrl: '', isPublished: false,
-      });
-      setSelectedModuleId(null);
-      fetchCourseDetail();
-    } catch (err: any) {
-      showToast({
-        type: 'error',
-        title: 'Failed to Create Lesson',
-        message: err.response?.data?.error || 'An error occurred while creating the lesson'
-      });
-    }
-  };
+  try {
+    const payload = {
+      ...newLesson,
+      questions: newLesson.type === 'QUIZ' ? quizQuestions.map(q => ({
+        text: q.text,
+        explanation: q.explanation || null,
+        answers: q.options.map((opt, i) => ({
+          text: opt,
+          isCorrect: i === q.correctIndex,
+        })),
+      })) : undefined,
+    };
+
+    await api.post(`/courses/${id}/modules/${selectedModuleId}/lessons`, payload);
+
+    showToast({
+      type: 'success',
+      title: 'Lesson Created',
+      message: 'New lesson has been added successfully'
+    });
+
+    setShowCreateLessonModal(false);
+    setNewLesson({
+      title: '', description: '', type: 'TEXT', duration: '', content: '',
+      videoUrl: '', audioUrl: '', isPublished: false,
+    });
+    setQuizQuestions([]);
+    setSelectedModuleId(null);
+    fetchCourseDetail();
+  } catch (err: any) {
+    showToast({
+      type: 'error',
+      title: 'Failed to Create Lesson',
+      message: err.response?.data?.error || 'An error occurred while creating the lesson'
+    });
+  }
+};
 
   const handleDeleteModule = async () => {
     if (!moduleToDelete) return;
@@ -599,97 +628,233 @@ export default function CourseDetail() {
 {/* Create Lesson Modal */}
 {showCreateLessonModal && (
   <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-lg border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
-      <h3 className="text-2xl font-bold text-cyan-300 mb-6">Add Lesson to Module</h3>
+    <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-2xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
+      <h3 className="text-2xl font-bold text-cyan-300 mb-6">
+        Add Lesson to Module
+      </h3>
 
+      {/* Title */}
       <input
         type="text"
         placeholder="Lesson Title *"
         value={newLesson.title}
         onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
       />
 
+      {/* Description */}
       <textarea
-        placeholder="Description"
+        placeholder="Short description (optional)"
         value={newLesson.description}
         onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20"
+        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
       />
 
+      {/* Lesson Type */}
       <select
         value={newLesson.type}
-        onChange={(e) => setNewLesson({ ...newLesson, type: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+        onChange={(e) => {
+          const newType = e.target.value as typeof newLesson.type;
+          setNewLesson({
+            ...newLesson,
+            type: newType,
+            // Reset irrelevant fields when changing type
+            content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
+            videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
+            audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
+          });
+          if (newType !== 'QUIZ') {
+            setQuizQuestions([]);
+          }
+        }}
+        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
       >
-        <option value="VIDEO">Video</option>
         <option value="TEXT">Text / Reading</option>
+        <option value="VIDEO">Video</option>
         <option value="AUDIO">Audio</option>
-        <option value="INTERACTIVE">Interactive</option>
         <option value="QUIZ">Quiz</option>
+        <option value="INTERACTIVE">Interactive</option>
         <option value="ASSIGNMENT">Assignment</option>
       </select>
 
+      {/* Duration */}
       <input
         type="number"
-        placeholder="Duration (minutes)"
+        min="0"
+        placeholder="Duration in minutes (optional)"
         value={newLesson.duration}
         onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
       />
 
-      {newLesson.type === 'TEXT' && (
+      {/* Conditional content fields */}
+      {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
         <textarea
-          placeholder="Content (for TEXT lessons)"
+          placeholder={
+            newLesson.type === 'TEXT'
+              ? "Main content (markdown supported)"
+              : "Quiz instructions / introduction (optional, markdown supported)"
+          }
           value={newLesson.content}
           onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
-          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32"
+          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32 focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
       )}
 
       {newLesson.type === 'VIDEO' && (
         <input
           type="url"
-          placeholder="Video URL"
+          placeholder="Video URL (YouTube, Vimeo, etc.)"
           value={newLesson.videoUrl}
           onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
-          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
       )}
 
       {newLesson.type === 'AUDIO' && (
         <input
           type="url"
-          placeholder="Audio URL"
+          placeholder="Audio URL (mp3, streaming link, etc.)"
           value={newLesson.audioUrl}
           onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
-          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
       )}
 
-      <label className="flex items-center gap-2 mb-6 text-gray-300">
+      {/* ────────────────────────────────────────────────
+          QUIZ SECTION – only shown when type = QUIZ
+      ──────────────────────────────────────────────── */}
+      {newLesson.type === 'QUIZ' && (
+        <div className="mt-8 space-y-6 border-t border-gray-700 pt-6">
+          <h4 className="text-xl font-bold text-purple-300">Quiz Questions</h4>
+
+          {quizQuestions.length === 0 && (
+            <p className="text-gray-400 italic">No questions added yet. Add at least one.</p>
+          )}
+
+          {quizQuestions.map((q, qIdx) => (
+            <div
+              key={qIdx}
+              className="p-5 bg-black/40 rounded-xl border border-purple-500/30 relative"
+            >
+              <button
+                onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
+                className="absolute top-3 right-3 text-red-400 hover:text-red-300 text-sm"
+              >
+                Remove
+              </button>
+
+              <div className="mb-4">
+                <label className="block text-purple-200 mb-1">Question {qIdx + 1}</label>
+                <input
+                  type="text"
+                  value={q.text}
+                  onChange={(e) => {
+                    const updated = [...quizQuestions];
+                    updated[qIdx].text = e.target.value;
+                    setQuizQuestions(updated);
+                  }}
+                  className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white"
+                  placeholder="Enter question text here..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
+                  <div key={optIdx} className="flex items-center gap-3">
+                    <span className="text-gray-400 w-6 font-medium">{letter}.</span>
+                    <input
+                      type="text"
+                      value={q.options[optIdx] || ''}
+                      onChange={(e) => {
+                        const updated = [...quizQuestions];
+                        updated[qIdx].options[optIdx] = e.target.value;
+                        setQuizQuestions(updated);
+                      }}
+                      className="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                      placeholder={`Option ${letter}`}
+                    />
+                    <input
+                      type="radio"
+                      name={`correct-${qIdx}`}
+                      checked={q.correctIndex === optIdx}
+                      onChange={() => {
+                        const updated = [...quizQuestions];
+                        updated[qIdx].correctIndex = optIdx;
+                        setQuizQuestions(updated);
+                      }}
+                      className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <textarea
+                placeholder="Explanation / feedback (optional)"
+                value={q.explanation || ''}
+                onChange={(e) => {
+                  const updated = [...quizQuestions];
+                  updated[qIdx].explanation = e.target.value;
+                  setQuizQuestions(updated);
+                }}
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white h-20"
+              />
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => {
+              setQuizQuestions([
+                ...quizQuestions,
+                {
+                  text: '',
+                  options: ['', '', '', ''],
+                  correctIndex: 0,
+                  explanation: '',
+                },
+              ]);
+            }}
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:brightness-110 transition"
+          >
+            + Add New Question
+          </button>
+        </div>
+      )}
+
+      {/* Publish toggle */}
+      <label className="flex items-center gap-3 mt-6 mb-8 text-gray-300 cursor-pointer">
         <input
           type="checkbox"
           checked={newLesson.isPublished}
           onChange={(e) => setNewLesson({ ...newLesson, isPublished: e.target.checked })}
-          className="w-5 h-5"
+          className="w-5 h-5 accent-cyan-500"
         />
-        Publish immediately
+        <span>Publish immediately (students can see it right away)</span>
       </label>
 
+      {/* Buttons */}
       <div className="flex gap-4">
         <button
           onClick={handleCreateLesson}
-          className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-xl"
+          disabled={
+            !newLesson.title.trim() ||
+            (newLesson.type === 'QUIZ' && quizQuestions.length === 0) ||
+            (newLesson.type === 'VIDEO' && !newLesson.videoUrl.trim()) ||
+            (newLesson.type === 'AUDIO' && !newLesson.audioUrl.trim())
+          }
+          className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white rounded-xl font-medium hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Create Lesson
         </button>
+
         <button
           onClick={() => {
             setShowCreateLessonModal(false);
             setSelectedModuleId(null);
+            setQuizQuestions([]);
           }}
-          className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
+          className="flex-1 py-3.5 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition"
         >
           Cancel
         </button>
@@ -697,7 +862,6 @@ export default function CourseDetail() {
     </div>
   </div>
 )}
-
 {/* Delete Confirmation Modals */}
 {showDeleteModuleConfirm && (
   <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">

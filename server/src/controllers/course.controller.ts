@@ -451,27 +451,33 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
       videoUrl,
       audioUrl,
       isPublished = false,
+      questions, // Array of { text: string, answers: [{ text: string, isCorrect: boolean }] }
     } = req.body;
 
+    // Basic validation
     if (!title?.trim() || !type) {
       return res.status(400).json({ error: 'Title and type are required' });
     }
 
-    // Validate type
-    const validTypes = ['VIDEO', 'TEXT', 'AUDIO', 'INTERACTIVE', 'QUIZ', 'ASSIGNMENT'];
+    const validTypes: LessonType[] = ['VIDEO', 'TEXT', 'AUDIO', 'INTERACTIVE', 'QUIZ', 'ASSIGNMENT'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ error: 'Invalid lesson type' });
     }
 
-    // Auto order
+    // Enforce content is always a string (required field in schema)
+    // Use empty string as safe default
+    const finalContent = typeof content === 'string' && content.trim() !== ''
+      ? content.trim()
+      : '';
+
+    // Auto-calculate next order in this module
     const maxOrder = await prisma.lesson.aggregate({
       where: { moduleId },
       _max: { order: true },
     });
-
     const nextOrder = (maxOrder._max.order || 0) + 1;
 
-    // Find module to get courseId (safer version)
+    // Get courseId from module
     const module = await prisma.module.findUnique({
       where: { id: moduleId },
       select: { courseId: true },
@@ -481,26 +487,45 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Module not found' });
     }
 
+    // Create the lesson
     const lesson = await prisma.lesson.create({
       data: {
-        title,
-        description: description || null,
+        title: title.trim(),
+        description: description?.trim() || null,
         type: type as LessonType,
         duration: duration ? Number(duration) : null,
-        content: content || null,
-        videoUrl: videoUrl || null,
-        audioUrl: audioUrl || null,
+        content: finalContent, // Always a string → fixes Prisma error
+        videoUrl: videoUrl?.trim() || null,
+        audioUrl: audioUrl?.trim() || null,
         order: nextOrder,
         isPublished: !!isPublished,
         moduleId,
-        courseId: module.courseId,   // now safe
+        courseId: module.courseId,
+        // Removed redundant Course: { connect: ... }
       },
     });
 
+    // ─────────────────────────────────────────────────────────────
+    // Handle QUIZ creation + questions (now fully activated!)
+    // ─────────────────────────────────────────────────────────────
+    if (type === 'QUIZ') {
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        // Clean up the lesson if quiz has no questions
+        await prisma.lesson.delete({ where: { id: lesson.id } });
+        return res.status(400).json({ error: 'Quiz lessons require at least one question' });
+      }
+
+      // Create quiz + questions
+      await createQuizWithQuestions(lesson.id, questions);
+    }
+
     return res.status(201).json({ lesson });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create lesson error:', error);
-    return res.status(500).json({ error: 'Failed to create lesson' });
+    if (error.message?.includes('content')) {
+      return res.status(400).json({ error: 'Content is required (can be empty string)' });
+    }
+    return res.status(500).json({ error: error.message || 'Failed to create lesson' });
   }
 };
 
@@ -533,5 +558,136 @@ export const deleteLesson = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Delete lesson error:', error);
     return res.status(500).json({ error: 'Failed to delete lesson' });
+  }
+};
+
+export const createQuizWithQuestions = async (
+  lessonId: string,
+  questions: Array<{
+    text: string;
+    answers: Array<{ text: string; isCorrect: boolean }>;
+  }>
+) => {
+  if (questions.length === 0) {
+    throw new Error('At least one question is required for a quiz');
+  }
+
+  // Get the lesson → we need its moduleId
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { moduleId: true },
+  });
+
+  if (!lesson?.moduleId) {
+    throw new Error('Lesson has no associated module → cannot create quiz');
+  }
+
+  // Create Quiz attached to MODULE (schema confirms moduleId is required)
+  const quiz = await prisma.quiz.create({
+    data: {
+      moduleId: lesson.moduleId,     // ← this is correct per your schema
+      // You can add more fields later, e.g.:
+      // passingScore: 75,
+    },
+  });
+
+  // Create questions + answers
+  for (const q of questions) {
+    const correctCount = q.answers.filter(
+      // ── Added explicit type to fix TS7006 ────────────────────────
+      (a: { text: string; isCorrect: boolean }) => a.isCorrect
+    ).length;
+
+    if (correctCount !== 1) {
+      throw new Error('Each question must have exactly one correct answer');
+    }
+
+    const question = await prisma.question.create({
+      data: {
+        quizId: quiz.id,
+        text: q.text,
+        type: 'MULTIPLE_CHOICE',
+      },
+    });
+
+    await prisma.answer.createMany({
+      data: q.answers.map((a: { text: string; isCorrect: boolean }) => ({
+        questionId: question.id,
+        text: a.text,
+        isCorrect: a.isCorrect,
+      })),
+    });
+  }
+
+  return quiz;
+};
+
+// Fetch quiz questions for a lesson by going through its module (hide correct answers!)
+export const getQuizForLesson = async (req: AuthRequest, res: Response) => {
+  try {
+    const { lessonId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Include module + quiz + questions + answers (only id & text)
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        module: {
+          include: {
+            quiz: {
+              include: {
+                questions: {
+                  include: {
+                    answers: {
+                      select: {
+                        id: true,
+                        text: true,      // NEVER send isCorrect to client!
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    if (lesson.type !== 'QUIZ') {
+      return res.status(400).json({ error: 'This lesson is not a quiz type' });
+    }
+
+    const quiz = lesson.module?.quiz;
+
+    if (!quiz) {
+      return res.status(404).json({ error: 'No quiz attached to this lesson\'s module' });
+    }
+
+    // Safe client response – hide correct answers & any internal fields
+    const safeQuestions = quiz.questions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      options: q.answers.map((a) => ({
+        id: a.id,
+        text: a.text,
+      })),
+    }));
+
+    return res.json({
+      questions: safeQuestions,
+      totalQuestions: safeQuestions.length,
+      // Optional: passingScore: quiz.passingScore  (if you want frontend to know)
+    });
+  } catch (error) {
+    console.error('Get quiz for lesson error:', error);
+    return res.status(500).json({ error: 'Failed to fetch quiz questions' });
   }
 };

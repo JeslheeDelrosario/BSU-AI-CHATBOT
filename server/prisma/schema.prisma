@@ -950,6 +950,7 @@ model UserModuleProgress {
 enum QuestionType {
   MCQ
   TRUE_FALSE
+  MULTIPLE_CHOICE
 }
 
 // ============================================

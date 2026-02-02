@@ -12,6 +12,7 @@ import {
   createLesson,
   deleteModule,
   deleteLesson,
+  getQuizForLesson,
 } from '../controllers/course.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -21,6 +22,7 @@ router.get('/', authenticateToken, getCourses);
 router.get('/my-enrollments', authenticateToken, getMyEnrollments);
 router.get('/:id', authenticateToken, getCourseById);
 router.post('/enroll', authenticateToken, enrollInCourse);
+router.get('/lessons/:lessonId/quiz', authenticateToken, getQuizForLesson);
 
 
 
