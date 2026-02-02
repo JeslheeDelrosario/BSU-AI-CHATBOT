@@ -1,3 +1,4 @@
+// server\src\routes\lesson.routes.ts
 import { Router } from 'express';
 import {
   getLessonById,

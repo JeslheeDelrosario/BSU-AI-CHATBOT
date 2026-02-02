@@ -2,7 +2,8 @@
 // CONVERTED TO SASS LANDING PAGE
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Users, BookOpen, Bot, Settings, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Users, BookOpen, Bot, Settings, Search, Calendar, MessageSquare, BarChart3, GraduationCap, Video, Bell, LayoutDashboard} from 'lucide-react';
+import gsap from 'gsap';
 
 interface Ripple { id: number; x: number; y: number; }
 interface MouseGradient { left: string; top: string; opacity: number; }
@@ -14,6 +15,130 @@ const DigitalSerenityWithSummary: React.FC = () => {
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [currentStudentSlide, setCurrentStudentSlide] = useState(0);
+  const [currentFacultySlide, setCurrentFacultySlide] = useState(0);
+  const [currentAdminSlide, setCurrentAdminSlide] = useState(0);
+  const [isFacultyHovered, setIsFacultyHovered] = useState(false);
+
+
+// ────────────────────────────────────────────────
+// Faculty carousel logic
+// ────────────────────────────────────────────────
+const changeFacultySlide = (dir: number) => {
+  setCurrentFacultySlide((prev) => {
+    let next = prev + dir;
+    if (next < 0) next = 4;
+    if (next > 4) next = 0;
+    return next;
+  });
+  animateFacultyEntrance();
+};
+
+const animateFacultyEntrance = () => {
+  gsap.killTweensOf([
+    '.faculty-slide-item',
+    '.faculty-slide-image'
+  ]);
+
+  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+
+  tl
+    .fromTo(
+      '.faculty-slide-item',
+      { y: 40, opacity: 0 },
+      { y: 0, opacity: 1, stagger: 0.12, duration: 0.5 },
+      0
+    )
+    .fromTo(
+      '.faculty-slide-image',
+      { scale: 1.08, opacity: 0.8 },
+      { scale: 1, opacity: 1, duration: 1.1 },
+      '-=0.6'
+    );
+};
+
+// Auto-play
+useEffect(() => {
+  if (isFacultyHovered) {
+    // If hovered → do nothing (interval won't start)
+    return;
+  }
+
+  const id = setInterval(() => {
+    changeFacultySlide(1);
+  }, 5000); // ← your current speed (5 seconds) — you can change this number anytime
+
+  return () => clearInterval(id);
+}, [isFacultyHovered]); // ← important: re-run when hover state changes
+
+// Faculty slide content – different features per slide
+const facultySlides = [
+  {
+    title: "Faculty Dashboard",
+    description: "Get a clear overview of everything that matters.",
+    icon: <LayoutDashboard className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400 flex-shrink-0 mt-1" />,
+    points: [
+      "Classroom activity summary",
+      "Upcoming meetings & consultations",
+      "Notifications center",
+      "Quick access to recent posts & comments",
+      "Personalized teaching insights"
+    ]
+  },
+  {
+    title: "Classroom Management",
+    description: "Full control over your virtual classrooms.",
+    icon: <Video className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400 flex-shrink-0 mt-1" />,
+    points: [
+      "Create and edit posts/announcements",
+      "Manage comments & replies",
+      "Upload attachments & resources",
+      "Approve or reject join requests",
+      "Moderate classroom discussions"
+    ]
+  },
+  {
+    title: "Meetings & Scheduling",
+    description: "Seamless integration with your calendar.",
+    icon: <Calendar className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400 flex-shrink-0 mt-1" />,
+    points: [
+      "Create and schedule meetings",
+      "Google Calendar two-way sync",
+      "Classroom calendar view",
+      "Automatic reminders & notifications",
+      "Join meetings directly from platform"
+    ]
+  },
+  {
+    title: "AI-Powered Assessments",
+    description: "Generate and analyze assessments instantly.",
+    icon: <Bot className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400 flex-shrink-0 mt-1" />,
+    points: [
+      "Auto-generate quizzes & practice exams",
+      "Multiple question types supported",
+      "Instant grading & feedback",
+      "Student performance analytics",
+      "Identify common learning gaps"
+    ]
+  },
+  {
+    title: "Notifications & Communication",
+    description: "Stay connected with your students effortlessly.",
+    icon: <Bell className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400 flex-shrink-0 mt-1" />,
+    points: [
+      "Send system-wide or targeted notifications",
+      "Receive student join/approval requests",
+      "Comment & post update alerts",
+      "Meeting reminders & changes",
+      "Activity digest & summaries"
+    ]
+  }
+];
+
+// Initial animation
+useEffect(() => {
+  animateFacultyEntrance();
+}, []);
 
   // Word animation
   useEffect(() => {
@@ -56,15 +181,15 @@ const DigitalSerenityWithSummary: React.FC = () => {
       if (!scrolled) {
         setScrolled(true);
         document.querySelectorAll('.float-particle').forEach((el, i) => {
-          setTimeout(() => el.classList.add('active'), i * 100, 200);
+          setTimeout(() => el.classList.add('active'), i * 100 + 200);
         });
       }
     };
-    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [scrolled]);
 
+  // FAQ
   const faqs = [
     {
       question: "How do I enroll in a course?",
@@ -153,8 +278,8 @@ const DigitalSerenityWithSummary: React.FC = () => {
     }
   `;
 
-  const scrollToSummary = () => {
-    const summarySection = document.getElementById('system-summary');
+  const scrollToMissionVision = () => {
+    const summarySection = document.getElementById('mission-vision');
     if (summarySection) {
       summarySection.scrollIntoView({ behavior: 'smooth' });
     }
@@ -163,6 +288,21 @@ const DigitalSerenityWithSummary: React.FC = () => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Auto-rotate Students carousel every 4 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStudentSlide((prev) => (prev + 1) % 5);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentAdminSlide((prev) => (prev + 1) % 5);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -213,7 +353,7 @@ const DigitalSerenityWithSummary: React.FC = () => {
         {/* Content Container */}
         <div className="relative z-10">
           {/* Hero Section */}
-          <section className="min-h-screen flex flex-col justify-center items-center px-6 py-20">
+          <section id="hero" className="min-h-screen flex flex-col justify-center items-center px-6 py-20">
             <div className="max-w-7xl mx-auto w-full">
               <p className="text-cyan-400 text-lg font-light tracking-widest uppercase mb-12 text-center">
                 <span className="word-animate">Future</span>{' '}
@@ -257,7 +397,7 @@ const DigitalSerenityWithSummary: React.FC = () => {
                 </div>
                 
                 <button
-                  onClick={scrollToSummary}
+                  onClick={scrollToMissionVision}
                   className="word-animate inline-flex items-center gap-3 px-8 py-6 border border-cyan-500/30 rounded-2xl font-medium text-lg hover:bg-cyan-500/10 hover:border-cyan-400 transition-all duration-300"
                   style={{ animationDelay: '3.2s' }}
                 >
@@ -271,6 +411,70 @@ const DigitalSerenityWithSummary: React.FC = () => {
                 <span className="mx-4">•</span>
                 <span className="word-animate" style={{ animationDelay: '3.8s' }}>AI-Powered Education</span>
               </p>
+            </div>
+          </section>
+          
+          {/* Mission & Vision Section */}
+          <section id="mission-vision" className="py-20 px-6 scroll-mt-20">
+            <div className="max-w-6xl mx-auto">
+              {/* Header */}
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent mb-4 pb-2 md:pb-3 leading-tight md:leading-snug">
+                  Our Guiding Purpose at Bulacan State University
+                </h2>
+                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                  Empowering every student in the College of Science and beyond with intelligent, always-available academic support.
+                </p>
+              </div>
+
+              {/* Vision – make it inspirational and forward-looking */}
+              <div className="mb-16">
+                <h3 className="text-3xl font-bold text-center mb-6 text-cyan-300">
+                  Vision
+                </h3>
+                <div className="bg-black/50 backdrop-blur-sm rounded-2xl p-8 md:p-10 border border-cyan-500/20 shadow-xl">
+                  <p className="text-lg md:text-xl leading-relaxed text-gray-200 text-center">
+                    To power the future of learning at Bulacan State University with an AI academic companion that’s always available, deeply personalized, and built for student success. We envision a smarter campus where every College of Science student gets instant guidance, makes confident academic decisions, and thrives in a digitally connected learning environment.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mission – more concrete, with pillars for scannability */}
+              <div>
+                <h3 className="text-3xl font-bold text-center mb-8 text-purple-300">
+                  Mission
+                </h3>
+                <p className="text-xl text-gray-300 text-center mb-10 max-w-4xl mx-auto">
+                  We deliver fast, reliable, and intelligent academic support so students and educators can focus on what truly matters.
+                </p>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-red-500/30 hover:border-red-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-red-300">Always On, Always Helpful</h4>
+                    <p className="text-gray-300">24/7 AI-driven support that answers questions instantly and removes academic friction.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-cyan-300">Personalized Student Success</h4>
+                    <p className="text-gray-300">Smart recommendations and tailored guidance that help students stay on track, stress less, and achieve more.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-purple-500/30 hover:border-purple-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-purple-300">Built for Educators</h4>
+                    <p className="text-gray-300">Automates repetitive inquiries, freeing faculty to focus on teaching, mentoring, and innovation.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-indigo-500/30 hover:border-indigo-400/50 transition-all">
+                    <h4 className="text-lg font-semibold mb-3 text-indigo-300">Secure by Design</h4>
+                    <p className="text-gray-300">Enterprise-grade security and ethical AI ensure data privacy, trust, and academic integrity.</p>
+                  </div>
+
+                  <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-green-500/30 hover:border-green-400/50 transition-all md:col-span-2 lg:col-span-1">
+                    <h4 className="text-lg font-semibold mb-3 text-green-300">Inclusive & Accessible</h4>
+                    <p className="text-gray-300">Designed to support every student anytime, anywhere promoting equal access to quality education.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -497,6 +701,391 @@ const DigitalSerenityWithSummary: React.FC = () => {
                   </div>
                 </section>
 
+                {/* Student section */}
+                <section id="for-students" className="scroll-mt-20 py-16 md:py-24">
+                  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+                    {/* Header */}
+                    <div className="flex items-center gap-5 mb-10 md:mb-12">
+                      <div className="w-16 h-16 bg-cyan-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                        <GraduationCap className="w-9 h-9 text-cyan-400" />
+                      </div>
+                      <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
+                        For Students: Your Personalized Learning Hub
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-col gap-16">
+
+                      {/* Feature list – left on desktop, below carousel on mobile */}
+                      <div className="order-2 lg:order-1 space-y-8 text-lg leading-relaxed text-gray-200">
+                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+
+                          <li className="flex items-start gap-4">
+                            <LayoutDashboard className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">Personalized Dashboard</h4>
+                              <p className="text-gray-300 mt-1">Upcoming classes, meetings, notifications, progress overview at a glance.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <BookOpen className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">Courses, Lessons & Materials</h4>
+                              <p className="text-gray-300 mt-1">Browse enrolled courses, detailed pages, lesson viewer with rich content.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Video className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">Classrooms & Collaboration</h4>
+                              <p className="text-gray-300 mt-1">View posts, comments, attachments, join requests, classroom calendar.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Bot className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">AI Tutor & Assessments</h4>
+                              <p className="text-gray-300 mt-1">Context-aware tutoring, auto-generated quizzes, practice exams, instant results.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Calendar className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">Calendar, Consultations & Meetings</h4>
+                              <p className="text-gray-300 mt-1">Personal calendar, book consultations, join meetings, Google Calendar sync.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Bell className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">Real-time Notifications</h4>
+                              <p className="text-gray-300 mt-1">Posts, comments, meeting updates, approvals — stay informed instantly.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <BarChart3 className="w-7 h-7 text-cyan-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-cyan-300">Progress Tracking & Analytics</h4>
+                              <p className="text-gray-300 mt-1">Course/lesson progress, quiz results, performance insights.</p>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Carousel – right on desktop, above text on mobile */}
+                      <div className="max-w-5xl mx-auto w-full">
+
+                        <div className="relative rounded-2xl overflow-hidden border border-cyan-500/30 shadow-2xl shadow-cyan-900/30 bg-black/60 backdrop-blur-md">
+                          <div className="overflow-hidden">
+                            <div
+                              className="flex transition-transform duration-700 ease-out"
+                              style={{ transform: `translateX(-${currentStudentSlide * 100}%)` }}
+                            >
+                              <img
+                                src="\images\students\1.png"
+                                alt="Student personalized dashboard with calendar and progress"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\students\2.png"
+                                alt="AI Tutor interactive chat session"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\students\3.png"
+                                alt="Practice exam results and analytics overview"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\students\4.png"
+                                alt="Virtual classroom collaboration with posts and comments"
+                                className="w-full h-auto object-cover"
+                              />
+                               <img
+                                src="\images\students\5.png"
+                                alt="Virtual classroom collaboration with posts and comments"
+                                className="w-full h-auto object-cover"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Dots */}
+                          <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-3">
+                            {[0, 1, 2, 3, 4].map((idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setCurrentStudentSlide(idx)}
+                                className={`
+                                  w-3 h-3 rounded-full transition-all duration-300
+                                  ${currentStudentSlide === idx
+                                    ? 'bg-cyan-400 scale-125 shadow-lg shadow-cyan-500/50'
+                                    : 'bg-gray-500/60 hover:bg-cyan-400/70'
+                                  }
+                                `}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Arrows */}
+                          <button
+                            onClick={() => setCurrentStudentSlide((prev) => (prev - 1 + 5) % 5)}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-cyan-300 p-3 rounded-full transition-all duration-300"
+                          >
+                            <ChevronLeft className="w-6 h-6" />
+                          </button>
+                          <button
+                            onClick={() => setCurrentStudentSlide((prev) => (prev + 1) % 5)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-cyan-300 p-3 rounded-full transition-all duration-300"
+                          >
+                            <ChevronRight className="w-6 h-6" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Instructors Section */}
+<section id="for-faculty" className="scroll-mt-20 py-16 md:py-24 relative overflow-hidden">
+  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="flex items-center gap-5 mb-10 md:mb-12">
+      <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+        <Users className="w-9 h-9 text-purple-400" />
+      </div>
+      <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-300 to-purple-500 bg-clip-text text-transparent">
+        For Faculty: Teach Smarter, Not Harder
+      </h2>
+    </div>
+
+    {/* Slider container */}
+    <div className="relative rounded-[3rem] overflow-hidden bg-black border-4 border-purple-900/30 shadow-2xl shadow-purple-950/50" onMouseEnter={() => setIsFacultyHovered(true)}     // ← pause when mouse enters
+  onMouseLeave={() => setIsFacultyHovered(false)}>
+      {/* Slider strip */}
+      <div
+        className="flex w-[500%] h-[55rem] md:h-[60rem] lg:h-[65rem] transition-transform duration-500 ease-in-out"
+        style={{ transform: `translateX(-${currentFacultySlide * 20}%)` }}
+      >
+        {facultySlides.map((slide, idx) => (
+          <div
+            key={idx}
+            className="w-full h-full grid lg:grid-cols-2 items-center relative bg-gradient-to-br from-gray-950 to-black"
+          >
+            {/* Skewed overlay */}
+            <div className="absolute inset-0 bg-purple-900/20 transform -skew-x-[12deg] origin-left -left-[10%] w-[60%] pointer-events-none hidden lg:block">
+              <div className="absolute inset-0 bg-purple-900/10 transform skew-x-[20deg]"></div>
+            </div>
+
+            {/* Left side – dynamic content per slide */}
+            <div className="p-8 lg:p-12 xl:p-16 z-10">
+              <div className="flex items-start gap-5 mb-8 faculty-slide-item">
+                {slide.icon}
+                <div>
+                  <h4 className="font-bold text-purple-300 text-2xl lg:text-3xl">{slide.title}</h4>
+                  <p className="mt-2 text-gray-300 text-lg lg:text-xl">{slide.description}</p>
+                </div>
+              </div>
+
+              <ul className="space-y-6 text-lg lg:text-xl text-gray-200">
+                {slide.points.map((point, i) => (
+                  <li key={i} className="flex items-start gap-4 faculty-slide-item">
+                    <div className="w-6 h-6 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                    </div>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Right side – dynamic image per slide */}
+            <div className="relative h-full flex items-center justify-center p-8 lg:p-12 z-10">
+              <img
+                src={`/images/teacher/t${idx + 1}.png`}   // ← this is where the picture comes from
+                alt={`${slide.title} interface`}
+                className="max-w-full max-h-[90%] object-contain rounded-3xl shadow-2xl shadow-purple-900/50 transition-all duration-700 faculty-slide-image"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Arrows */}
+      <svg
+        onClick={() => changeFacultySlide(-1)}
+        className="prev absolute top-1/2 left-4 lg:left-8 -translate-y-1/2 w-8 h-10 cursor-pointer opacity-60 hover:opacity-100 transition-all z-20"
+        viewBox="0 0 56.898 91"
+        fill="white"
+      >
+        <path d="M45.5,0,91,56.9,48.452,24.068,0,56.9Z" transform="translate(0 91) rotate(-90)" />
+      </svg>
+
+      <svg
+        onClick={() => changeFacultySlide(1)}
+        className="next absolute top-1/2 right-4 lg:right-8 -translate-y-1/2 w-8 h-10 cursor-pointer opacity-60 hover:opacity-100 transition-all z-20"
+        viewBox="0 0 56.898 91"
+        fill="white"
+      >
+        <path d="M45.5,0,91,56.9,48.452,24.068,0,56.9Z" transform="translate(56.898) rotate(90)" />
+      </svg>
+
+      {/* Numbered trail */}
+      <div className="trail absolute bottom-6 lg:bottom-8 left-1/2 -translate-x-1/2 flex gap-4 z-20">
+        {[0, 1, 2, 3, 4].map((idx) => (
+          <button
+            key={idx}
+            onClick={() => {
+              setCurrentFacultySlide(idx);
+              animateFacultyEntrance();
+            }}
+            className={`
+              w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold
+              transition-all duration-300 border-2 border-white/30
+              ${currentFacultySlide === idx
+                ? 'bg-purple-600 text-white scale-110 shadow-lg shadow-purple-700/60 border-purple-400'
+                : 'bg-black/60 text-gray-300 hover:bg-purple-800/60 hover:scale-105'}
+            `}
+          >
+            {idx + 1}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+                {/* Admin section  */}
+                <section id="for-admins" className="scroll-mt-20 py-16 md:py-24 ">
+                  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+                    <div className="flex items-center gap-5 mb-10 md:mb-12">
+                      <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                        <Settings className="w-9 h-9 text-indigo-400" />
+                      </div>
+                      <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-300 to-indigo-500 bg-clip-text text-transparent">
+                        For Administrators: Full System Control & Insights
+                      </h2>
+                    </div>
+
+                    <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                      {/* Feature list */}
+                      <div className="order-2 lg:order-1 space-y-8 text-lg leading-relaxed text-gray-200">
+                        <ul className="space-y-6">
+                          <li className="flex items-start gap-4">
+                            <BarChart3 className="w-7 h-7 text-indigo-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-indigo-300">Admin Dashboard Analytics</h4>
+                              <p className="text-gray-300 mt-1">System usage, activity trends, comprehensive overview.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <BookOpen className="w-7 h-7 text-indigo-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-indigo-300">Courses, Lessons & Materials</h4>
+                              <p className="text-gray-300 mt-1">Handle courses, Lessons, and Quizzes.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <GraduationCap className="w-7 h-7 text-indigo-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-indigo-300">Programs & Curriculum Management</h4>
+                              <p className="text-gray-300 mt-1">Manage programs, curricula, courses, lessons, COS programs.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Users className="w-7 h-7 text-indigo-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-indigo-300">Faculty & Student Records</h4>
+                              <p className="text-gray-300 mt-1">Full control over faculty and student accounts and data.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <Calendar className="w-7 h-7 text-indigo-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-indigo-300">Rooms & Scheduling Infrastructure</h4>
+                              <p className="text-gray-300 mt-1">Manage rooms, availability, scheduling infrastructure.</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-4">
+                            <MessageSquare className="w-7 h-7 text-indigo-400 mt-1 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-semibold text-indigo-300">FAQs & Knowledge Base</h4>
+                              <p className="text-gray-300 mt-1">Create and manage FAQs for end users.</p>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Carousel */}
+                      <div className="order-1 lg:order-2">
+                        <div className="relative rounded-2xl overflow-hidden border border-indigo-500/30 shadow-2xl shadow-indigo-900/30 bg-black/60 backdrop-blur-md">
+                          <div className="overflow-hidden">
+                            <div
+                              className="flex transition-transform duration-700 ease-out"
+                              style={{ transform: `translateX(-${currentAdminSlide * 100}%)` }}
+                            >
+                              <img
+                                src="\images\admin\admindashboard.png"
+                                alt="Admin analytics dashboard overview"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\admin\course.png"
+                                alt="Curriculum and program management interface"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\admin\programs.png"
+                                alt="User management – faculty and students"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\admin\curriculum.png"
+                                alt="Room scheduling and infrastructure tools"
+                                className="w-full h-auto object-cover"
+                              />
+                              <img
+                                src="\images\admin\faculty.png"
+                                alt="Room scheduling and infrastructure tools"
+                                className="w-full h-auto object-cover"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Dots */}
+                          <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-3">
+                            {[0, 1, 2, 3, 4].map((idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setCurrentAdminSlide(idx)}
+                                className={`
+                                  w-3 h-3 rounded-full transition-all duration-300
+                                  ${currentAdminSlide === idx
+                                    ? 'bg-indigo-400 scale-125 shadow-lg shadow-indigo-500/50'
+                                    : 'bg-gray-500/60 hover:bg-indigo-400/70'
+                                  }
+                                `}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Arrows */}
+                          <button
+                            onClick={() => setCurrentAdminSlide((prev) => (prev - 1 + 5) % 5)}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-indigo-300 p-3 rounded-full transition-all duration-300"
+                          >
+                            <ChevronLeft className="w-6 h-6" />
+                          </button>
+                          <button
+                            onClick={() => setCurrentAdminSlide((prev) => (prev + 1) % 5)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-indigo-300 p-3 rounded-full transition-all duration-300"
+                          >
+                            <ChevronRight className="w-6 h-6" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
                 {/* Additional Features Section */}
                 <section id="features" className="scroll-mt-20">
                   <h2 className="text-3xl font-bold mb-8 text-center">Additional Features</h2>
@@ -630,16 +1219,41 @@ const DigitalSerenityWithSummary: React.FC = () => {
           </button>
 
           {/* Quick Navigation Dots */}
-          <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 hidden md:flex flex-col gap-4">
-            {['hero', 'ai-tutor', 'ils', 'user-accounts', 'features', 'faq'].map((section) => (
-              <a
-                key={section}
-                href={`#${section}`}
-                className="w-3 h-3 bg-gray-600 rounded-full hover:bg-cyan-400 transition-all duration-300"
-                title={section === 'hero' ? 'Top' : section.replace('-', ' ')}
-              />
-            ))}
+          <div className="fixed right-6 top-1/2 -translate-y-1/2 z-40 hidden md:flex">
+            <div className="flex flex-col gap-4 rounded-full px-3 py-4
+                            bg-white/10 backdrop-blur-lg border border-white/20
+                            shadow-lg">
+              {['hero', 'mission-vision', 'system-summary', 'ils', 'user-accounts', 'features', 'faq'].map((section) => (
+                <a
+                  key={section}
+                  href={`#${section}`}
+                  title={section === 'hero' ? 'Top' : section.replace('-', ' ')}
+                  className="
+                    group
+                    relative
+                    w-3 h-3
+                    rounded-full
+                    bg-white/40
+                    transition-all duration-300
+                    hover:scale-150
+                    hover:bg-cyan-400
+                    hover:shadow-[0_0_12px_rgba(34,211,238,0.8)]
+                  "
+                >
+                  {/* Hover ring */}
+                  <span className="
+                    absolute inset-0
+                    rounded-full
+                    scale-0
+                    group-hover:scale-100
+                    transition-transform duration-300
+                    border border-cyan-300/60
+                  " />
+                </a>
+              ))}
+            </div>
           </div>
+          
         </div>
       </div>
     </>

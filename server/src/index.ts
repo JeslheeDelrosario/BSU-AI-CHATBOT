@@ -107,7 +107,7 @@ app.use(compression());
 const allowedOrigins = isProduction
   ? [
       process.env.CORS_ORIGIN || 'https://bsu-ai-chatbot.netlify.app',
-      'https://bsu-ai-tutor.netlify.app',
+      'https://bsu-ai-tutor.netlify.app','http://192.168.1.197:3000',
     ].filter(Boolean)
   : true;
 
