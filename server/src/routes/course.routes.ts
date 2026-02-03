@@ -5,13 +5,19 @@ import {
   getCourseById,
   enrollInCourse,
   getMyEnrollments,
+
   createCourse,
   updateCourse,
   deleteCourse,
+
+  
   createModule,
   createLesson,
+  updateModule,
+  updateLesson,
   deleteModule,
   deleteLesson,
+  
   getQuizForLesson,
 } from '../controllers/course.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
@@ -74,6 +80,22 @@ router.delete(
   authenticateToken,
   authorizeRoles('ADMIN'),
   deleteLesson
+);
+
+// Update module
+router.put(
+  '/modules/:moduleId',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  updateModule
+);
+
+// Update lesson
+router.put(
+  '/lessons/:lessonId',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  updateLesson
 );
 
 export default router;

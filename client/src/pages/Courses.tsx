@@ -291,7 +291,7 @@ export default function Courses() {
                     <span className="flex items-center gap-2 text-purple-400">
                       <Users className="w-5 h-5" />
                       <span className="text-slate-700 dark:text-gray-300">
-                        {course._count?.enrollments || 0} {accessibilitySettings.language === 'fil' ? 'nag-aaral' : 'learners'}
+                        {course._count?.Enrollment || 0} {accessibilitySettings.language === 'fil' ? 'nag-aaral' : 'learners'}
                       </span>
                     </span>
                   </div>

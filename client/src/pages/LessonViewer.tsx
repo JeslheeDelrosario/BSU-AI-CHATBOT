@@ -1,40 +1,73 @@
-// client\src\pages\LessonViewer.tsx
+// client/src/pages/LessonViewer.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { ArrowLeft, CheckCircle, Clock, FileText, Video, Headphones, ArrowRight, RotateCcw, XCircle } from 'lucide-react';
-
+import {
+  ArrowLeft, CheckCircle, Clock, FileText, Video, Headphones, XCircle, Brain, Check
+} from 'lucide-react';
+import { useToast } from '../components/Toast';
 export default function LessonViewer() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [lesson, setLesson] = useState<any>(null);
   const [progress, setProgress] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [startTime] = useState(Date.now());
+  const { showToast } = useToast();
+  // NEW: For non-quiz completion
+  const [canComplete, setCanComplete] = useState(false);
+  const MIN_TIME_TO_COMPLETE = 0; // 30 seconds – change to 0 for instant complete
 
   // Quiz states
-  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [quizData, setQuizData] = useState<{
+    instructions: string;
+    questions: Array<{
+      text: string;
+      explanation: string | null;
+      answers: Array<{ text: string; isCorrect: boolean }>;
+    }>;
+  } | null>(null);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({}); // questionId -> selected option text
-  const [submittedQuestions, setSubmittedQuestions] = useState<Set<string>>(new Set()); // track which questions have been submitted
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [submittedQuestions, setSubmittedQuestions] = useState<Set<number>>(new Set());
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
-  const [quizLoading, setQuizLoading] = useState(false);
+  const [timeTaken, setTimeTaken] = useState(0);
 
   useEffect(() => {
     fetchLesson();
   }, [id]);
 
+  // NEW: Timer for non-quiz lessons – enable complete button after min time
+  useEffect(() => {
+    if (!lesson || lesson.type === 'QUIZ' || progress?.completed) return;
+
+    const timer = setTimeout(() => {
+      setCanComplete(true);
+    }, MIN_TIME_TO_COMPLETE);
+
+    return () => clearTimeout(timer);
+  }, [lesson, progress]);
+
   const fetchLesson = async () => {
     try {
       const response = await api.get(`/lessons/${id}`);
-      setLesson(response.data.lesson);
+      const fetchedLesson = response.data.lesson;
+      setLesson(fetchedLesson);
       setProgress(response.data.progress);
 
-      // If it's a quiz, fetch questions
-      if (response.data.lesson.type === 'QUIZ') {
-        await fetchQuizQuestions();
+      if (fetchedLesson.type === 'QUIZ' && fetchedLesson.content) {
+        try {
+          const parsed = JSON.parse(fetchedLesson.content);
+          setQuizData({
+            instructions: parsed.instructions || 'Answer the following questions.',
+            questions: parsed.questions || [],
+          });
+        } catch (parseError) {
+          console.error('Failed to parse quiz JSON:', parseError);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch lesson:', error);
@@ -43,32 +76,60 @@ export default function LessonViewer() {
     }
   };
 
-  const fetchQuizQuestions = async () => {
-    setQuizLoading(true);
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins} min ${secs} sec` : `${secs} sec`;
+  };
+
+  // NEW: Mark non-quiz lesson as complete
+  const handleMarkComplete = async () => {
+    if (progress?.completed) return;
+
+    setCompleting(true);
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+
     try {
-      const res = await api.get(`/lessons/${id}/quiz`);
-      setQuizQuestions(res.data.questions);
-    } catch (error) {
-      console.error('Failed to fetch quiz questions:', error);
+      await api.post(`/lessons/${id}/progress`, {
+        completed: true,
+        timeSpent: elapsedSeconds,
+        score: null, // no score for non-quiz
+      });
+
+      setProgress({ ...progress, completed: true });
+
+      showToast({
+        type: 'success',
+        title: 'Lesson Completed!',
+        message: 'Great job! You can now proceed to the next lesson.'
+      });
+
+      // Auto-redirect back to course after 1.5 seconds
+      setTimeout(() => {
+        navigate(`/courses/${lesson.courseId}`);
+      }, 1500);
+    } catch (err: any) {
+      console.error('Failed to mark complete:', err);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to mark lesson as complete. Try again.'
+      });
     } finally {
-      setQuizLoading(false);
+      setCompleting(false);
     }
   };
 
-  const handleSelectAnswer = (questionId: string, optionText: string) => {
-    setSelectedAnswers(prev => ({
-      ...prev,
-      [questionId]: optionText,
-    }));
+  const handleGoToNext = () => {
+    navigate(`/courses/${lesson.courseId}`);
   };
 
-  const handleSubmitAnswer = (questionId: string) => {
-    if (!selectedAnswers[questionId]) return;
-    setSubmittedQuestions(prev => new Set([...prev, questionId]));
+  const handleSelectAnswer = (qIndex: number, optionText: string) => {
+    setSelectedAnswers(prev => ({ ...prev, [qIndex]: optionText }));
   };
 
   const handleNext = () => {
-    if (currentQuestionIndex < quizQuestions.length - 1) {
+    if (currentQuestionIndex < (quizData?.questions.length || 0) - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     }
   };
@@ -81,33 +142,36 @@ export default function LessonViewer() {
 
   const handleSubmitQuiz = async () => {
     setCompleting(true);
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    setTimeTaken(elapsedSeconds);
 
-    // Calculate score
+    if (!quizData) return;
+
     let correctCount = 0;
-    quizQuestions.forEach(q => {
-      const selected = selectedAnswers[q.id];
-      const correctOption = q.options.find((o: any) => o.isCorrect);
-      if (selected === correctOption?.text) {
+    quizData.questions.forEach((q, idx) => {
+      if (selectedAnswers[idx] === q.answers.find(a => a.isCorrect)?.text) {
         correctCount++;
       }
     });
 
-    const score = Math.round((correctCount / quizQuestions.length) * 100);
+    const score = Math.round((correctCount / quizData.questions.length) * 100);
     setQuizScore(score);
     setShowQuizResult(true);
 
-    // Update progress if passed (≥85%)
     if (score >= 85) {
       try {
         await api.post(`/lessons/${id}/progress`, {
           completed: true,
-          timeSpent,
+          timeSpent: elapsedSeconds,
           score,
         });
-        setProgress({ ...progress, completed: true });
-      } catch (error) {
-        console.error('Failed to update progress:', error);
+        setProgress({ ...progress, completed: true, score });
+
+        setTimeout(() => {
+          navigate(`/courses/${lesson.courseId}`);
+        }, 1800);
+      } catch (err) {
+        console.error('Failed to save progress:', err);
       }
     }
 
@@ -120,269 +184,364 @@ export default function LessonViewer() {
     setSubmittedQuestions(new Set());
     setShowQuizResult(false);
     setQuizScore(0);
+    setTimeTaken(0);
   };
 
   const getLessonIcon = (type: string) => {
     switch (type) {
-      case 'VIDEO':
-        return <Video className="w-6 h-6" />;
-      case 'AUDIO':
-        return <Headphones className="w-6 h-6" />;
-      case 'TEXT':
-        return <FileText className="w-6 h-6" />;
-      case 'QUIZ':
-        return <FileText className="w-6 h-6" />; // or Brain icon later
-      default:
-        return <FileText className="w-6 h-6" />;
+      case 'VIDEO': return <Video className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />;
+      case 'AUDIO': return <Headphones className="w-6 h-6 text-purple-600 dark:text-purple-400" />;
+      case 'TEXT': return <FileText className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />;
+      case 'QUIZ': return <Brain className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />;
+      default: return <FileText className="w-6 h-6 text-gray-500 dark:text-gray-400" />;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center p-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (!lesson) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">Lesson not found</p>
+      <div className="text-center py-20 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950">
+        Lesson not found
       </div>
     );
   }
 
   const isQuiz = lesson.type === 'QUIZ';
-  const currentQuestion = quizQuestions[currentQuestionIndex];
-  const selectedAnswer = selectedAnswers[currentQuestion?.id];
-  const isSubmitted = submittedQuestions.has(currentQuestion?.id);
-  const isLastQuestion = currentQuestionIndex === quizQuestions.length - 1;
-  const allAnswered = Object.keys(selectedAnswers).length === quizQuestions.length;
+  const currentQuestion = quizData?.questions[currentQuestionIndex];
+  const selectedAnswer = selectedAnswers[currentQuestionIndex];
+  const isSubmitted = submittedQuestions.has(currentQuestionIndex);
+  const isLastQuestion = currentQuestionIndex === (quizData?.questions.length || 0) - 1;
+  const allAnswered = Object.keys(selectedAnswers).length === (quizData?.questions.length || 0);
+  const isCompleted = progress?.completed;
+  const showNextButton = isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
+  // Determine if we should show the complete button
+  const showCompleteButton = !isQuiz && !progress?.completed && canComplete;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8 bg-gray-50 dark:bg-gray-950 min-h-screen">
+      {/* Header Bar */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-slate-600 dark:text-gray-600 hover:text-slate-900 dark:hover:text-gray-900"
+          className="flex items-center gap-2 text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
           Back
         </button>
-        
+
         {progress?.completed && (
-          <span className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
+          <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
             <CheckCircle className="w-5 h-5" />
             Completed
-          </span>
+          </div>
         )}
       </div>
 
-      {/* Lesson Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white rounded-xl">
-        <div className="flex items-center gap-3 mb-4">
-          {getLessonIcon(lesson.type)}
-          <span className="text-sm font-medium opacity-90 capitalize">
-            {lesson.type.toLowerCase()}
-          </span>
-          <span className="text-sm opacity-75">•</span>
-          <span className="text-sm opacity-90 flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            {lesson.duration || '?'} minutes
-          </span>
+      {/* Lesson Card */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-cyan-500/30 rounded-2xl overflow-hidden shadow-lg dark:shadow-cyan-900/20">
+        {/* Header Gradient - toned down for light mode */}
+        <div className="bg-gradient-to-r from-cyan-600 to-purple-600 p-8 text-white">
+          <div className="flex items-center gap-4 mb-4">
+            {getLessonIcon(lesson.type)}
+            <div>
+              <span className="text-sm font-medium uppercase tracking-wider opacity-90">
+                {lesson.type.toLowerCase()}
+              </span>
+              <div className="flex items-center gap-3 text-sm opacity-90 mt-1">
+                <Clock className="w-4 h-4" />
+                {lesson.duration || '?'} min
+              </div>
+            </div>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black">{lesson.title}</h1>
         </div>
-        <h1 className="text-3xl font-bold">{lesson.title}</h1>
-      </div>
 
-      {/* Main Content */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {isQuiz ? (
-          <div className="p-8">
-            {/* Quiz Header */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-indigo-700 dark:text-indigo-300 mb-2">
-                Quiz: {lesson.title}
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Answer all questions and submit to see your score. You need 85% to complete this lesson.
-              </p>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mb-8">
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                <span>Question {currentQuestionIndex + 1} of {quizQuestions.length}</span>
-                <span>{Math.round(((currentQuestionIndex + 1) / quizQuestions.length) * 100)}% complete</span>
+        {/* Content Area */}
+        <div className="p-6 md:p-10">
+          {isQuiz ? (
+            <>
+              <div className="mb-10">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                  {quizData?.instructions || 'Test your knowledge. Score 85%+ to unlock the next lesson.'}
+                </p>
               </div>
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-300"
-                  style={{ width: `${((currentQuestionIndex + 1) / quizQuestions.length) * 100}%` }}
-                />
-              </div>
-            </div>
 
-            {quizLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading questions...</p>
+              <div className="mb-10">
+                <div className="flex justify-between text-sm text-gray-600 dark:text-cyan-300/80 mb-2">
+                  <span>Question {currentQuestionIndex + 1} / {quizData?.questions.length || 0}</span>
+                  <span>
+                    {Math.round(((currentQuestionIndex + 1) / (quizData?.questions.length || 1)) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-cyan-500/20">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-500"
+                    style={{ width: `${((currentQuestionIndex + 1) / (quizData?.questions.length || 1)) * 100}%` }}
+                  />
+                </div>
               </div>
-            ) : quizQuestions.length === 0 ? (
-              <p className="text-center text-gray-600 py-12">No questions available for this quiz.</p>
-            ) : (
-              <div className="space-y-8">
-                {/* Current Question Card */}
-                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800">
-                  <h3 className="text-xl font-semibold text-indigo-800 dark:text-indigo-200 mb-6">
-                    {currentQuestion.text}
-                  </h3>
 
-                  <div className="space-y-4">
-                    {currentQuestion.options.map((option: any, index: number) => (
-                      <label 
-                        key={option.id}
-                        className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all
-                          ${selectedAnswer === option.text 
-                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' 
-                            : 'border-gray-300 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600'}
-                          ${isSubmitted && option.isCorrect ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : ''}
-                          ${isSubmitted && selectedAnswer === option.text && !option.isCorrect ? 'border-red-500 bg-red-50 dark:bg-red-900/30' : ''}
-                        `}
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${currentQuestion.id}`}
-                          checked={selectedAnswer === option.text}
-                          onChange={() => handleSelectAnswer(currentQuestion.id, option.text)}
-                          disabled={isSubmitted}
-                          className="w-5 h-5 text-indigo-600"
-                        />
-                        <span className="flex-1">
-                          <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>
-                          {option.text}
-                        </span>
-                      </label>
-                    ))}
+              {quizData && quizData.questions.length > 0 ? (
+                <div className="space-y-10">
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-cyan-500/20 rounded-xl p-6 md:p-8 shadow-sm">
+                    <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                      {currentQuestion?.text}
+                    </h3>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {currentQuestion?.answers.map((option: any, idx: number) => (
+                        <label
+                          key={idx}
+                          className={`
+                            flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all duration-300
+                            ${selectedAnswer === option.text
+                              ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40'
+                              : 'border-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/20'}
+                            ${isSubmitted && option.isCorrect ? 'border-green-500 bg-green-50 dark:bg-green-950/30' : ''}
+                            ${isSubmitted && selectedAnswer === option.text && !option.isCorrect
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/30' : ''}
+                          `}
+                        >
+                          <input
+                            type="radio"
+                            name={`q-${currentQuestionIndex}`}
+                            checked={selectedAnswer === option.text}
+                            onChange={() => handleSelectAnswer(currentQuestionIndex, option.text)}
+                            disabled={isSubmitted}
+                            className="w-5 h-5 accent-cyan-600 dark:accent-cyan-400"
+                          />
+                          <span className="text-gray-800 dark:text-gray-200 flex-1">
+                            {String.fromCharCode(65 + idx)}. {option.text}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {isSubmitted && currentQuestion && (
+                      <div className="mt-8 p-6 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+                        {selectedAnswer === currentQuestion.answers.find((a: any) => a.isCorrect)?.text ? (
+                          <div className="flex gap-4 text-green-700 dark:text-green-400">
+                            <CheckCircle className="w-6 h-6 mt-1 flex-shrink-0" />
+                            <div>
+                              <p className="font-bold text-lg">Correct!</p>
+                              {currentQuestion.explanation && (
+                                <p className="mt-2 text-gray-700 dark:text-gray-300">{currentQuestion.explanation}</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-4 text-red-700 dark:text-red-400">
+                            <XCircle className="w-6 h-6 mt-1 flex-shrink-0" />
+                            <div>
+                              <p className="font-bold text-lg">Incorrect</p>
+                              <p className="mt-1 text-gray-700 dark:text-gray-300">
+                                Correct answer: <span className="font-medium text-gray-900 dark:text-white">
+                                  {currentQuestion.answers.find((a: any) => a.isCorrect)?.text}
+                                </span>
+                              </p>
+                              {currentQuestion.explanation && (
+                                <p className="mt-3 text-gray-700 dark:text-gray-300">{currentQuestion.explanation}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Immediate Feedback & Explanation */}
-                  {isSubmitted && (
-                    <div className="mt-6 p-4 rounded-lg bg-opacity-10">
-                      {selectedAnswer === currentQuestion.options.find((o: any) => o.isCorrect)?.text ? (
-                        <div className="flex items-start gap-3 text-green-700 dark:text-green-300">
-                          <CheckCircle className="w-6 h-6 mt-1 flex-shrink-0" />
-                          <div>
-                            <p className="font-medium">Correct!</p>
-                            {currentQuestion.explanation && (
-                              <p className="mt-2 text-sm">{currentQuestion.explanation}</p>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-3 text-red-700 dark:text-red-300">
-                          <XCircle className="w-6 h-6 mt-1 flex-shrink-0" />
-                          <div>
-                            <p className="font-medium">Incorrect</p>
-                            <p className="mt-1 text-sm">
-                              Correct answer: <span className="font-medium">
-                                {currentQuestion.options.find((o: any) => o.isCorrect)?.text}
-                              </span>
-                            </p>
-                            {currentQuestion.explanation && (
-                              <p className="mt-2 text-sm">{currentQuestion.explanation}</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Navigation & Submit */}
-                <div className="flex justify-between items-center pt-6 border-t">
-                  <button
-                    onClick={handlePrevious}
-                    disabled={currentQuestionIndex === 0}
-                    className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-
-                  {isLastQuestion ? (
+                  <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6">
                     <button
-                      onClick={handleSubmitQuiz}
-                      disabled={!allAnswered || completing}
-                      className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                      onClick={handlePrevious}
+                      disabled={currentQuestionIndex === 0}
+                      className="px-8 py-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-xl disabled:opacity-50 transition disabled:cursor-not-allowed border border-gray-300 dark:border-gray-700"
                     >
-                      {completing ? 'Submitting...' : 'Submit Quiz'}
+                      Previous
                     </button>
-                  ) : (
-                    <button
-                      onClick={handleNext}
-                      className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-                    >
-                      Next Question
-                      <ArrowRight className="w-5 h-5" />
-                    </button>
-                  )}
+
+                    {isLastQuestion ? (
+                      <button
+                        onClick={handleSubmitQuiz}
+                        disabled={!allAnswered || completing}
+                        className={`
+                          px-10 py-4 rounded-xl font-bold transition-all duration-300
+                          ${allAnswered && !completing
+                            ? 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105'
+                            : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}
+                        `}
+                      >
+                        {completing ? 'Submitting...' : 'Submit Quiz'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleNext}
+                        className="px-8 py-4 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl transition hover:scale-105"
+                      >
+                        Next Question →
+                      </button>
+                    )}
+                  </div>
                 </div>
+              ) : (
+                <p className="text-center text-gray-600 dark:text-gray-400 py-12">
+                  No questions available for this quiz.
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="space-y-6 text-gray-800 dark:text-gray-200">
+              <div className="prose prose-slate dark:prose-invert max-w-none">
+                {lesson.content ? (
+                  <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400">No content available for this lesson.</p>
+                )}
               </div>
-            )}
-          </div>
-        ) : (
-          // Normal lesson content (your original code)
-          <div className="p-8">
-            {/* ... your existing content for VIDEO/TEXT/AUDIO ... */}
-            {/* Keep this part unchanged */}
-          </div>
-        )}
+
+              {lesson.videoUrl && (
+                <video
+                  src={lesson.videoUrl}
+                  controls
+                  className="w-full rounded-xl border border-gray-200 dark:border-cyan-500/30 shadow-md dark:shadow-cyan-900/20"
+                />
+              )}
+
+              {lesson.audioUrl && (
+                <audio
+                  src={lesson.audioUrl}
+                  controls
+                  className="w-full mt-6"
+                />
+              )}
+           {/* NEW: Complete button for non-quiz lessons */}
+              {showCompleteButton && (
+                <div className="flex justify-center mt-12">
+                  <button
+                    onClick={handleMarkComplete}
+                    disabled={completing}
+                    className={`
+                      flex items-center gap-3 px-10 py-5 text-lg font-bold rounded-2xl transition-all duration-300
+                      ${completing 
+                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105'
+                      }
+                    `}
+                  >
+                    <Check className="w-6 h-6" />
+                    {completing ? 'Marking as Complete...' : 'Mark Lesson as Complete'}
+                  </button>
+                </div>
+              )}
+
+              {/* Already completed message */}
+              {progress?.completed && (
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center gap-3 px-8 py-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-2xl text-green-700 dark:text-green-300 font-medium">
+                    <CheckCircle className="w-6 h-6" />
+                    This lesson is already completed
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Final Quiz Result */}
-      {showQuizResult && (
-        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            {quizScore >= 85 ? "Congratulations!" : "Keep Practicing!"}
-          </h2>
-          <p className="text-2xl mb-6">
-            Your score: <span className={quizScore >= 85 ? "text-green-600" : "text-red-600"}>{quizScore}%</span>
-          </p>
-          <p className="text-gray-600 mb-8">
-            {quizScore >= 85 
-              ? "You passed! This lesson is now marked as completed." 
-              : "You need 85% to complete this lesson. Try again!"}
-          </p>
-
-          <div className="flex justify-center gap-4">
-            <button
-              onClick={handleRetryQuiz}
-              className="px-8 py-3 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-            >
-              Retry Quiz
-            </button>
-            <button
-              onClick={() => navigate(-1)}
-              className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-            >
-              Back to Course
-            </button>
-          </div>
+      {/* NEW: Next Lesson Button – appears after completion */}
+      {showNextButton && (
+        <div className="flex justify-center mt-10">
+          <button
+            onClick={handleGoToNext}
+            className="flex items-center gap-3 px-12 py-5 text-xl font-bold bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-2xl transition-all duration-300 shadow-xl shadow-cyan-500/40 hover:shadow-cyan-500/60 hover:scale-105"
+          >
+            Next Lesson →
+          </button>
         </div>
       )}
 
-      {/* Next Lesson Suggestion */}
-      <div className="bg-indigo-100 dark:bg-indigo-50 border border-indigo-300 dark:border-indigo-200 rounded-xl p-6">
-        <h3 className="font-semibold text-indigo-900 dark:text-indigo-900 mb-2">Keep Learning!</h3>
-        <p className="text-indigo-800 dark:text-indigo-700 text-sm mb-4">
-          Complete this lesson to unlock the next one and continue your learning journey.
-        </p>
+      {/* Result Panel */}
+      {showQuizResult && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-cyan-500/30 rounded-2xl p-8 md:p-12 shadow-xl dark:shadow-cyan-900/20 text-center">
+          <h2 className="text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
+            {quizScore >= 85 ? "NEURAL LINK ESTABLISHED!" : "REBOOT REQUIRED"}
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-10">
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-cyan-500/20 rounded-xl p-6">
+              <p className="text-cyan-700 dark:text-cyan-300 text-lg mb-2">Your Score</p>
+              <p className={`text-5xl font-black ${quizScore >= 85 ? 'text-green-600' : 'text-red-600'}`}>
+                {quizScore}%
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-cyan-500/20 rounded-xl p-6">
+              <p className="text-cyan-700 dark:text-cyan-300 text-lg mb-2">Time Taken</p>
+              <p className="text-4xl font-bold text-purple-600 dark:text-purple-300">
+                {formatTime(timeTaken)}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xl text-gray-700 dark:text-gray-300 mb-10">
+            {quizScore >= 85
+              ? "Access granted. Lesson completed."
+              : "85% required to unlock next content. Retry to improve."}
+          </p>
+
+          <div className="flex flex-col sm:flex-row justify-center gap-6">
+            {quizScore >= 85 ? (
+              <>
+                <button
+                  onClick={handleRetryQuiz}
+                  className="px-10 py-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-cyan-600 text-gray-800 dark:text-cyan-300 rounded-xl transition hover:scale-105"
+                >
+                  Retry Challenge
+                </button>
+
+                <button
+                  onClick={() => navigate(`/courses/${lesson.courseId}`)}
+                  className="px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-bold transition hover:scale-105 shadow-lg shadow-cyan-500/30"
+                >
+                  Proceed to Next Lesson
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleRetryQuiz}
+                  className="px-10 py-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-cyan-600 text-gray-800 dark:text-cyan-300 rounded-xl transition hover:scale-105"
+                >
+                  Try Again
+                </button>
+
+                <button
+                  onClick={() => navigate(`/courses/${lesson.courseId}`)}
+                  className="px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-bold transition hover:scale-105 shadow-lg shadow-cyan-500/30"
+                >
+                  Back to Course Overview
+                </button>
+              </>
+            )}
+          </div>
+
+          
+        </div>
+      )}
+
+      {/* AI Tutor CTA */}
+      <div className="text-center">
         <button
           onClick={() => navigate('/ai-tutor')}
-          className="text-indigo-700 dark:text-indigo-600 hover:text-indigo-800 dark:hover:text-indigo-700 font-medium text-sm flex items-center gap-2"
+          className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-medium transition hover:scale-105 shadow-lg shadow-cyan-500/30"
         >
-          Need help? Ask the AI Tutor →
+          <Brain className="w-6 h-6" />
+          Need help? Ask AI Tutor
         </button>
       </div>
     </div>

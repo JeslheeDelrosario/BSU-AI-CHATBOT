@@ -79,7 +79,6 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
           orderBy: { order: 'asc' },
           include: {
             lessons: {
-              where: { isPublished: true },
               orderBy: { order: 'asc' },
               select: {
                 id: true,
@@ -91,6 +90,7 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
                 content: true,
                 videoUrl: true,
                 audioUrl: true,
+                isPublished: true,
               },
             },
           },
@@ -98,6 +98,12 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
         CourseReview: {
           include: {
             User: { select: { firstName: true, lastName: true, avatar: true } },
+          },
+        },
+        _count: {
+          select: {
+            Enrollment: true,   // number of learners (enrollments)
+            Lesson: true,       // total lessons in the course
           },
         },
       },
@@ -108,7 +114,7 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
     }
 
     let enrollment = null;
-    let progressMap: Record<string, any> = {};
+    let progressMap: Record<string, { completed: boolean; score: number | null }> = {};
 
     if (userId) {
       // Lookup enrollment for the current user
@@ -126,26 +132,60 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
       });
 
       progressMap = progressRecords.reduce((acc, p) => {
-        acc[p.lessonId] = p;
+        acc[p.lessonId] = { completed: p.completed, score: p.score };
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, { completed: boolean; score: number | null }>);
     }
 
-    // Enrich lessons inside modules with progress & unlock status
-    const enrichedModules = courseData.modules.map((module) => {
-      const enrichedLessons = module.lessons.map((lesson, idx) => {
+    // ────────────────────────────────────────────────────────────────
+    // HELPER: Check if a lesson is "satisfactorily completed"
+    // ────────────────────────────────────────────────────────────────
+    const isSatisfactorilyCompleted = (lessonId: string): boolean => {
+      const prog = progressMap[lessonId];
+      if (!prog || !prog.completed) return false;
+
+      const lesson = courseData.modules
+        .flatMap(m => m.lessons)
+        .find(l => l.id === lessonId);
+
+      if (!lesson) return false;
+
+      if (lesson.type === 'QUIZ') {
+        return (prog.score ?? 0) >= 85;
+      }
+      return true; // non-quiz → just completed === true
+    };
+
+    // ────────────────────────────────────────────────────────────────
+    // MAIN ENRICHMENT LOGIC – now with module-to-module dependency
+    // ────────────────────────────────────────────────────────────────
+    const enrichedModules = courseData.modules.map((module, moduleIdx) => {
+      const enrichedLessons = module.lessons.map((lesson, lessonIdx) => {
         const progress = progressMap[lesson.id] || null;
 
-        let isUnlocked = idx === 0; // first lesson in module always unlocked
+        let isUnlocked = false;
 
-        if (idx > 0) {
-          const prev = module.lessons[idx - 1];
-          const prevProg = progressMap[prev.id] || null;
+        // ── Rule 1: First module ─────────────────────────────────────
+        if (moduleIdx === 0) {
+          // Inside first module: classic sequential unlocking
+          isUnlocked = lessonIdx === 0 || isSatisfactorilyCompleted(module.lessons[lessonIdx - 1].id);
+        }
+        // ── Rule 2: Subsequent modules ───────────────────────────────
+        else {
+          // Get the LAST lesson of the PREVIOUS module
+          const prevModule = courseData.modules[moduleIdx - 1];
+          if (prevModule && prevModule.lessons.length > 0) {
+            const lastLessonOfPrev = prevModule.lessons[prevModule.lessons.length - 1];
+            const prevModulePassed = isSatisfactorilyCompleted(lastLessonOfPrev.id);
 
-          if (prevProg?.completed) {
-            isUnlocked = prev.type === 'QUIZ'
-              ? (prevProg.score ?? 0) >= 85
-              : true;
+            // If previous module's last lesson is passed → this whole module is open
+            // Then apply intra-module sequential rule
+            if (prevModulePassed) {
+              isUnlocked =
+                lessonIdx === 0 ||
+                isSatisfactorilyCompleted(module.lessons[lessonIdx - 1].id);
+            }
+            // else → entire module stays locked (isUnlocked = false for all lessons)
           }
         }
 
@@ -439,6 +479,10 @@ export const createModule = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// server/src/controllers/course.controller.ts
+// ─────────────────────────────────────────────────────────────
+// Updated createLesson – QUIZ questions now stored in content (JSON)
+// ─────────────────────────────────────────────────────────────
 export const createLesson = async (req: AuthRequest, res: Response) => {
   try {
     const { moduleId } = req.params;
@@ -451,7 +495,7 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
       videoUrl,
       audioUrl,
       isPublished = false,
-      questions, // Array of { text: string, answers: [{ text: string, isCorrect: boolean }] }
+      questions, // only used when type = QUIZ
     } = req.body;
 
     // Basic validation
@@ -464,11 +508,39 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid lesson type' });
     }
 
-    // Enforce content is always a string (required field in schema)
-    // Use empty string as safe default
-    const finalContent = typeof content === 'string' && content.trim() !== ''
-      ? content.trim()
-      : '';
+    // For QUIZ: validate and prepare questions as JSON
+    let finalContent = typeof content === 'string' ? content.trim() : '';
+
+    if (type === 'QUIZ') {
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        return res.status(400).json({ error: 'Quiz lessons require at least one question' });
+      }
+
+      // Basic structure validation
+      for (const q of questions) {
+        if (!q.text?.trim()) throw new Error('Question text is required');
+        if (!Array.isArray(q.answers) || q.answers.length < 2) {
+          throw new Error('Each question needs at least 2 answers');
+        }
+        const correctCount = q.answers.filter((a: any) => a.isCorrect).length;
+        if (correctCount !== 1) {
+          throw new Error('Each question must have exactly one correct answer');
+        }
+      }
+
+      // Store questions as JSON string in content
+      finalContent = JSON.stringify({
+        instructions: content?.trim() || 'Answer the following questions.',
+        questions: questions.map((q: any) => ({
+          text: q.text.trim(),
+          explanation: q.explanation?.trim() || null,
+          answers: q.answers.map((a: any) => ({
+            text: a.text.trim(),
+            isCorrect: !!a.isCorrect,
+          })),
+        })),
+      });
+    }
 
     // Auto-calculate next order in this module
     const maxOrder = await prisma.lesson.aggregate({
@@ -478,12 +550,12 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
     const nextOrder = (maxOrder._max.order || 0) + 1;
 
     // Get courseId from module
-    const module = await prisma.module.findUnique({
+    const moduleData = await prisma.module.findUnique({
       where: { id: moduleId },
       select: { courseId: true },
     });
 
-    if (!module) {
+    if (!moduleData) {
       return res.status(404).json({ error: 'Module not found' });
     }
 
@@ -494,57 +566,147 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
         description: description?.trim() || null,
         type: type as LessonType,
         duration: duration ? Number(duration) : null,
-        content: finalContent, // Always a string → fixes Prisma error
+        content: finalContent,           // ← now contains JSON for quizzes
         videoUrl: videoUrl?.trim() || null,
         audioUrl: audioUrl?.trim() || null,
         order: nextOrder,
         isPublished: !!isPublished,
         moduleId,
-        courseId: module.courseId,
-        // Removed redundant Course: { connect: ... }
+        courseId: moduleData.courseId,
       },
     });
-
-    // ─────────────────────────────────────────────────────────────
-    // Handle QUIZ creation + questions (now fully activated!)
-    // ─────────────────────────────────────────────────────────────
-    if (type === 'QUIZ') {
-      if (!questions || !Array.isArray(questions) || questions.length === 0) {
-        // Clean up the lesson if quiz has no questions
-        await prisma.lesson.delete({ where: { id: lesson.id } });
-        return res.status(400).json({ error: 'Quiz lessons require at least one question' });
-      }
-
-      // Create quiz + questions
-      await createQuizWithQuestions(lesson.id, questions);
-    }
 
     return res.status(201).json({ lesson });
   } catch (error: any) {
     console.error('Create lesson error:', error);
-    if (error.message?.includes('content')) {
-      return res.status(400).json({ error: 'Content is required (can be empty string)' });
-    }
-    return res.status(500).json({ error: error.message || 'Failed to create lesson' });
+    return res.status(500).json({
+      error: error.message || 'Failed to create lesson',
+    });
   }
 };
+
+// export const deleteModule = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const { moduleId } = req.params;
+
+//     // Check if module exists
+//     const module = await prisma.module.findUnique({
+//       where: { id: moduleId },
+//       include: {
+//         lessons: { select: { id: true } }, // only count, no need full data
+//         quiz: { select: { id: true } },
+//       },
+//     });
+
+//     if (!module) {
+//       return res.status(404).json({ error: 'Module not found' });
+//     }
+
+//     // Prevent delete if has content
+//     if (module.lessons.length > 0) {
+//       return res.status(400).json({
+//         error: `Cannot delete module: it contains ${module.lessons.length} lesson(s). Please delete or move the lessons first.`
+//       });
+//     }
+
+//     if (module.quiz) {
+//       return res.status(400).json({
+//         error: 'Cannot delete module: it has an attached quiz. Delete the quiz first or remove the association.'
+//       });
+//     }
+
+//     // Safe to delete
+//     await prisma.module.delete({ where: { id: moduleId } });
+
+//     return res.json({ message: 'Module deleted successfully' });
+//   } catch (error: any) {
+//     console.error('Delete module error:', error);
+//     return res.status(500).json({ error: 'Failed to delete module: ' + (error.message || 'unknown error') });
+//   }
+// };
 
 export const deleteModule = async (req: AuthRequest, res: Response) => {
   try {
     const { moduleId } = req.params;
 
-    const module = await prisma.module.findUnique({ where: { id: moduleId } });
-    if (!module) return res.status(404).json({ error: 'Module not found' });
+    // 1. Find the module and load related data
+    const moduleData = await prisma.module.findUnique({
+      where: { id: moduleId },
+      include: {
+        lessons: { select: { id: true } },
+        quiz: { select: { id: true } },
+      },
+    });
 
-    await prisma.module.delete({ where: { id: moduleId } });
+    if (!moduleData) {
+      return res.status(404).json({ error: 'Module not found' });
+    }
 
-    return res.json({ message: 'Module deleted' });
-  } catch (error) {
-    console.error('Delete module error:', error);
-    return res.status(500).json({ error: 'Failed to delete module' });
+    console.warn(`[FORCE DELETE] Deleting module ${moduleId} and all related data`);
+
+    // 2. If there is a quiz → delete questions → answers → quiz
+    if (moduleData.quiz) {
+      console.log(`Deleting quiz ${moduleData.quiz.id} and its questions/answers...`);
+
+      // Delete all answers for questions in this quiz
+      await prisma.answer.deleteMany({
+        where: {
+          question: {
+            quizId: moduleData.quiz.id,
+          },
+        },
+      });
+
+      // Delete all questions
+      await prisma.question.deleteMany({
+        where: { quizId: moduleData.quiz.id },
+      });
+
+      // Delete the quiz itself
+      await prisma.quiz.delete({
+        where: { id: moduleData.quiz.id },
+      });
+    }
+
+    // 3. Delete all lessons in this module
+    if (moduleData.lessons.length > 0) {
+      console.log(`Deleting ${moduleData.lessons.length} lessons...`);
+
+      // Delete progress records for these lessons
+      await prisma.progress.deleteMany({
+        where: {
+          lessonId: {
+            in: moduleData.lessons.map(l => l.id),
+          },
+        },
+      });
+
+      // Delete the lessons
+      await prisma.lesson.deleteMany({
+        where: { moduleId },
+      });
+    }
+
+    // 4. Delete user module progress (if any)
+    await prisma.userModuleProgress.deleteMany({
+      where: { moduleId },
+    });
+
+    // 5. Finally delete the module itself
+    await prisma.module.delete({
+      where: { id: moduleId },
+    });
+
+    console.log(`Module ${moduleId} and all related data deleted successfully`);
+
+    return res.json({ message: 'Module and all related content deleted (force mode)' });
+  } catch (error: any) {
+    console.error('Force delete module error:', error);
+    return res.status(500).json({
+      error: 'Failed to force delete module: ' + (error.message || 'unknown error'),
+    });
   }
 };
-
 export const deleteLesson = async (req: AuthRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
@@ -689,5 +851,80 @@ export const getQuizForLesson = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Get quiz for lesson error:', error);
     return res.status(500).json({ error: 'Failed to fetch quiz questions' });
+  }
+};
+
+// Update Module (title, description, optional order)
+export const updateModule = async (req: AuthRequest, res: Response) => {
+  try {
+    const { moduleId } = req.params;
+    const { title, description, order } = req.body;
+
+    if (!title?.trim()) {
+      return res.status(400).json({ error: 'Module title is required' });
+    }
+
+    const updated = await prisma.module.update({
+      where: { id: moduleId },
+      data: {
+        title: title.trim(),
+        description: description?.trim() || null,
+        order: order !== undefined ? Number(order) : undefined,
+        updatedAt: new Date(),
+      },
+    });
+
+    return res.json({ module: updated });
+  } catch (error: any) {
+    console.error('Update module error:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Module not found' });
+    return res.status(500).json({ error: 'Failed to update module' });
+  }
+};
+
+// Update Lesson (basic fields – quiz questions handled separately later)
+export const updateLesson = async (req: AuthRequest, res: Response) => {
+  try {
+    const { lessonId } = req.params;
+    const {
+      title,
+      description,
+      type,
+      duration,
+      content,
+      videoUrl,
+      audioUrl,
+      isPublished,
+    } = req.body;
+
+    if (!title?.trim() || !type) {
+      return res.status(400).json({ error: 'Title and type are required' });
+    }
+
+    const validTypes = ['VIDEO', 'TEXT', 'AUDIO', 'INTERACTIVE', 'QUIZ', 'ASSIGNMENT'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ error: 'Invalid lesson type' });
+    }
+
+    const updated = await prisma.lesson.update({
+      where: { id: lessonId },
+      data: {
+        title: title.trim(),
+        description: description?.trim() || null,
+        type: type as LessonType,
+        duration: duration ? Number(duration) : null,
+        content: content ?? '',
+        videoUrl: videoUrl?.trim() || null,
+        audioUrl: audioUrl?.trim() || null,
+        isPublished: isPublished ?? false,
+        updatedAt: new Date(),
+      },
+    });
+
+    return res.json({ lesson: updated });
+  } catch (error: any) {
+    console.error('Update lesson error:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Lesson not found' });
+    return res.status(500).json({ error: 'Failed to update lesson' });
   }
 };

@@ -1,8 +1,11 @@
 // client/src/pages/CourseDetail.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Disclosure, Transition } from '@headlessui/react';
+import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
+
 import api from '../lib/api';
 import { 
   BookOpen, Clock, Users, Play, CheckCircle, Lock, ArrowLeft, 
@@ -23,10 +26,18 @@ export default function CourseDetail() {
   const [showCreateModuleModal, setShowCreateModuleModal] = useState(false);
   const [showCreateLessonModal, setShowCreateLessonModal] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+
   const [moduleToDelete, setModuleToDelete] = useState<string | null>(null);
   const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
+
   const [showDeleteModuleConfirm, setShowDeleteModuleConfirm] = useState(false);
   const [showDeleteLessonConfirm, setShowDeleteLessonConfirm] = useState(false);
+
+  const [showEditModuleModal, setShowEditModuleModal] = useState(false);
+  const [editingModule, setEditingModule] = useState<{ id: string; title: string; description: string; order?: number } | null>(null);
+
+  const [showEditLessonModal, setShowEditLessonModal] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<any>(null);
 
   const [quizQuestions, setQuizQuestions] = useState<Array<{
     text: string;
@@ -51,6 +62,97 @@ export default function CourseDetail() {
   useEffect(() => {
     fetchCourseDetail();
   }, [id]);
+
+  const handleOpenEditModule = (module: any) => {
+    setEditingModule({
+      id: module.id,
+      title: module.title,
+      description: module.description || '',
+      order: module.order,
+    });
+    setShowEditModuleModal(true);
+  };
+
+  const handleSaveEditModule = async () => {
+  if (!editingModule || !editingModule.title.trim()) {
+    return showToast({
+      type: 'error',
+      title: 'Missing Title',
+      message: 'Module title is required'
+    });
+  }
+
+  try {
+    await api.put(`/courses/modules/${editingModule.id}`, {  // ← ADDED /courses
+      title: editingModule.title,
+      description: editingModule.description,
+      // order removed per your request
+    });
+
+    showToast({
+      type: 'success',
+      title: 'Module Updated',
+      message: 'Module has been updated successfully'
+    });
+
+    setShowEditModuleModal(false);
+    setEditingModule(null);
+    fetchCourseDetail();
+  } catch (err: any) {
+    showToast({
+      type: 'error',
+      title: 'Update Failed',
+      message: err.response?.data?.error || err.message || 'Failed to update module'
+    });
+  }
+};
+
+  // NEW: Handle open edit lesson
+  const handleOpenEditLesson = (lesson: any) => {
+    setEditingLesson({
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description || '',
+      type: lesson.type,
+      duration: lesson.duration || '',
+      content: lesson.content || '',
+      videoUrl: lesson.videoUrl || '',
+      audioUrl: lesson.audioUrl || '',
+      isPublished: lesson.isPublished || false,
+    });
+    setShowEditLessonModal(true);
+  };
+
+  // NEW: Save edited lesson (basic fields – quiz questions later)
+  const handleSaveEditLesson = async () => {
+  if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
+    return showToast({
+      type: 'error',
+      title: 'Missing Fields',
+      message: 'Title and type are required'
+    });
+  }
+
+  try {
+    await api.put(`/courses/lessons/${editingLesson.id}`, editingLesson);  // ← ADDED /courses
+
+    showToast({
+      type: 'success',
+      title: 'Lesson Updated',
+      message: 'Lesson has been updated successfully'
+    });
+
+    setShowEditLessonModal(false);
+    setEditingLesson(null);
+    fetchCourseDetail();
+  } catch (err: any) {
+    showToast({
+      type: 'error',
+      title: 'Update Failed',
+      message: err.response?.data?.error || err.message || 'Failed to update lesson'
+    });
+  }
+};
 
   const handleEnroll = async () => {
     setEnrolling(true);
@@ -91,20 +193,36 @@ export default function CourseDetail() {
     }
   };
 
-  const fetchCourseDetail = async () => {
-    try {
-      const response = await api.get(`/courses/${id}`);
+const fetchCourseDetail = async () => {
+  try {
+    // Force no-cache + timestamp
+    const response = await api.get(`/courses/${id}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
 
-      setCourse(response.data.course);
-      
-      // Trust the server response for enrollment status
-      setIsEnrolled(!!response.data.enrollment);
-    } catch (error) {
-      console.error('Failed to fetch course:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const courseData = response.data.course;
+    console.log('Full course data fetched:', JSON.stringify(courseData, null, 2)); // ← detailed log
+
+    // Log lessons per module to confirm drafts are there
+    courseData.modules?.forEach((mod: any, i: number) => {
+      console.log(`Module ${i + 1} (${mod.title}): ${mod.lessons.length} lessons`);
+      mod.lessons.forEach((les: any) => {
+        console.log(`  - ${les.title} | Published: ${les.isPublished} | ID: ${les.id}`);
+      });
+    });
+
+    setCourse(courseData);
+    setIsEnrolled(!!response.data.enrollment);
+  } catch (error) {
+    console.error('Failed to fetch course:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // FIXED: Now actually navigates when unlocked
   const handleLessonClick = (lesson: any) => {
@@ -288,64 +406,67 @@ export default function CourseDetail() {
       </button>
 
       {/* Course Header */}
-      <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 shadow-2xl mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+      <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-10 shadow-2xl mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           <div className="flex-1">
-            <span className={`inline-block px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wider border mb-5 ${
-              course.level === 'Beginner' ? 'text-cyan-300 border-cyan-500/60 bg-cyan-500/10' :
-              course.level === 'Intermediate' ? 'text-purple-300 border-purple-500/60 bg-purple-500/10' :
-              'text-pink-300 border-pink-500/60 bg-pink-500/10'
-            }`}>
+            <span
+              className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wide border mb-4 ${
+                course.level === 'Beginner'
+                  ? 'text-cyan-300 border-cyan-500/60 bg-cyan-500/10'
+                  : course.level === 'Intermediate'
+                  ? 'text-purple-300 border-purple-500/60 bg-purple-500/10'
+                  : 'text-pink-300 border-pink-500/60 bg-pink-500/10'
+              }`}
+            >
               {course.level}
             </span>
 
-            <h1 className="text-4xl lg:text-6xl font-black text-slate-900 dark:text-white mb-5 leading-tight">
+            <h1 className="text-3xl lg:text-5xl font-black text-white mb-4 leading-tight">
               {course.title}
             </h1>
-            <p className="text-xl text-slate-700 dark:text-gray-300 leading-relaxed mb-7 max-w-4xl">
+            <p className="text-lg text-gray-300 leading-relaxed mb-6 max-w-3xl">
               {course.description}
             </p>
 
-            <div className="flex flex-wrap items-center gap-8 text-slate-600 dark:text-gray-400">
-              <span className="flex items-center gap-3">
-                <Clock className="w-6 h-6 text-cyan-400" />
-                <span className="text-slate-900 dark:text-white font-medium">
+            <div className="flex flex-wrap items-center gap-6 text-gray-400">
+              <span className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-cyan-400" />
+                <span className="font-medium text-white">
                   {Math.floor((course.duration || 0) / 60)} hours
                 </span>
               </span>
-              <span className="flex items-center gap-3">
-                <Users className="w-6 h-6 text-purple-400" />
-                <span className="text-slate-900 dark:text-white font-medium">
-                  {course._count?.enrollments || 0} learners
+              <span className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-purple-400" />
+                <span className="font-medium text-white">
+                  {course._count?.Enrollment || 0} learners
                 </span>
               </span>
-              <span className="flex items-center gap-3">
-                <BookOpen className="w-6 h-6 text-indigo-400" />
-                <span className="text-slate-900 dark:text-white font-medium">
-                  {course._count?.lessons || 0} lessons
+              <span className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-indigo-400" />
+                <span className="font-medium text-white">
+                  {course._count?.Lesson || 0} lessons
                 </span>
               </span>
             </div>
           </div>
 
-          {/* MODIFIED: Enroll button now visible to ADMIN too */}
           {canEnroll && (
             <div className="flex-shrink-0">
               {isEnrolled ? (
-                <div className="bg-gradient-to-r from-cyan-500 to-purple-600 px-10 py-6 rounded-2xl font-bold text-white text-xl flex items-center gap-4 shadow-2xl shadow-cyan-500/50">
-                  <CheckCircle className="w-8 h-8" />
+                <div className="bg-gradient-to-r from-cyan-600 to-purple-600 px-8 py-4 rounded-xl font-bold text-white text-lg flex items-center gap-3 shadow-lg shadow-cyan-500/30">
+                  <CheckCircle className="w-6 h-6" />
                   Enrolled
                 </div>
               ) : (
                 <button
                   onClick={handleEnroll}
                   disabled={enrolling}
-                  className="group relative overflow-hidden bg-gradient-to-r from-cyan-500 to-purple-600 px-12 py-6 rounded-2xl font-bold text-white text-xl shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-70"
+                  className="group relative overflow-hidden bg-gradient-to-r from-cyan-500 to-purple-600 px-10 py-4 rounded-xl font-bold text-white text-lg shadow-lg hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-60"
                 >
                   <span className="relative z-10">
-                    {enrolling ? 'Enrolling...' : (isAdmin ? 'Enroll for Testing' : 'Enroll Now')}
+                    {enrolling ? 'Enrolling...' : (isAdmin ? 'Test Enroll' : 'Enroll Now')}
                   </span>
-                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-full transition-transform duration-700"></div>
+                  <div className="absolute inset-0 bg-white/15 translate-x-[-100%] group-hover:translate-x-full transition-transform duration-500"></div>
                 </button>
               )}
             </div>
@@ -354,82 +475,115 @@ export default function CourseDetail() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-        {/* UPDATED: Student-facing Course Content - now grouped by modules */}
+        {/* Course Content – Accordion Modules */}
         <div className="lg:col-span-2">
-          <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-            <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
+          <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
+            <h2 className="text-2xl lg:text-3xl font-bold mb-6 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
               Course Content
             </h2>
 
             {course.modules?.length > 0 ? (
-              <div className="space-y-8">
+              <div className="space-y-4">
                 {course.modules.map((module: any) => (
-                  <div key={module.id} className="space-y-4">
-                    <h3 className="text-2xl font-bold text-cyan-300">
-                      {module.order}. {module.title}
-                    </h3>
-                    {module.description && <p className="text-gray-400">{module.description}</p>}
-
-                    <div className="space-y-4">
-                      {module.lessons.map((lesson: any, idx: number) => {
-                        const isUnlocked = lesson.isUnlocked ?? false;
-                        const isCompleted = lesson.completed ?? false;
-
-                        return (
-                          <div
-                            key={lesson.id}
-                            onClick={() => handleLessonClick(lesson)}
-                            className={`group p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                              isEnrolled && isUnlocked
-                                ? 'bg-white/5 border-white/10 hover:bg-cyan-500/10 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/20'
-                                : 'bg-gray-800/30 border-gray-700/50 opacity-60 cursor-not-allowed'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-5">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 ${
-                                  isUnlocked ? 'bg-cyan-500/20' : 'bg-gray-700/40'
-                                }`}>
-                                  {isCompleted ? (
-                                    <CheckCircle className="w-7 h-7 text-green-400" />
-                                  ) : isUnlocked ? (
-                                    <Play className="w-7 h-7 text-cyan-400" />
-                                  ) : (
-                                    <Lock className="w-7 h-7 text-gray-400" />
-                                  )}
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-bold ${
-                                    isUnlocked ? 'text-slate-900 dark:text-white' : 'text-gray-500 dark:text-gray-600'
-                                  }`}>
-                                    {idx + 1}. {lesson.title}
-                                  </h3>
-                                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-gray-400 mt-2">
-                                    <span className="capitalize font-medium">{lesson.type.toLowerCase()}</span>
-                                    <span>•</span>
-                                    <span>{lesson.duration || '?'} min</span>
-                                    {lesson.score !== null && (
-                                      <span className={lesson.score >= 85 ? 'text-green-500' : 'text-red-500'}>
-                                        Score: {lesson.score}%
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                  <Disclosure key={module.id} as="div" className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                      {({ open }: { open: boolean }) => (           // ← add this type annotation
+                        <>
+                        <Disclosure.Button className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-white/5 transition">
+                          <div>
+                            <h3 className="text-xl font-bold text-cyan-300">
+                              {module.order}. {module.title}
+                            </h3>
+                            {module.description && (
+                              <p className="mt-1 text-sm text-gray-400">{module.description}</p>
+                            )}
+                            <p className="mt-1 text-xs text-gray-500">
+                              {module.lessons.length} lessons
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                          <ChevronDown
+                            className={`h-6 w-6 text-cyan-400 transition-transform duration-200 ${
+                              open ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </Disclosure.Button>
+
+                        {/* @ts-expect-error Headless UI v2 + React 18 children inference */}
+                        <Transition
+                          enter="transition duration-100 ease-out"
+                          enterFrom="transform scale-95 opacity-0"
+                          enterTo="transform scale-100 opacity-100"
+                          leave="transition duration-75 ease-out"
+                          leaveFrom="transform scale-100 opacity-100"
+                          leaveTo="transform scale-95 opacity-0"
+                        >
+                          <Disclosure.Panel className="px-6 pb-5 pt-2 bg-black/20">
+                            <div className="space-y-3">
+                              {module.lessons.map((lesson: any) => {
+                                const isUnlocked = lesson.isUnlocked ?? false;
+                                const isCompleted = lesson.completed ?? false;
+
+                                return (
+                                  <div
+                                    key={lesson.id}
+                                    onClick={() => handleLessonClick(lesson)}
+                                    className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
+                                      isEnrolled && isUnlocked
+                                        ? 'bg-white/5 border-cyan-500/30 hover:bg-cyan-500/10 hover:border-cyan-500/50'
+                                        : 'bg-gray-900/40 border-gray-700 opacity-60 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    <div
+                                      className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                                        isUnlocked ? 'bg-cyan-500/20' : 'bg-gray-700/40'
+                                      }`}
+                                    >
+                                      {isCompleted ? (
+                                        <CheckCircle className="w-6 h-6 text-green-400" />
+                                      ) : isUnlocked ? (
+                                        <Play className="w-6 h-6 text-cyan-400" />
+                                      ) : (
+                                        <Lock className="w-6 h-6 text-gray-500" />
+                                      )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <h4
+                                        className={`font-semibold truncate ${
+                                          isUnlocked ? 'text-white' : 'text-gray-500'
+                                        }`}
+                                      >
+                                        {lesson.title}
+                                      </h4>
+                                      <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                                        <span className="capitalize">{lesson.type.toLowerCase()}</span>
+                                        <span>•</span>
+                                        <span>{lesson.duration || '?'} min</span>
+                                        {lesson.score != null && (
+                                          <span
+                                            className={
+                                              lesson.score >= 85 ? 'text-green-400' : 'text-red-400'
+                                            }
+                                          >
+                                            Score: {lesson.score}%
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </Disclosure.Panel>
+                        </Transition>
+                      </>
+                    )}
+                  </Disclosure>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-slate-600 dark:text-gray-500 py-16 text-lg">
-                No modules or lessons available yet.
-              </p>
+              <p className="text-center text-gray-500 py-12">No modules available yet.</p>
             )}
           </div>
         </div>
@@ -500,88 +654,114 @@ export default function CourseDetail() {
 
       {/* Admin: Manage Course Content - Only visible to ADMIN */}
       {isAdmin && (
-        <div className="mt-12 backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-          <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent">
+        <div className="mt-12 backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
+          <h2 className="text-2xl lg:text-3xl font-bold mb-6 bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent">
             Admin: Manage Course Content
           </h2>
 
           {course.modules?.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-xl text-gray-400 mb-6">No modules yet.</p>
+              <p className="text-lg text-gray-400 mb-6">No modules yet.</p>
               <button
                 onClick={() => setShowCreateModuleModal(true)}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl hover:scale-105 transition"
+                className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-xl hover:scale-105 transition text-base font-medium"
               >
                 Create First Module
               </button>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-4">
               {course.modules.map((module: any) => (
-                <div key={module.id} className="border border-gray-700/50 rounded-2xl p-6 bg-black/20">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-2xl font-bold text-cyan-300">
-                        {module.order}. {module.title}
-                      </h3>
-                      {module.description && (
-                        <p className="text-gray-400 mt-1">{module.description}</p>
-                      )}
-                      <p className="text-sm text-gray-500 mt-1">
-                        {module.lessons.length} lessons
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setModuleToDelete(module.id);
-                        setShowDeleteModuleConfirm(true);
-                      }}
-                      className="p-2 bg-red-600/30 hover:bg-red-600/60 text-red-300 rounded-lg"
-                    >
-                      Delete Module
-                    </button>
-                  </div>
-
-                  {/* Lessons in this module */}
-                  <div className="space-y-4 mt-6">
-                    {module.lessons.map((lesson: any, idx: number) => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-center justify-between p-4 bg-black/30 rounded-xl"
-                      >
+                <Disclosure key={module.id} as="div" className="rounded-2xl border border-gray-700/50 bg-black/30 overflow-hidden">
+                  {({ open }) => (
+                    <>
+                      <Disclosure.Button className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-black/40 transition">
                         <div>
-                          <p className="font-medium">{idx + 1}. {lesson.title}</p>
-                          <p className="text-sm text-gray-400 capitalize">{lesson.type.toLowerCase()}</p>
+                          <h3 className="text-xl font-bold text-cyan-300">
+                            {module.order}. {module.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {module.lessons.length} lessons
+                          </p>
                         </div>
-                        <button
-                          onClick={() => {
-                            setLessonToDelete(lesson.id);
-                            setShowDeleteLessonConfirm(true);
-                          }}
-                          className="p-2 bg-red-600/30 hover:bg-red-600/60 text-red-300 rounded-lg"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))}
+                        <ChevronDown
+                          className={`h-6 w-6 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                        />
+                      </Disclosure.Button>
 
-                    <button
-                      onClick={() => {
-                        setSelectedModuleId(module.id);
-                        setShowCreateLessonModal(true);
-                      }}
-                      className="mt-4 w-full py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-xl hover:scale-105 transition"
-                    >
-                      + Add Lesson to this Module
-                    </button>
-                  </div>
-                </div>
+                      {/* @ts-expect-error Headless UI v2 + React 18 children inference */}
+                      <Transition
+                        enter="transition duration-100 ease-out"
+                        enterFrom="transform scale-95 opacity-0"
+                        enterTo="transform scale-100 opacity-100"
+                        leave="transition duration-75 ease-out"
+                        leaveFrom="transform scale-100 opacity-100"
+                        leaveTo="transform scale-95 opacity-0"
+                      >
+                        <Disclosure.Panel className="px-6 pb-6 pt-2">
+                          {/* Lessons list + buttons – same as before but more compact */}
+                          <div className="space-y-3">
+                            {module.lessons.map((lesson: any, idx: number) => (
+                              <div
+                                key={lesson.id}
+                                className={`flex items-center justify-between p-4 rounded-xl ${
+                                  lesson.isPublished
+                                    ? 'bg-black/40 border border-gray-700/50'
+                                    : 'bg-yellow-950/30 border border-yellow-600/40'
+                                }`}
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {idx + 1}. {lesson.title}
+                                    {!lesson.isPublished && (
+                                      <span className="ml-2 text-xs text-yellow-400">(Draft)</span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-gray-500 capitalize mt-0.5">
+                                    {lesson.type.toLowerCase()}
+                                  </p>
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleOpenEditLesson(lesson)}
+                                    className="px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded-lg text-sm transition"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setLessonToDelete(lesson.id);
+                                      setShowDeleteLessonConfirm(true);
+                                    }}
+                                    className="px-4 py-2 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-sm transition"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <button
+                              onClick={() => {
+                                setSelectedModuleId(module.id);
+                                setShowCreateLessonModal(true);
+                              }}
+                              className="mt-4 px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-lg hover:scale-105 transition text-sm font-medium"
+                            >
+                              + Add Lesson
+                            </button>
+                          </div>
+                        </Disclosure.Panel>
+                      </Transition>
+                    </>
+                  )}
+                </Disclosure>
               ))}
 
-              {/* Add new module button */}
               <button
                 onClick={() => setShowCreateModuleModal(true)}
-                className="w-full py-4 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:scale-105 transition mt-6"
+                className="w-full max-w-xs mx-auto block py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:scale-105 transition mt-6 text-base font-medium"
               >
                 + Create New Module
               </button>
@@ -589,329 +769,487 @@ export default function CourseDetail() {
           )}
         </div>
       )}
-      {/* Create Module Modal */}
-{showCreateModuleModal && (
-  <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-lg border border-cyan-500/30">
-      <h3 className="text-2xl font-bold text-cyan-300 mb-6">Create New Module</h3>
-      <input
-        type="text"
-        placeholder="Module Title *"
-        value={newModule.title}
-        onChange={(e) => setNewModule({ ...newModule, title: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
-      />
-      <textarea
-        placeholder="Description (optional)"
-        value={newModule.description}
-        onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
-        className="w-full p-3 mb-6 bg-gray-800 border border-gray-700 rounded-xl text-white h-24"
-      />
-      <div className="flex gap-4">
-        <button
-          onClick={handleCreateModule}
-          className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-xl"
-        >
-          Create Module
-        </button>
-        <button
-          onClick={() => setShowCreateModuleModal(false)}
-          className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
-{/* Create Lesson Modal */}
-{showCreateLessonModal && (
-  <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-2xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
-      <h3 className="text-2xl font-bold text-cyan-300 mb-6">
-        Add Lesson to Module
-      </h3>
-
-      {/* Title */}
-      <input
-        type="text"
-        placeholder="Lesson Title *"
-        value={newLesson.title}
-        onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      />
-
-      {/* Description */}
-      <textarea
-        placeholder="Short description (optional)"
-        value={newLesson.description}
-        onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      />
-
-      {/* Lesson Type */}
-      <select
-        value={newLesson.type}
-        onChange={(e) => {
-          const newType = e.target.value as typeof newLesson.type;
-          setNewLesson({
-            ...newLesson,
-            type: newType,
-            // Reset irrelevant fields when changing type
-            content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
-            videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
-            audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
-          });
-          if (newType !== 'QUIZ') {
-            setQuizQuestions([]);
-          }
-        }}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      >
-        <option value="TEXT">Text / Reading</option>
-        <option value="VIDEO">Video</option>
-        <option value="AUDIO">Audio</option>
-        <option value="QUIZ">Quiz</option>
-        <option value="INTERACTIVE">Interactive</option>
-        <option value="ASSIGNMENT">Assignment</option>
-      </select>
-
-      {/* Duration */}
-      <input
-        type="number"
-        min="0"
-        placeholder="Duration in minutes (optional)"
-        value={newLesson.duration}
-        onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
-        className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      />
-
-      {/* Conditional content fields */}
-      {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
-        <textarea
-          placeholder={
-            newLesson.type === 'TEXT'
-              ? "Main content (markdown supported)"
-              : "Quiz instructions / introduction (optional, markdown supported)"
-          }
-          value={newLesson.content}
-          onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
-          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-        />
-      )}
-
-      {newLesson.type === 'VIDEO' && (
-        <input
-          type="url"
-          placeholder="Video URL (YouTube, Vimeo, etc.)"
-          value={newLesson.videoUrl}
-          onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
-          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-        />
-      )}
-
-      {newLesson.type === 'AUDIO' && (
-        <input
-          type="url"
-          placeholder="Audio URL (mp3, streaming link, etc.)"
-          value={newLesson.audioUrl}
-          onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
-          className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-        />
-      )}
-
-      {/* ────────────────────────────────────────────────
-          QUIZ SECTION – only shown when type = QUIZ
-      ──────────────────────────────────────────────── */}
-      {newLesson.type === 'QUIZ' && (
-        <div className="mt-8 space-y-6 border-t border-gray-700 pt-6">
-          <h4 className="text-xl font-bold text-purple-300">Quiz Questions</h4>
-
-          {quizQuestions.length === 0 && (
-            <p className="text-gray-400 italic">No questions added yet. Add at least one.</p>
-          )}
-
-          {quizQuestions.map((q, qIdx) => (
-            <div
-              key={qIdx}
-              className="p-5 bg-black/40 rounded-xl border border-purple-500/30 relative"
-            >
+      {/* NEW: Edit Module Modal */}
+      {showEditModuleModal && editingModule && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-lg border border-cyan-500/30">
+            <h3 className="text-2xl font-bold text-cyan-300 mb-6">Edit Module</h3>
+            <input
+              type="text"
+              placeholder="Module Title *"
+              value={editingModule.title}
+              onChange={(e) => setEditingModule({ ...editingModule, title: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+            />
+            <textarea
+              placeholder="Description (optional)"
+              value={editingModule.description}
+              onChange={(e) => setEditingModule({ ...editingModule, description: e.target.value })}
+              className="w-full p-3 mb-6 bg-gray-800 border border-gray-700 rounded-xl text-white h-24"
+            />
+            {/* Optional: order field if you want to reorder */}
+            <input
+              type="number"
+              placeholder="Order (optional)"
+              value={editingModule.order || ''}
+              onChange={(e) => setEditingModule({ ...editingModule, order: Number(e.target.value) || undefined })}
+              className="w-full p-3 mb-6 bg-gray-800 border border-gray-700 rounded-xl text-white"
+            />
+            <div className="flex gap-4">
               <button
-                onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
-                className="absolute top-3 right-3 text-red-400 hover:text-red-300 text-sm"
+                onClick={handleSaveEditModule}
+                className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-xl"
               >
-                Remove
+                Save Changes
               </button>
-
-              <div className="mb-4">
-                <label className="block text-purple-200 mb-1">Question {qIdx + 1}</label>
-                <input
-                  type="text"
-                  value={q.text}
-                  onChange={(e) => {
-                    const updated = [...quizQuestions];
-                    updated[qIdx].text = e.target.value;
-                    setQuizQuestions(updated);
-                  }}
-                  className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white"
-                  placeholder="Enter question text here..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
-                  <div key={optIdx} className="flex items-center gap-3">
-                    <span className="text-gray-400 w-6 font-medium">{letter}.</span>
-                    <input
-                      type="text"
-                      value={q.options[optIdx] || ''}
-                      onChange={(e) => {
-                        const updated = [...quizQuestions];
-                        updated[qIdx].options[optIdx] = e.target.value;
-                        setQuizQuestions(updated);
-                      }}
-                      className="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                      placeholder={`Option ${letter}`}
-                    />
-                    <input
-                      type="radio"
-                      name={`correct-${qIdx}`}
-                      checked={q.correctIndex === optIdx}
-                      onChange={() => {
-                        const updated = [...quizQuestions];
-                        updated[qIdx].correctIndex = optIdx;
-                        setQuizQuestions(updated);
-                      }}
-                      className="w-5 h-5 text-purple-500 focus:ring-purple-500"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <textarea
-                placeholder="Explanation / feedback (optional)"
-                value={q.explanation || ''}
-                onChange={(e) => {
-                  const updated = [...quizQuestions];
-                  updated[qIdx].explanation = e.target.value;
-                  setQuizQuestions(updated);
+              <button
+                onClick={() => {
+                  setShowEditModuleModal(false);
+                  setEditingModule(null);
                 }}
-                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white h-20"
-              />
+                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
+              >
+                Cancel
+              </button>
             </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={() => {
-              setQuizQuestions([
-                ...quizQuestions,
-                {
-                  text: '',
-                  options: ['', '', '', ''],
-                  correctIndex: 0,
-                  explanation: '',
-                },
-              ]);
-            }}
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:brightness-110 transition"
-          >
-            + Add New Question
-          </button>
+          </div>
         </div>
       )}
 
-      {/* Publish toggle */}
-      <label className="flex items-center gap-3 mt-6 mb-8 text-gray-300 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={newLesson.isPublished}
-          onChange={(e) => setNewLesson({ ...newLesson, isPublished: e.target.checked })}
-          className="w-5 h-5 accent-cyan-500"
-        />
-        <span>Publish immediately (students can see it right away)</span>
-      </label>
+      {/* NEW: Edit Lesson Modal (basic – quiz later) */}
+      {showEditLessonModal && editingLesson && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-2xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold text-cyan-300 mb-6">
+              Edit Lesson
+            </h3>
 
-      {/* Buttons */}
-      <div className="flex gap-4">
-        <button
-          onClick={handleCreateLesson}
-          disabled={
-            !newLesson.title.trim() ||
-            (newLesson.type === 'QUIZ' && quizQuestions.length === 0) ||
-            (newLesson.type === 'VIDEO' && !newLesson.videoUrl.trim()) ||
-            (newLesson.type === 'AUDIO' && !newLesson.audioUrl.trim())
-          }
-          className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white rounded-xl font-medium hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Create Lesson
-        </button>
+            <input
+              type="text"
+              placeholder="Lesson Title *"
+              value={editingLesson.title}
+              onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-        <button
-          onClick={() => {
-            setShowCreateLessonModal(false);
-            setSelectedModuleId(null);
-            setQuizQuestions([]);
-          }}
-          className="flex-1 py-3.5 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-{/* Delete Confirmation Modals */}
-{showDeleteModuleConfirm && (
-  <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div className="bg-gray-900 p-8 rounded-2xl max-w-md border border-red-500/30">
-      <h3 className="text-2xl font-bold text-red-400 mb-4">Delete Module?</h3>
-      <p className="text-gray-300 mb-6">
-        This will delete the module and all its lessons. This action cannot be undone.
-      </p>
-      <div className="flex gap-4">
-        <button
-          onClick={handleDeleteModule}
-          className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl"
-        >
-          Yes, Delete
-        </button>
-        <button
-          onClick={() => setShowDeleteModuleConfirm(false)}
-          className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <textarea
+              placeholder="Short description (optional)"
+              value={editingLesson.description}
+              onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-{showDeleteLessonConfirm && (
-  <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div className="bg-gray-900 p-8 rounded-2xl max-w-md border border-red-500/30">
-      <h3 className="text-2xl font-bold text-red-400 mb-4">Delete Lesson?</h3>
-      <p className="text-gray-300 mb-6">
-        This action cannot be undone.
-      </p>
-      <div className="flex gap-4">
-        <button
-          onClick={handleDeleteLesson}
-          className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl"
-        >
-          Yes, Delete
-        </button>
-        <button
-          onClick={() => setShowDeleteLessonConfirm(false)}
-          className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <select
+              value={editingLesson.type}
+              onChange={(e) => setEditingLesson({ ...editingLesson, type: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="TEXT">Text / Reading</option>
+              <option value="VIDEO">Video</option>
+              <option value="AUDIO">Audio</option>
+              <option value="QUIZ">Quiz</option>
+              <option value="INTERACTIVE">Interactive</option>
+              <option value="ASSIGNMENT">Assignment</option>
+            </select>
+
+            <input
+              type="number"
+              min="0"
+              placeholder="Duration in minutes (optional)"
+              value={editingLesson.duration}
+              onChange={(e) => setEditingLesson({ ...editingLesson, duration: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+
+            {(editingLesson.type === 'TEXT' || editingLesson.type === 'QUIZ') && (
+              <textarea
+                placeholder={
+                  editingLesson.type === 'TEXT'
+                    ? "Main content (markdown supported)"
+                    : "Quiz instructions / introduction (optional, markdown supported)"
+                }
+                value={editingLesson.content}
+                onChange={(e) => setEditingLesson({ ...editingLesson, content: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+
+            {editingLesson.type === 'VIDEO' && (
+              <input
+                type="url"
+                placeholder="Video URL"
+                value={editingLesson.videoUrl}
+                onChange={(e) => setEditingLesson({ ...editingLesson, videoUrl: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+
+            {editingLesson.type === 'AUDIO' && (
+              <input
+                type="url"
+                placeholder="Audio URL"
+                value={editingLesson.audioUrl}
+                onChange={(e) => setEditingLesson({ ...editingLesson, audioUrl: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+
+            <label className="flex items-center gap-3 mt-6 mb-8 text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editingLesson.isPublished}
+                onChange={(e) => setEditingLesson({ ...editingLesson, isPublished: e.target.checked })}
+                className="w-5 h-5 accent-cyan-500"
+              />
+              <span>Published (visible to students)</span>
+            </label>
+
+            <div className="flex gap-4">
+              <button
+                onClick={handleSaveEditLesson}
+                className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white rounded-xl font-medium hover:brightness-110 transition"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => {
+                  setShowEditLessonModal(false);
+                  setEditingLesson(null);
+                }}
+                className="flex-1 py-3.5 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Module Modal */}
+      {showCreateModuleModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-lg border border-cyan-500/30">
+            <h3 className="text-2xl font-bold text-cyan-300 mb-6">Create New Module</h3>
+            <input
+              type="text"
+              placeholder="Module Title *"
+              value={newModule.title}
+              onChange={(e) => setNewModule({ ...newModule, title: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+            />
+            <textarea
+              placeholder="Description (optional)"
+              value={newModule.description}
+              onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
+              className="w-full p-3 mb-6 bg-gray-800 border border-gray-700 rounded-xl text-white h-24"
+            />
+            <div className="flex gap-4">
+              <button
+                onClick={handleCreateModule}
+                className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-xl"
+              >
+                Create Module
+              </button>
+              <button
+                onClick={() => setShowCreateModuleModal(false)}
+                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Lesson Modal */}
+      {showCreateLessonModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-2xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold text-cyan-300 mb-6">
+              Add Lesson to Module
+            </h3>
+
+            {/* Title */}
+            <input
+              type="text"
+              placeholder="Lesson Title *"
+              value={newLesson.title}
+              onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+
+            {/* Description */}
+            <textarea
+              placeholder="Short description (optional)"
+              value={newLesson.description}
+              onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+
+            {/* Lesson Type */}
+            <select
+              value={newLesson.type}
+              onChange={(e) => {
+                const newType = e.target.value as typeof newLesson.type;
+                setNewLesson({
+                  ...newLesson,
+                  type: newType,
+                  // Reset irrelevant fields when changing type
+                  content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
+                  videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
+                  audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
+                });
+                if (newType !== 'QUIZ') {
+                  setQuizQuestions([]);
+                }
+              }}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="TEXT">Text / Reading</option>
+              <option value="VIDEO">Video</option>
+              <option value="AUDIO">Audio</option>
+              <option value="QUIZ">Quiz</option>
+              <option value="INTERACTIVE">Interactive</option>
+              <option value="ASSIGNMENT">Assignment</option>
+            </select>
+
+            {/* Duration */}
+            <input
+              type="number"
+              min="0"
+              placeholder="Duration in minutes (optional)"
+              value={newLesson.duration}
+              onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+
+            {/* Conditional content fields */}
+            {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
+              <textarea
+                placeholder={
+                  newLesson.type === 'TEXT'
+                    ? "Main content (markdown supported)"
+                    : "Quiz instructions / introduction (optional, markdown supported)"
+                }
+                value={newLesson.content}
+                onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+
+            {newLesson.type === 'VIDEO' && (
+              <input
+                type="url"
+                placeholder="Video URL (YouTube, Vimeo, etc.)"
+                value={newLesson.videoUrl}
+                onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+
+            {newLesson.type === 'AUDIO' && (
+              <input
+                type="url"
+                placeholder="Audio URL (mp3, streaming link, etc.)"
+                value={newLesson.audioUrl}
+                onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+
+            {/* ────────────────────────────────────────────────
+                QUIZ SECTION – only shown when type = QUIZ
+            ──────────────────────────────────────────────── */}
+            {newLesson.type === 'QUIZ' && (
+              <div className="mt-8 space-y-6 border-t border-gray-700 pt-6">
+                <h4 className="text-xl font-bold text-purple-300">Quiz Questions</h4>
+
+                {quizQuestions.length === 0 && (
+                  <p className="text-gray-400 italic">No questions added yet. Add at least one.</p>
+                )}
+
+                {quizQuestions.map((q, qIdx) => (
+                  <div
+                    key={qIdx}
+                    className="p-5 bg-black/40 rounded-xl border border-purple-500/30 relative"
+                  >
+                    <button
+                      onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
+                      className="absolute top-3 right-3 text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Remove
+                    </button>
+
+                    <div className="mb-4">
+                      <label className="block text-purple-200 mb-1">Question {qIdx + 1}</label>
+                      <input
+                        type="text"
+                        value={q.text}
+                        onChange={(e) => {
+                          const updated = [...quizQuestions];
+                          updated[qIdx].text = e.target.value;
+                          setQuizQuestions(updated);
+                        }}
+                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white"
+                        placeholder="Enter question text here..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                      {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
+                        <div key={optIdx} className="flex items-center gap-3">
+                          <span className="text-gray-400 w-6 font-medium">{letter}.</span>
+                          <input
+                            type="text"
+                            value={q.options[optIdx] || ''}
+                            onChange={(e) => {
+                              const updated = [...quizQuestions];
+                              updated[qIdx].options[optIdx] = e.target.value;
+                              setQuizQuestions(updated);
+                            }}
+                            className="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                            placeholder={`Option ${letter}`}
+                          />
+                          <input
+                            type="radio"
+                            name={`correct-${qIdx}`}
+                            checked={q.correctIndex === optIdx}
+                            onChange={() => {
+                              const updated = [...quizQuestions];
+                              updated[qIdx].correctIndex = optIdx;
+                              setQuizQuestions(updated);
+                            }}
+                            className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <textarea
+                      placeholder="Explanation / feedback (optional)"
+                      value={q.explanation || ''}
+                      onChange={(e) => {
+                        const updated = [...quizQuestions];
+                        updated[qIdx].explanation = e.target.value;
+                        setQuizQuestions(updated);
+                      }}
+                      className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white h-20"
+                    />
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuizQuestions([
+                      ...quizQuestions,
+                      {
+                        text: '',
+                        options: ['', '', '', ''],
+                        correctIndex: 0,
+                        explanation: '',
+                      },
+                    ]);
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:brightness-110 transition"
+                >
+                  + Add New Question
+                </button>
+              </div>
+            )}
+
+            {/* Publish toggle */}
+            <label className="flex items-center gap-3 mt-6 mb-8 text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newLesson.isPublished}
+                onChange={(e) => setNewLesson({ ...newLesson, isPublished: e.target.checked })}
+                className="w-5 h-5 accent-cyan-500"
+              />
+              <span>Publish immediately (students can see it right away)</span>
+            </label>
+
+            {/* Buttons */}
+            <div className="flex gap-4">
+              <button
+                onClick={handleCreateLesson}
+                disabled={
+                  !newLesson.title.trim() ||
+                  (newLesson.type === 'QUIZ' && quizQuestions.length === 0) ||
+                  (newLesson.type === 'VIDEO' && !newLesson.videoUrl.trim()) ||
+                  (newLesson.type === 'AUDIO' && !newLesson.audioUrl.trim())
+                }
+                className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white rounded-xl font-medium hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Lesson
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowCreateLessonModal(false);
+                  setSelectedModuleId(null);
+                  setQuizQuestions([]);
+                }}
+                className="flex-1 py-3.5 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modals */}
+      {showDeleteModuleConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl max-w-md border border-red-500/30">
+            <h3 className="text-2xl font-bold text-red-400 mb-4">Delete Module?</h3>
+            <p className="text-gray-300 mb-6">
+              This will delete the module and all its lessons. This action cannot be undone.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handleDeleteModule}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl"
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={() => setShowDeleteModuleConfirm(false)}
+                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteLessonConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl max-w-md border border-red-500/30">
+            <h3 className="text-2xl font-bold text-red-400 mb-4">Delete Lesson?</h3>
+            <p className="text-gray-300 mb-6">
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handleDeleteLesson}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl"
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={() => setShowDeleteLessonConfirm(false)}
+                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     
   );
