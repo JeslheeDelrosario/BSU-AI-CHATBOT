@@ -392,3 +392,212 @@ select::-webkit-scrollbar-thumb:hover {
   animation-name: slide-in-from-right;
 }
 
+
+/* =====================================================
+   QUILL EDITOR – GLOBAL STYLES (STRONG DARK MODE FIX)
+   ===================================================== */
+
+/* Container */
+.ql-container {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: none;
+}
+
+/* Scrollable wrapper */
+.ql-editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;                  /* comfortable empty size – no forced scrollbar */
+  height: auto;                       /* let content determine height */
+  max-height: 680px;                  /* scrollbar appears only if content > 680px */
+  overflow-y: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--background));
+  /* position: relative; */
+}
+
+/* Toolbar */
+.ql-toolbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  flex-shrink: 0;                     /* don't let toolbar shrink */
+  background: hsl(var(--card)) !important;
+  border: none !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  border-radius: 0.75rem 0.75rem 0 0;
+  padding: 12px 16px !important;
+  min-height: 56px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.dark .ql-toolbar {
+  background: #8b919b !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* Editor core */
+.ql-editor {
+  flex: 1 1 auto;                     /* ← grow to fill remaining height */
+  min-height: 200px !important;       /* minimum content height when empty */
+  padding: 28px 32px !important;
+  font-size: 1.1rem;
+  line-height: 1.6 !important;        /* ← tighter spacing – adjust if needed */
+  color: hsl(var(--foreground)) !important;
+  overflow-y: auto;                   /* inner scroll if needed (rare) */
+}
+
+/* Light mode background */
+.ql-editor {
+  background: rgba(224, 251, 255, 0.6) !important;
+}
+
+/* Dark mode – force white text on EVERYTHING inside */
+.dark .ql-editor,
+.dark .ql-editor *,
+.dark .ql-editor p,
+.dark .ql-editor span,
+.dark .ql-editor div,
+.dark .ql-editor li,
+.dark .ql-editor strong,
+.dark .ql-editor em,
+.dark .ql-editor a {
+  color: #ffffff !important;           /* pure white – highest priority */
+  background: transparent !important;   /* prevent any dark bg override */
+}
+
+/* Make sure paragraphs don't have weird bg */
+.dark .ql-editor p {
+  background: transparent !important;
+}
+
+/* Placeholder */
+.ql-editor.ql-blank::before {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* Toolbar icons (unchanged) */
+.ql-stroke { stroke: #1f2937 !important; }
+.dark .ql-stroke { stroke: #e5e7eb !important; }
+
+.ql-fill { fill: #1f2937 !important; }
+.dark .ql-fill { fill: #e5e7eb !important; }
+
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar button:focus .ql-stroke,
+.ql-toolbar button.ql-active .ql-stroke { stroke: #06b6d4 !important; }
+
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar button:focus .ql-fill,
+.ql-toolbar button.ql-active .ql-fill { fill: #06b6d4 !important; }
+
+.ql-toolbar button:hover,
+.ql-toolbar button:focus,
+.ql-toolbar button.ql-active {
+  background: rgba(6, 182, 212, 0.12) !important;
+}
+
+.dark .ql-toolbar button:hover,
+.dark .ql-toolbar button:focus,
+.dark .ql-toolbar button.ql-active {
+  background: rgba(6, 182, 212, 0.25) !important;
+}
+
+/* Code blocks */
+.ql-editor pre,
+.ql-editor code {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+/* Bullets & numbers – pure white in dark mode */
+.ql-editor ul > li::before,
+.ql-editor ol > li::before {
+  color: #1e2937 !important;           /* light mode */
+}
+
+.dark .ql-editor ul > li::before,
+.dark .ql-editor ol > li::before {
+  color: #ffffff !important;           /* bright white in dark mode */
+}
+
+.ql-editor li {
+  color: inherit !important;
+}
+
+/* ────────────────────────────────────────────────
+   FIX DOUBLE SPACING ON ENTER / PARAGRAPH MARGINS
+───────────────────────────────────────────────── */
+
+/* Remove default paragraph margins in Quill */
+.ql-editor p,
+.ql-editor p + p {
+  margin: 0 !important;               /* no extra space between paragraphs */
+  padding: 0 !important;
+}
+
+/* Tighten line spacing overall (adjust 1.5–1.6 if you want even tighter) */
+.ql-editor {
+  line-height: 1.6 !important;        /* ← was 1.8 → feels less "double spaced" */
+}
+
+
+/* ────────────────────────────────────────────────
+   TABLES – basic visibility in both modes
+───────────────────────────────────────────────── */
+
+.ql-editor table {
+  width: auto !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1.25rem auto;
+  table-layout: auto !important;
+}
+
+.ql-editor th,
+.ql-editor td {
+  border: 2px solid #111827 !important;   /* dark gray – light mode */
+  padding: 12px 16px !important;
+  vertical-align: top !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  word-break: break-word !important;
+}
+
+.ql-editor th {
+  background: #f3f4f6 !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+}
+
+/* Dark mode table */
+.dark .ql-editor table {
+  border-color: #94a3b8 !important;       /* slate-400 – light & visible */
+}
+
+.dark .ql-editor th,
+.dark .ql-editor td {
+  border: 2px solid #94a3b8 !important;
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .ql-editor th {
+  background: #334155 !important;
+}
+
+/* Hover feedback */
+.ql-editor td:hover,
+.ql-editor th:hover {
+  background: rgba(6, 182, 212, 0.07) !important;
+}
+
+.dark .ql-editor td:hover,
+.dark .ql-editor th:hover {
+  background: rgba(6, 182, 212, 0.18) !important;
+}

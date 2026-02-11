@@ -15,19 +15,9 @@ export default function LessonViewer() {
   const [completing, setCompleting] = useState(false);
   const [startTime] = useState(Date.now());
   const { showToast } = useToast();
-  // NEW: For non-quiz completion
+  //For non-quiz completion
   const [canComplete, setCanComplete] = useState(false);
   const MIN_TIME_TO_COMPLETE = 0; // 30 seconds – change to 0 for instant complete
-
-  // Quiz states
-  const [quizData, setQuizData] = useState<{
-    instructions: string;
-    questions: Array<{
-      text: string;
-      explanation: string | null;
-      answers: Array<{ text: string; isCorrect: boolean }>;
-    }>;
-  } | null>(null);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -36,28 +26,32 @@ export default function LessonViewer() {
   const [quizScore, setQuizScore] = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
 
-  useEffect(() => {
-    fetchLesson();
-  }, [id]);
-
-  // NEW: Timer for non-quiz lessons – enable complete button after min time
-  useEffect(() => {
-    if (!lesson || lesson.type === 'QUIZ' || progress?.completed) return;
-
-    const timer = setTimeout(() => {
-      setCanComplete(true);
-    }, MIN_TIME_TO_COMPLETE);
-
-    return () => clearTimeout(timer);
-  }, [lesson, progress]);
-
   const fetchLesson = async () => {
     try {
       const response = await api.get(`/lessons/${id}`);
-      const fetchedLesson = response.data.lesson;
+      let fetchedLesson = response.data.lesson;
+
+      // Clean inline dark colors that break dark mode
+      if (fetchedLesson.content) {
+        // Type the callback parameters to satisfy TypeScript
+        const cleanedContent = fetchedLesson.content.replace(
+          /style\s*=\s*["']([^"']*)color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)[^"']*["']/gi,
+          (match: string, p1: string) => `style="${p1}"`  // Keep other styles, remove only the bad color part
+        ).replace(
+          /color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)/gi,
+          ''  // Remove any remaining color properties
+        );
+
+        fetchedLesson = {
+          ...fetchedLesson,
+          content: cleanedContent,
+        };
+      }
+
       setLesson(fetchedLesson);
       setProgress(response.data.progress);
 
+      // Parse quiz data if needed
       if (fetchedLesson.type === 'QUIZ' && fetchedLesson.content) {
         try {
           const parsed = JSON.parse(fetchedLesson.content);
@@ -76,10 +70,78 @@ export default function LessonViewer() {
     }
   };
 
+  // Quiz states
+  const [quizData, setQuizData] = useState<{
+    instructions: string;
+    questions: Array<{
+      text: string;
+      explanation: string | null;
+      answers: Array<{ text: string; isCorrect: boolean }>;
+    }>;
+  } | null>(null);
+
+  const lessonTypeDisplay: Record<string, string> = {
+    TEXT: 'Reading',
+    READ: 'Reading',
+    VIDEO: 'Video',
+    AUDIO: 'Audio',
+    QUIZ: 'Quiz',
+    INTERACTIVE: 'Interactive',
+    ASSIGNMENT: 'Assignment',
+    
+  };
+
+  
+
+  useEffect(() => {
+    fetchLesson();
+  }, [id]);
+
+  // NEW: Timer for non-quiz lessons – enable complete button after min time
+  useEffect(() => {
+    if (!lesson || lesson.type === 'QUIZ' || progress?.completed) return;
+
+    const timer = setTimeout(() => {
+      setCanComplete(true);
+    }, MIN_TIME_TO_COMPLETE);
+
+    return () => clearTimeout(timer);
+  }, [lesson, progress]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins} min ${secs} sec` : `${secs} sec`;
+  };
+
+  const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+
+    // Common YouTube URL patterns
+    const patterns = [
+      // youtu.be short links
+      /(?:youtu\.be\/)([^#&?]{11})/,
+      // youtube.com/watch?v=...
+      /youtube\.com\/watch\?.*v=([^#&?]{11})/,
+      // youtube.com/embed/...
+      /youtube\.com\/embed\/([^#&?]{11})/,
+      // youtube.com/v/...
+      /youtube\.com\/v\/([^#&?]{11})/,
+      // General fallback - capture 11-char ID after v= or / or ?v=
+      /[?&]v=([^#&?]{11})/,
+    ];
+
+    for (const regex of patterns) {
+      const match = url.match(regex);
+      if (match && match[1]) {
+        const videoId = match[1];
+        // Use privacy-enhanced domain + rel=0 to hide related videos
+        // No autoplay, allow fullscreen
+        return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+      }
+    }
+
+    return null; // Not a YouTube link we recognize
   };
 
   // NEW: Mark non-quiz lesson as complete
@@ -189,11 +251,11 @@ export default function LessonViewer() {
 
   const getLessonIcon = (type: string) => {
     switch (type) {
-      case 'VIDEO': return <Video className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />;
-      case 'AUDIO': return <Headphones className="w-6 h-6 text-purple-600 dark:text-purple-400" />;
-      case 'TEXT': return <FileText className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />;
-      case 'QUIZ': return <Brain className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />;
-      default: return <FileText className="w-6 h-6 text-gray-500 dark:text-gray-400" />;
+      case 'VIDEO': return <Video className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
+      case 'AUDIO': return <Headphones className="w-10 h-10 text-purple-600 dark:text-purple-400" />;
+      case 'TEXT': return <FileText className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
+      case 'QUIZ': return <Brain className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
+      default: return <FileText className="w-10 h-10 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -223,9 +285,10 @@ export default function LessonViewer() {
   const showNextButton = isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
   // Determine if we should show the complete button
   const showCompleteButton = !isQuiz && !progress?.completed && canComplete;
+  const youtubeEmbedSrc = getYouTubeEmbedUrl(lesson.videoUrl);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8 bg-gray-50 dark:bg-gray-950 min-h-screen">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8  min-h-screen">
       {/* Header Bar */}
       <div className="flex items-center justify-between">
         <button
@@ -251,8 +314,8 @@ export default function LessonViewer() {
           <div className="flex items-center gap-4 mb-4">
             {getLessonIcon(lesson.type)}
             <div>
-              <span className="text-sm font-medium uppercase tracking-wider opacity-90">
-                {lesson.type.toLowerCase()}
+              <span className="text-lg font-large uppercase tracking-wider opacity-90">
+                {lessonTypeDisplay[lesson.type] || lesson.type.toLowerCase()}
               </span>
               <div className="flex items-center gap-3 text-sm opacity-90 mt-1">
                 <Clock className="w-4 h-4" />
@@ -396,20 +459,65 @@ export default function LessonViewer() {
             </>
           ) : (
             <div className="space-y-6 text-gray-800 dark:text-gray-200">
-              <div className="prose prose-slate dark:prose-invert max-w-none">
-                {lesson.content ? (
-                  <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
-                ) : (
-                  <p className="text-gray-500 dark:text-gray-400">No content available for this lesson.</p>
-                )}
-              </div>
+              { (lesson.content || 
+                (lesson.type !== 'VIDEO' && lesson.type !== 'AUDIO') ||
+                (!lesson.videoUrl && !lesson.audioUrl)
+              ) && (
+                <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
+  {lesson.content ? (
+    <div
+      className="
+        [&_*]:text-gray-800 dark:[&_*]:text-gray-200 [&_*]:!important   /* ← force all descendants */
+        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h1]:mb-6
+        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h2]:mb-5
+        [&_h3]:text-xl  [&_h3]:font-bold [&_h3]:text-gray-900 dark:[&_h3]:text-white [&_h3]:mb-4
+        [&_p]:mb-4
+        [&_ul]:list-disc   [&_ul]:ml-6 [&_ul]:mb-4
+        [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:mb-4
+        [&_li]:mb-2
+        [&_strong]:font-bold
+        [&_a]:text-cyan-600 dark:[&_a]:text-cyan-400 [&_a]:underline
+        [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+        [&_th]:border [&_th]:border-gray-300 dark:[&_th]:border-gray-600
+        [&_th]:p-3 [&_th]:bg-gray-100 dark:[&_th]:bg-gray-800 dark:[&_th]:text-white
+        [&_td]:border [&_td]:border-gray-300 dark:[&_td]:border-gray-600
+        [&_td]:p-3 dark:[&_td]:text-gray-200
+        [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded [&_pre]:overflow-x-auto
+        [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-1.5 [&_code]:rounded
+      "
+      dangerouslySetInnerHTML={{ __html: lesson.content }}
+    />
+  ) : (
+    <p className="text-gray-500 dark:text-gray-400 italic py-4">
+      No additional text content for this lesson.
+    </p>
+  )}
+</div>
+              )}
 
               {lesson.videoUrl && (
-                <video
-                  src={lesson.videoUrl}
-                  controls
-                  className="w-full rounded-xl border border-gray-200 dark:border-cyan-500/30 shadow-md dark:shadow-cyan-900/20"
-                />
+                <>
+                  {youtubeEmbedSrc ? (
+                    // YouTube case → responsive iframe
+                    <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden border border-gray-200 dark:border-cyan-500/30 shadow-md dark:shadow-cyan-900/20">
+                      <iframe
+                        className="absolute inset-0 w-full h-full"
+                        src={youtubeEmbedSrc}
+                        title={lesson.title}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  ) : (
+                    // Direct video file case → native <video>
+                    <video
+                      src={lesson.videoUrl}
+                      controls
+                      className="w-full rounded-xl border border-gray-200 dark:border-cyan-500/30 shadow-md dark:shadow-cyan-900/20"
+                    />
+                  )}
+                </>
               )}
 
               {lesson.audioUrl && (
@@ -419,7 +527,7 @@ export default function LessonViewer() {
                   className="w-full mt-6"
                 />
               )}
-           {/* NEW: Complete button for non-quiz lessons */}
+              {/* NEW: Complete button for non-quiz lessons */}
               {showCompleteButton && (
                 <div className="flex justify-center mt-12">
                   <button

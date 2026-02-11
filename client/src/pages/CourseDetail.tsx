@@ -1,16 +1,150 @@
 // client/src/pages/CourseDetail.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef  } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Disclosure, Transition } from '@headlessui/react';
 import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 
+import Quill from "quill";
+import "quill/dist/quill.snow.css";
+
+import TableUp from "quill-table-up";
+
+// register module
+Quill.register(
+  {
+    "modules/table-up": TableUp,
+  },
+  true
+);
+
 import api from '../lib/api';
 import { 
   BookOpen, Clock, Users, Play, CheckCircle, Lock, ArrowLeft, 
-  Brain, Zap 
+  Brain, Zap, MessageSquare, GraduationCap 
 } from 'lucide-react';
+
+type EditingLesson = {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  duration: string;
+  content: string;
+  videoUrl?: string;
+  audioUrl?: string;
+  isPublished: boolean;
+};
+
+function QuillEditor({
+  value,
+  onChange,
+  quillRef,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+  quillRef: React.MutableRefObject<Quill | null>;
+}) {
+  const editorDivRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+  const isUserEditing = useRef(false);
+  const ignoreNextSync = useRef(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const editorDiv = editorDivRef.current;
+    
+    if (!container || !editorDiv || initialized.current) {
+      return;
+    }
+
+    console.log("[QuillEditor] Initializing Quill");
+    initialized.current = true;
+
+    // Clean up any existing instances
+    const existingToolbars = container.querySelectorAll('.ql-toolbar');
+    existingToolbars.forEach(toolbar => toolbar.remove());
+    editorDiv.innerHTML = '';
+
+    const quill = new Quill(editorDiv, {
+  theme: "snow",
+  modules: {
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["code-block"],
+      ["link"],       
+      [{ align: [] }],
+      ["clean"],
+    ],
+    "table-up":{
+      table: true, 
+    }       
+  }
+});
+
+
+    quillRef.current = quill;
+
+    // Set initial content
+    if (value) {
+      quill.root.innerHTML = value;
+    }
+
+    // Track when user is actively editing
+    let editTimeout: NodeJS.Timeout;
+    
+    const handleTextChange = (_delta: any, _oldDelta: any, source: string) => {
+      if (source === 'user') {
+        isUserEditing.current = true;
+        ignoreNextSync.current = true;
+        
+        clearTimeout(editTimeout);
+        editTimeout = setTimeout(() => {
+          isUserEditing.current = false;
+        }, 500);
+      }
+      
+      onChange(quill.root.innerHTML);
+    };
+
+    quill.on("text-change", handleTextChange);
+
+    // Cleanup
+    return () => {
+      console.log("[QuillEditor] Cleaning up");
+      clearTimeout(editTimeout);
+      quill.off("text-change", handleTextChange);
+      
+      if (container) {
+        const toolbars = container.querySelectorAll('.ql-toolbar');
+        toolbars.forEach(toolbar => toolbar.remove());
+      }
+      
+      quillRef.current = null;
+      initialized.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!quillRef.current || !initialized.current) return;
+
+    const quill = quillRef.current;
+
+    if (value !== quill.root.innerHTML) {
+      quill.root.innerHTML = value || "";
+    }
+  }, [value]);
+
+    return (
+      <div ref={containerRef}>
+        <div ref={editorDivRef} />
+      </div>
+    );
+}
 
 export default function CourseDetail() {
   const { id } = useParams();
@@ -21,23 +155,50 @@ export default function CourseDetail() {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
-
-  // Admin management states
   const [showCreateModuleModal, setShowCreateModuleModal] = useState(false);
   const [showCreateLessonModal, setShowCreateLessonModal] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
-
   const [moduleToDelete, setModuleToDelete] = useState<string | null>(null);
   const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
-
   const [showDeleteModuleConfirm, setShowDeleteModuleConfirm] = useState(false);
   const [showDeleteLessonConfirm, setShowDeleteLessonConfirm] = useState(false);
-
   const [showEditModuleModal, setShowEditModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState<{ id: string; title: string; description: string; order?: number } | null>(null);
-
   const [showEditLessonModal, setShowEditLessonModal] = useState(false);
-  const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [editingLesson, setEditingLesson] = useState<EditingLesson | null>(null);
+  
+  // For Create Lesson modal
+  const createQuillRef = useRef<Quill | null>(null);
+  const [showCreateTablePicker, setShowCreateTablePicker] = useState(false);
+  const [hoveredCreateCell, setHoveredCreateCell] = useState<[number, number] | null>(null);
+
+  // For Edit Lesson modal (if you open edit)
+  const editQuillRef = useRef<Quill | null>(null);
+  const [showEditTablePicker, setShowEditTablePicker] = useState(false);
+  const [hoveredEditCell, setHoveredEditCell] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (!showEditLessonModal || !editingLesson) return;
+
+    const timer = setTimeout(() => {
+      console.log("[Edit Modal] Attempting content reload");
+
+      if (!editQuillRef.current) {
+        console.warn("[Edit Modal] Quill not ready – skipping");
+        return;
+      }
+
+      try {
+        editQuillRef.current.root.innerHTML = editingLesson.content || "";
+        console.log("[Edit Modal] Content reloaded successfully");
+      } catch (err) {
+        console.error("[Edit Modal] Reload failed", err);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [showEditLessonModal, editingLesson]); 
+    
 
   const [quizQuestions, setQuizQuestions] = useState<Array<{
     text: string;
@@ -46,7 +207,18 @@ export default function CourseDetail() {
     explanation: string;
   }>>([]);
 
-  // Form states
+  const lessonTypeDisplay: Record<string, string> = {
+    TEXT: 'Reading',
+    READ: 'Reading',
+    VIDEO: 'Video',
+    AUDIO: 'Audio',
+    QUIZ: 'Quiz',
+    INTERACTIVE: 'Interactive',
+    ASSIGNMENT: 'Assignment',
+    
+  };
+
+  
   const [newModule, setNewModule] = useState({ title: '', description: '' });
   const [newLesson, setNewLesson] = useState({
     title: '',
@@ -59,9 +231,26 @@ export default function CourseDetail() {
     isPublished: false,
   });
 
+  const insertTable = (quill: Quill | null, rows: number, cols: number) => {
+    if (!quill) return;
+
+    const table = quill.getModule("table-up") as any;  // ✅ Cast here
+
+    if (table && typeof table.insertTable === "function") {
+    table.insertTable(rows, cols);
+  }
+
+    showToast({
+      type: "success",
+      title: "Table Added",
+      message: `${rows}×${cols} table inserted`,
+    });
+  };
+
   useEffect(() => {
     fetchCourseDetail();
   }, [id]);
+
 
   const handleOpenEditModule = (module: any) => {
     setEditingModule({
@@ -74,40 +263,39 @@ export default function CourseDetail() {
   };
 
   const handleSaveEditModule = async () => {
-  if (!editingModule || !editingModule.title.trim()) {
-    return showToast({
-      type: 'error',
-      title: 'Missing Title',
-      message: 'Module title is required'
-    });
-  }
+    if (!editingModule || !editingModule.title.trim()) {
+      return showToast({
+        type: 'error',
+        title: 'Missing Title',
+        message: 'Module title is required'
+      });
+    }
 
-  try {
-    await api.put(`/courses/modules/${editingModule.id}`, {  // ← ADDED /courses
-      title: editingModule.title,
-      description: editingModule.description,
-      // order removed per your request
-    });
+    try {
+      await api.put(`/courses/modules/${editingModule.id}`, {  
+        title: editingModule.title,
+        description: editingModule.description,
+        
+      });
 
-    showToast({
-      type: 'success',
-      title: 'Module Updated',
-      message: 'Module has been updated successfully'
-    });
+      showToast({
+        type: 'success',
+        title: 'Module Updated',
+        message: 'Module has been updated successfully'
+      });
 
-    setShowEditModuleModal(false);
-    setEditingModule(null);
-    fetchCourseDetail();
-  } catch (err: any) {
-    showToast({
-      type: 'error',
-      title: 'Update Failed',
-      message: err.response?.data?.error || err.message || 'Failed to update module'
-    });
-  }
-};
+      setShowEditModuleModal(false);
+      setEditingModule(null);
+      fetchCourseDetail();
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.response?.data?.error || err.message || 'Failed to update module'
+      });
+    }
+  };
 
-  // NEW: Handle open edit lesson
   const handleOpenEditLesson = (lesson: any) => {
     setEditingLesson({
       id: lesson.id,
@@ -123,43 +311,41 @@ export default function CourseDetail() {
     setShowEditLessonModal(true);
   };
 
-  // NEW: Save edited lesson (basic fields – quiz questions later)
   const handleSaveEditLesson = async () => {
-  if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
-    return showToast({
-      type: 'error',
-      title: 'Missing Fields',
-      message: 'Title and type are required'
-    });
-  }
+    if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
+      return showToast({
+        type: 'error',
+        title: 'Missing Fields',
+        message: 'Title and type are required'
+      });
+    }
 
-  try {
-    await api.put(`/courses/lessons/${editingLesson.id}`, editingLesson);  // ← ADDED /courses
+    try {
+      await api.put(`/courses/lessons/${editingLesson.id}`, editingLesson);  
 
-    showToast({
-      type: 'success',
-      title: 'Lesson Updated',
-      message: 'Lesson has been updated successfully'
-    });
+      showToast({
+        type: 'success',
+        title: 'Lesson Updated',
+        message: 'Lesson has been updated successfully'
+      });
 
-    setShowEditLessonModal(false);
-    setEditingLesson(null);
-    fetchCourseDetail();
-  } catch (err: any) {
-    showToast({
-      type: 'error',
-      title: 'Update Failed',
-      message: err.response?.data?.error || err.message || 'Failed to update lesson'
-    });
-  }
-};
+      setShowEditLessonModal(false);
+      setEditingLesson(null);
+      fetchCourseDetail();
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.response?.data?.error || err.message || 'Failed to update lesson'
+      });
+    }
+  };
 
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
       await api.post('/courses/enroll', { courseId: id });
 
-      // Optimistic update — show enrolled state immediately
       setIsEnrolled(true);
 
       const message = user?.role === 'ADMIN'
@@ -171,8 +357,8 @@ export default function CourseDetail() {
         title: 'Enrolled Successfully!',
         message,
       });
+
     } catch (error: any) {
-      // Handle "already enrolled" gracefully (treat as success)
       if (error.response?.status === 400 && error.response?.data?.error?.includes('Already enrolled')) {
         setIsEnrolled(true);
         showToast({
@@ -189,42 +375,32 @@ export default function CourseDetail() {
       }
     } finally {
       setEnrolling(false);
-      await fetchCourseDetail(); // Always refresh to sync with server
+      await fetchCourseDetail(); 
     }
   };
 
-const fetchCourseDetail = async () => {
-  try {
-    // Force no-cache + timestamp
-    const response = await api.get(`/courses/${id}`, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
-
-    const courseData = response.data.course;
-    console.log('Full course data fetched:', JSON.stringify(courseData, null, 2)); // ← detailed log
-
-    // Log lessons per module to confirm drafts are there
-    courseData.modules?.forEach((mod: any, i: number) => {
-      console.log(`Module ${i + 1} (${mod.title}): ${mod.lessons.length} lessons`);
-      mod.lessons.forEach((les: any) => {
-        console.log(`  - ${les.title} | Published: ${les.isPublished} | ID: ${les.id}`);
+  const fetchCourseDetail = async () => {
+    try {
+      const response = await api.get(`/courses/${id}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
-    });
 
-    setCourse(courseData);
-    setIsEnrolled(!!response.data.enrollment);
-  } catch (error) {
-    console.error('Failed to fetch course:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+      const courseData = response.data.course;
+      
 
-  // FIXED: Now actually navigates when unlocked
+      setCourse(courseData);
+      setIsEnrolled(!!response.data.enrollment);
+    } catch (error) {
+      console.error('Failed to fetch course:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLessonClick = (lesson: any) => {
     if (!isEnrolled) {
       showToast({ type: 'warning', title: 'Not Enrolled', message: 'Please enroll to access lessons.' });
@@ -240,7 +416,6 @@ const fetchCourseDetail = async () => {
       return;
     }
 
-    // Navigate to lesson viewer
     navigate(`/lessons/${lesson.id}`);
   };
 
@@ -273,65 +448,65 @@ const fetchCourseDetail = async () => {
   };
 
   const handleCreateLesson = async () => {
-  if (!newLesson.title.trim()) {
-    return showToast({
-      type: 'error',
-      title: 'Missing Title',
-      message: 'Lesson title is required'
-    });
-  }
-  if (!selectedModuleId) {
-    return showToast({
-      type: 'error',
-      title: 'No Module Selected',
-      message: 'Please select a module first'
-    });
-  }
-  if (newLesson.type === 'QUIZ' && quizQuestions.length === 0) {
-    return showToast({
-      type: 'error',
-      title: 'No Questions',
-      message: 'Add at least one question for a quiz'
-    });
-  }
+    if (!newLesson.title.trim()) {
+      return showToast({
+        type: 'error',
+        title: 'Missing Title',
+        message: 'Lesson title is required'
+      });
+    }
+    if (!selectedModuleId) {
+      return showToast({
+        type: 'error',
+        title: 'No Module Selected',
+        message: 'Please select a module first'
+      });
+    }
+    if (newLesson.type === 'QUIZ' && quizQuestions.length === 0) {
+      return showToast({
+        type: 'error',
+        title: 'No Questions',
+        message: 'Add at least one question for a quiz'
+      });
+    }
 
-  try {
-    const payload = {
-      ...newLesson,
-      questions: newLesson.type === 'QUIZ' ? quizQuestions.map(q => ({
-        text: q.text,
-        explanation: q.explanation || null,
-        answers: q.options.map((opt, i) => ({
-          text: opt,
-          isCorrect: i === q.correctIndex,
-        })),
-      })) : undefined,
-    };
+    try {
+      const payload = {
+        ...newLesson,
+        questions: newLesson.type === 'QUIZ' ? quizQuestions.map(q => ({
+          text: q.text,
+          explanation: q.explanation || null,
+          answers: q.options.map((opt, i) => ({
+            text: opt,
+            isCorrect: i === q.correctIndex,
+          })),
+        })) : undefined,
+      };
 
-    await api.post(`/courses/${id}/modules/${selectedModuleId}/lessons`, payload);
+      await api.post(`/courses/${id}/modules/${selectedModuleId}/lessons`, payload);
 
-    showToast({
-      type: 'success',
-      title: 'Lesson Created',
-      message: 'New lesson has been added successfully'
-    });
+      showToast({
+        type: 'success',
+        title: 'Lesson Created',
+        message: 'New lesson has been added successfully'
+      });
 
-    setShowCreateLessonModal(false);
-    setNewLesson({
-      title: '', description: '', type: 'TEXT', duration: '', content: '',
-      videoUrl: '', audioUrl: '', isPublished: false,
-    });
-    setQuizQuestions([]);
-    setSelectedModuleId(null);
-    fetchCourseDetail();
-  } catch (err: any) {
-    showToast({
-      type: 'error',
-      title: 'Failed to Create Lesson',
-      message: err.response?.data?.error || 'An error occurred while creating the lesson'
-    });
-  }
-};
+      setShowCreateLessonModal(false);
+      setNewLesson({
+        title: '', description: '', type: 'TEXT', duration: '', content: '',
+        videoUrl: '', audioUrl: '', isPublished: false,
+      });
+      setQuizQuestions([]);
+      setSelectedModuleId(null);
+      fetchCourseDetail();
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Failed to Create Lesson',
+        message: err.response?.data?.error || 'An error occurred while creating the lesson'
+      });
+    }
+  };
 
   const handleDeleteModule = async () => {
     if (!moduleToDelete) return;
@@ -394,62 +569,69 @@ const fetchCourseDetail = async () => {
   const canEnroll = isAdmin || user?.role === 'STUDENT';
 
   return (
-    <div className="py-6 lg:py-10">
+    <div className="py-6 lg:py-10">     
 
       {/* Back Button */}
+      
       <button
         onClick={() => navigate('/courses')}
-        className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors mb-6 group"
+        className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors mb-6 group"
       >
         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
         Back to Courses
       </button>
 
       {/* Course Header */}
-      <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-10 shadow-2xl mb-8">
+      <div className="backdrop-blur-2xl bg-white/5 dark:bg-white/5 border border-gray-200/60 dark:border-white/10 rounded-3xl p-6 lg:p-10 shadow-2xl mb-8">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           <div className="flex-1">
+            {/*Level badge*/}
             <span
               className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wide border mb-4 ${
                 course.level === 'Beginner'
-                  ? 'text-cyan-300 border-cyan-500/60 bg-cyan-500/10'
+                  ? 'text-cyan-700 dark:text-cyan-300 border-cyan-500/60 bg-cyan-100/80 dark:bg-cyan-500/10'
                   : course.level === 'Intermediate'
-                  ? 'text-purple-300 border-purple-500/60 bg-purple-500/10'
-                  : 'text-pink-300 border-pink-500/60 bg-pink-500/10'
+                  ? 'text-purple-700 dark:text-purple-300 border-purple-500/60 bg-purple-100/80 dark:bg-purple-500/10'
+                  : 'text-pink-700 dark:text-pink-300 border-pink-500/60 bg-pink-100/80 dark:bg-pink-500/10'
               }`}
             >
               {course.level}
             </span>
 
-            <h1 className="text-3xl lg:text-5xl font-black text-white mb-4 leading-tight">
+            {/*Title*/}
+            <h1 className="text-3xl lg:text-5xl font-black text-gray-900 dark:text-white mb-4 leading-tight">
               {course.title}
             </h1>
-            <p className="text-lg text-gray-300 leading-relaxed mb-6 max-w-3xl">
+
+            {/*Description*/}
+            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6 max-w-3xl">
               {course.description}
             </p>
 
-            <div className="flex flex-wrap items-center gap-6 text-gray-400">
+            {/* Stats icons*/}
+            <div className="flex flex-wrap items-center gap-6 text-gray-600 dark:text-gray-400">
               <span className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-cyan-400" />
-                <span className="font-medium text-white">
+                <Clock className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                <span className="font-medium text-gray-900 dark:text-white">
                   {Math.floor((course.duration || 0) / 60)} hours
                 </span>
               </span>
               <span className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-400" />
-                <span className="font-medium text-white">
+                <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <span className="font-medium text-gray-900 dark:text-white">
                   {course._count?.Enrollment || 0} learners
                 </span>
               </span>
               <span className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-400" />
-                <span className="font-medium text-white">
+                <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <span className="font-medium text-gray-900 dark:text-white">
                   {course._count?.Lesson || 0} lessons
                 </span>
               </span>
             </div>
           </div>
 
+          {/*Enroll button*/}
           {canEnroll && (
             <div className="flex-shrink-0">
               {isEnrolled ? (
@@ -479,123 +661,188 @@ const fetchCourseDetail = async () => {
 
         {/* Course Content – Accordion Modules */}
         <div className="lg:col-span-2">
-          <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
-            <h2 className="text-2xl lg:text-3xl font-bold mb-6 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
+          <div className="
+            backdrop-blur-xl 
+            bg-white/90 dark:bg-white/5 
+            border border-gray-200/70 dark:border-white/10 
+            rounded-3xl 
+            p-6 lg:p-8 
+            shadow-xl dark:shadow-2xl
+          ">
+            <h2 className="
+              text-2xl lg:text-3xl 
+              font-bold mb-6 
+              bg-gradient-to-r 
+              from-cyan-700 to-purple-700        /* ← darker in light mode */
+              dark:from-cyan-300 dark:to-purple-300   /* ← keep your original in dark */
+              bg-clip-text 
+              text-transparent
+            ">
               Course Content
             </h2>
 
             {course.modules?.length > 0 ? (
               <div className="space-y-4">
-                {course.modules.map((module: any) => (
-                  <Disclosure key={module.id} as="div" className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-                      {({ open }: { open: boolean }) => (           // ← add this type annotation
+                {course.modules.map((module: any) => {
+                  const totalLessons = module.lessons?.length ?? 0;
+                  const completedCount = module.lessons?.filter(
+                    (lesson: any) => lesson.completed ?? false
+                  ).length ?? 0;
+                  const isModuleComplete = totalLessons > 0 && completedCount === totalLessons;
+
+                  return (
+                    <Disclosure key={module.id} as="div" className="
+                      rounded-2xl 
+                      border border-gray-200/60 dark:border-white/10 
+                      bg-white/85 dark:bg-white/5 
+                      overflow-hidden
+                    ">
+                      {({ open }) => (
                         <>
-                        <Disclosure.Button className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-white/5 transition">
-                          <div>
-                            <h3 className="text-xl font-bold text-cyan-300">
-                              {module.order}. {module.title}
-                            </h3>
-                            {module.description && (
-                              <p className="mt-1 text-sm text-gray-400">{module.description}</p>
-                            )}
-                            <p className="mt-1 text-xs text-gray-500">
-                              {module.lessons.length} lessons
-                            </p>
-                          </div>
-                          <ChevronDown
-                            className={`h-6 w-6 text-cyan-400 transition-transform duration-200 ${
-                              open ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </Disclosure.Button>
+                          <Disclosure.Button className="
+                            flex w-full items-center justify-between 
+                            px-6 py-4 text-left 
+                            hover:bg-gray-50 dark:hover:bg-white/5 
+                            transition
+                          ">
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-900 dark:text-cyan-300">
+                                {module.order}. {module.title}
+                              </h3>
+                              {module.description && (
+                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                  {module.description}
+                                </p>
+                              )}
 
-                        {/* @ts-expect-error Headless UI v2 + React 18 children inference */}
-                        <Transition
-                          enter="transition duration-100 ease-out"
-                          enterFrom="transform scale-95 opacity-0"
-                          enterTo="transform scale-100 opacity-100"
-                          leave="transition duration-75 ease-out"
-                          leaveFrom="transform scale-100 opacity-100"
-                          leaveTo="transform scale-95 opacity-0"
-                        >
-                          <Disclosure.Panel className="px-6 pb-5 pt-2 bg-black/20">
-                            <div className="space-y-3">
-                              {module.lessons.map((lesson: any) => {
-                                const isUnlocked = lesson.isUnlocked ?? false;
-                                const isCompleted = lesson.completed ?? false;
+                              <div className="mt-2 flex items-center gap-4 text-base text-gray-600 dark:text-gray-400">
+                                <span>
+                                  {totalLessons} lesson{totalLessons !== 1 ? 's' : ''}
+                                </span>
+                                <span className="text-cyan-600/70 dark:text-cyan-400/70">•</span>
+                                <span className={
+                                  isModuleComplete
+                                    ? "text-green-600 dark:text-green-400 font-semibold"
+                                    : "text-gray-600 dark:text-gray-300"
+                                }>
+                                  {completedCount}/{totalLessons} completed
+                                </span>
+                                {isModuleComplete && (
+                                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                )}
+                              </div>
+                            </div>
 
-                                return (
-                                  <div
-                                    key={lesson.id}
-                                    onClick={() => handleLessonClick(lesson)}
-                                    className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
-                                      isEnrolled && isUnlocked
-                                        ? 'bg-white/5 border-cyan-500/30 hover:bg-cyan-500/10 hover:border-cyan-500/50'
-                                        : 'bg-gray-900/40 border-gray-700 opacity-60 cursor-not-allowed'
-                                    }`}
-                                  >
+                            <ChevronDown
+                              className={`h-6 w-6 text-gray-500 dark:text-cyan-400 transition-transform duration-200 ${
+                                open ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </Disclosure.Button>
+                          {/* @ts-expect-error Headless UI v2 + React 18 children inference */}
+                          <Transition
+                            enter="transition duration-100 ease-out"
+                            enterFrom="transform scale-95 opacity-0"
+                            enterTo="transform scale-100 opacity-100"
+                            leave="transition duration-75 ease-out"
+                            leaveFrom="transform scale-100 opacity-100"
+                            leaveTo="transform scale-95 opacity-0"
+                          >
+                            <Disclosure.Panel className="px-6 pb-6 pt-3 bg-gray-50/60 dark:bg-black/20">
+
+                              <div className="space-y-3">
+                                {module.lessons.map((lesson: any) => {
+                                  const isUnlocked = lesson.isUnlocked ?? false;
+                                  const isCompleted = lesson.completed ?? false;
+
+                                  return (
                                     <div
-                                      className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
-                                        isUnlocked ? 'bg-cyan-500/20' : 'bg-gray-700/40'
+                                      key={lesson.id}
+                                      onClick={() => handleLessonClick(lesson)}
+                                      className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
+                                        isEnrolled && isUnlocked
+                                          ? 'bg-white dark:bg-white/5 border-gray-300/60 dark:border-cyan-500/30 hover:bg-gray-50 dark:hover:bg-cyan-500/10 hover:border-cyan-500/50'
+                                          : 'bg-gray-100/70 dark:bg-gray-900/40 border-gray-300 dark:border-gray-700 opacity-75 cursor-not-allowed'
                                       }`}
                                     >
-                                      {isCompleted ? (
-                                        <CheckCircle className="w-6 h-6 text-green-400" />
-                                      ) : isUnlocked ? (
-                                        <Play className="w-6 h-6 text-cyan-400" />
-                                      ) : (
-                                        <Lock className="w-6 h-6 text-gray-500" />
-                                      )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                      <h4
-                                        className={`font-semibold truncate ${
-                                          isUnlocked ? 'text-white' : 'text-gray-500'
+                                      <div
+                                        className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                                          isUnlocked 
+                                            ? 'bg-cyan-100 dark:bg-cyan-500/20' 
+                                            : 'bg-gray-200 dark:bg-gray-700/40'
                                         }`}
                                       >
-                                        {lesson.title}
-                                      </h4>
-                                      <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                                        <span className="capitalize">{lesson.type.toLowerCase()}</span>
-                                        <span>•</span>
-                                        <span>{lesson.duration || '?'} min</span>
-                                        {lesson.score != null && (
-                                          <span
-                                            className={
-                                              lesson.score >= 85 ? 'text-green-400' : 'text-red-400'
-                                            }
-                                          >
-                                            Score: {lesson.score}%
-                                          </span>
+                                        {isCompleted ? (
+                                          <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                                        ) : isUnlocked ? (
+                                          <Play className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+                                        ) : (
+                                          <Lock className="w-6 h-6 text-gray-600 dark:text-gray-500" />
                                         )}
                                       </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <h4
+                                          className={`font-semibold truncate ${
+                                            isUnlocked ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-500'
+                                          }`}
+                                        >
+                                          {lesson.title}
+                                        </h4>
+                                        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                          <span className="capitalize">
+                                            {lessonTypeDisplay[lesson.type] || lesson.type.toLowerCase()}
+                                          </span>
+                                          <span>•</span>
+                                          <span>{lesson.duration || '?'} min</span>
+                                          {lesson.score != null && (
+                                            <span
+                                              className={
+                                                lesson.score >= 85 
+                                                  ? 'text-green-600 dark:text-green-400' 
+                                                  : 'text-red-600 dark:text-red-400'
+                                              }
+                                            >
+                                              Score: {lesson.score}%
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </Disclosure.Panel>
-                        </Transition>
-                      </>
-                    )}
-                  </Disclosure>
-                ))}
+                                  );
+                                })}
+                              </div>
+                            </Disclosure.Panel>
+                          </Transition>
+                        </>
+                      )}
+                    </Disclosure>
+                  );
+                })}
               </div>
             ) : (
-              <p className="text-center text-gray-500 py-12">No modules available yet.</p>
+              <p className="text-center text-gray-600 dark:text-gray-500 py-12">
+                No modules available yet.
+              </p>
             )}
           </div>
         </div>
 
-        {/* Sidebar */}
+      {/* Sidebar */}
         <div className="space-y-8">
 
           {/* Instructor */}
           {course.teacher && (
-            <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                <Brain className="w-6 h-6 text-purple-400" />
+            <div className="
+              backdrop-blur-xl 
+              bg-white/90 dark:bg-white/5 
+              border border-gray-200/70 dark:border-white/10 
+              rounded-3xl 
+              p-8 
+              shadow-xl dark:shadow-2xl
+            ">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+                <Brain className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 Instructor
               </h3>
               <div className="flex items-center gap-5">
@@ -603,10 +850,12 @@ const fetchCourseDetail = async () => {
                   {course.teacher.firstName[0]}{course.teacher.lastName[0]}
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">
                     {course.teacher.firstName} {course.teacher.lastName}
                   </p>
-                  <p className="text-slate-600 dark:text-gray-400 capitalize">{course.teacher.role}</p>
+                  <p className="text-gray-600 dark:text-gray-400 capitalize">
+                    {course.teacher.role}
+                  </p>
                 </div>
               </div>
             </div>
@@ -614,16 +863,34 @@ const fetchCourseDetail = async () => {
 
           {/* Tags */}
           {course.tags && course.tags.length > 0 && (
-            <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                <Zap className="w-6 h-6 text-pink-400" />
+            <div className="
+              backdrop-blur-xl 
+              bg-white/90 dark:bg-white/5 
+              border border-gray-200/70 dark:border-white/10 
+              rounded-3xl 
+              p-8 
+              shadow-xl dark:shadow-2xl
+            ">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+                <Zap className="w-6 h-6 text-pink-700 dark:text-pink-400" />
                 Topics
               </h3>
+
               <div className="flex flex-wrap gap-3">
                 {course.tags.map((tag: string, i: number) => (
                   <span
                     key={i}
-                    className="px-5 py-3 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 text-cyan-300 rounded-full text-sm font-medium hover:bg-cyan-500/20 transition"
+                    className="
+                      inline-block
+                      px-5 py-3 
+                      dark:bg-gradient-to-r dark:from-cyan-500/10 dark:to-purple-500/10   /* solid white in light, your gradient in dark */
+                      border border-gray-300 dark:border-cyan-500/30 
+                      text-gray-900 dark:text-cyan-300                                 /* almost black in light → very high contrast */
+                      rounded-full text-sm font-medium 
+                      shadow-sm hover:shadow-md                                        /* subtle lift + hover lift */
+                      hover:bg-gray-50 dark:hover:bg-cyan-500/20                       /* light gray hover in light, stronger cyan in dark */
+                      transition-all duration-200
+                    "
                   >
                     {tag}
                   </span>
@@ -633,18 +900,62 @@ const fetchCourseDetail = async () => {
           )}
 
           {/* Learning Outcomes */}
-          <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-6">What You'll Master</h3>
-            <ul className="space-y-5">
+          <div className="
+            backdrop-blur-xl 
+            bg-white/90 dark:bg-white/5 
+            border border-cyan-400/40 dark:border-cyan-500/20 
+            rounded-3xl 
+            p-7 lg:p-8 
+            shadow-xl dark:shadow-cyan-500/10 
+            hover:shadow-2xl dark:hover:shadow-cyan-500/20 
+            transition-shadow duration-300
+          ">
+            <h3 className="
+              text-2xl font-black mb-7 
+              bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600 
+              bg-clip-text text-transparent 
+              flex items-center gap-3
+            ">
+              <Brain className="w-7 h-7 text-purple-600 dark:text-purple-400 animate-pulse-slow" />
+              What You'll Master
+            </h3>
+
+            <ul className="space-y-6">
               {[
-                "Master core concepts with AI-powered explanations",
-                "Practice with interactive challenges and quizzes",
-                "Get real-time help from your personal AI Tutor",
-                "Earn certificates and unlock achievements"
+                {
+                  text: "Grasp complex science concepts through crystal-clear AI explanations",
+                  icon: <Brain className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />,
+                },
+                {
+                  text: "Sharpen skills with interactive quizzes, challenges & instant feedback",
+                  icon: <Zap className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />,
+                },
+                {
+                  text: "Get 24/7 real-time guidance from your personal AI Tutor companion",
+                  icon: <MessageSquare className="w-6 h-6 text-purple-600 dark:text-purple-400" />,
+                },
+                {
+                  text: "Earn blockchain-verified certificates & unlock exclusive achievements",
+                  icon: <GraduationCap className="w-6 h-6 text-green-600 dark:text-green-400" />,
+                },
               ].map((item, i) => (
-                <li key={i} className="flex items-start gap-4 text-slate-700 dark:text-gray-300">
-                  <CheckCircle className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">{item}</span>
+                <li
+                  key={i}
+                  className="
+                    group flex items-start gap-5 p-3 -mx-3 
+                    rounded-2xl transition-all duration-300 
+                    hover:bg-gray-50 dark:hover:bg-white/5 
+                    hover:shadow-md hover:shadow-cyan-500/10 
+                    border border-gray-200/50 dark:border-transparent 
+                    hover:border-cyan-500/30
+                  "
+                >
+                  <div className="flex-shrink-0 mt-1 transform group-hover:scale-110 transition-transform duration-300">
+                    {item.icon}
+                  </div>
+                  <span className="text-base leading-relaxed text-gray-700 dark:text-slate-200 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                    {item.text}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -654,17 +965,43 @@ const fetchCourseDetail = async () => {
 
       {/* Admin: Manage Course Content - Only visible to ADMIN */}
       {isAdmin && (
-        <div className="mt-12 backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
-          <h2 className="text-2xl lg:text-3xl font-bold mb-6 bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent">
+        <div className="
+          mt-12 
+          backdrop-blur-xl 
+          bg-white/90 dark:bg-white/5                           /* light: visible white bg, dark: keep original */
+          border border-gray-300/70 dark:border-white/10        /* light: strong border, dark: original */
+          rounded-3xl 
+          p-6 lg:p-8 
+          shadow-xl dark:shadow-2xl
+        ">
+          <h2 className="
+            text-2xl lg:text-3xl 
+            font-bold mb-6 
+            bg-gradient-to-r from-red-600 to-purple-600           /* darker gradient in light */
+            dark:from-red-400 dark:to-purple-400                  /* keep your original in dark */
+            bg-clip-text text-transparent
+          ">
             Admin: Manage Course Content
           </h2>
 
           {course.modules?.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-lg text-gray-400 mb-6">No modules yet.</p>
+              <p className="text-lg text-gray-700 dark:text-gray-400 mb-6">
+                No modules yet.
+              </p>
               <button
                 onClick={() => setShowCreateModuleModal(true)}
-                className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-xl hover:scale-105 transition text-base font-medium"
+                className="
+                  px-8 py-3 
+                  bg-gradient-to-r from-cyan-700 to-purple-700      /* darker in light */
+                  dark:from-cyan-600 dark:to-purple-600             /* original in dark */
+                  text-white 
+                  rounded-xl 
+                  hover:scale-105 
+                  transition 
+                  text-base font-medium 
+                  shadow-md hover:shadow-lg
+                "
               >
                 Create First Module
               </button>
@@ -672,23 +1009,32 @@ const fetchCourseDetail = async () => {
           ) : (
             <div className="space-y-4">
               {course.modules.map((module: any) => (
-                <Disclosure key={module.id} as="div" className="rounded-2xl border border-gray-700/50 bg-black/30 overflow-hidden">
+                <Disclosure key={module.id} as="div" className="
+                  rounded-2xl 
+                  border border-gray-300/60 dark:border-gray-700/50 
+                  bg-white/85 dark:bg-black/30 
+                  overflow-hidden
+                ">
                   {({ open }) => (
                     <>
-                      <Disclosure.Button className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-black/40 transition">
+                      <Disclosure.Button className="
+                        flex w-full items-center justify-between 
+                        px-6 py-4 text-left 
+                        hover:bg-gray-50 dark:hover:bg-black/40 
+                        transition
+                      ">
                         <div>
-                          <h3 className="text-xl font-bold text-cyan-300">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-cyan-300">
                             {module.order}. {module.title}
                           </h3>
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-gray-600 dark:text-gray-500 mt-1">
                             {module.lessons.length} lessons
                           </p>
                         </div>
                         <ChevronDown
-                          className={`h-6 w-6 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                          className={`h-6 w-6 text-gray-600 dark:text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
                         />
                       </Disclosure.Button>
-
                       {/* @ts-expect-error Headless UI v2 + React 18 children inference */}
                       <Transition
                         enter="transition duration-100 ease-out"
@@ -698,34 +1044,79 @@ const fetchCourseDetail = async () => {
                         leaveFrom="transform scale-100 opacity-100"
                         leaveTo="transform scale-95 opacity-0"
                       >
-                        <Disclosure.Panel className="px-6 pb-6 pt-2">
-                          {/* Lessons list + buttons – same as before but more compact */}
+                        <Disclosure.Panel className="px-6 pb-6 pt-2 bg-gray-50/60 dark:bg-black/20">
+                          <div className="flex gap-3 mb-5 justify-end">
+                            <button
+                              onClick={() => handleOpenEditModule(module)}
+                              className="
+                                px-5 py-2 
+                                bg-blue-100 hover:bg-blue-200 
+                                dark:bg-blue-600/40 dark:hover:bg-blue-600/60 
+                                text-blue-800 dark:text-blue-200 
+                                rounded-lg text-sm font-medium transition 
+                                flex items-center gap-2
+                              "
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit Module
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setModuleToDelete(module.id);
+                                setShowDeleteModuleConfirm(true);
+                              }}
+                              className="
+                                px-5 py-2 
+                                bg-red-100 hover:bg-red-200 
+                                dark:bg-red-600/40 dark:hover:bg-red-600/60 
+                                text-red-800 dark:text-red-200 
+                                rounded-lg text-sm font-medium transition 
+                                flex items-center gap-2
+                              "
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete Module
+                            </button>
+                          </div>
+
+                          {/* Lessons list */}
                           <div className="space-y-3">
                             {module.lessons.map((lesson: any, idx: number) => (
                               <div
                                 key={lesson.id}
-                                className={`flex items-center justify-between p-4 rounded-xl ${
+                                className={`flex items-center justify-between p-4 rounded-xl border ${
                                   lesson.isPublished
-                                    ? 'bg-black/40 border border-gray-700/50'
-                                    : 'bg-yellow-950/30 border border-yellow-600/40'
+                                    ? 'bg-white dark:bg-black/40 border-gray-200 dark:border-gray-700/50'
+                                    : 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300 dark:border-yellow-600/40'
                                 }`}
                               >
                                 <div>
-                                  <p className="font-medium">
+                                  <p className="font-medium text-gray-900 dark:text-white">
                                     {idx + 1}. {lesson.title}
                                     {!lesson.isPublished && (
-                                      <span className="ml-2 text-xs text-yellow-400">(Draft)</span>
+                                      <span className="ml-2 text-xs text-yellow-700 dark:text-yellow-400">(Draft)</span>
                                     )}
                                   </p>
-                                  <p className="text-xs text-gray-500 capitalize mt-0.5">
-                                    {lesson.type.toLowerCase()}
+                                  <p className="text-xs text-gray-600 dark:text-gray-500 capitalize mt-0.5">
+                                    {lessonTypeDisplay[lesson.type] || lesson.type.toLowerCase()}
                                   </p>
                                 </div>
 
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => handleOpenEditLesson(lesson)}
-                                    className="px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded-lg text-sm transition"
+                                    className="
+                                      px-4 py-2 
+                                      bg-blue-100 hover:bg-blue-200 
+                                      dark:bg-blue-600/30 dark:hover:bg-blue-600/50 
+                                      text-blue-800 dark:text-blue-300 
+                                      rounded-lg text-sm transition
+                                    "
                                   >
                                     Edit
                                   </button>
@@ -734,7 +1125,13 @@ const fetchCourseDetail = async () => {
                                       setLessonToDelete(lesson.id);
                                       setShowDeleteLessonConfirm(true);
                                     }}
-                                    className="px-4 py-2 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-sm transition"
+                                    className="
+                                      px-4 py-2 
+                                      bg-red-100 hover:bg-red-200 
+                                      dark:bg-red-600/30 dark:hover:bg-red-600/50 
+                                      text-red-800 dark:text-red-300 
+                                      rounded-lg text-sm transition
+                                    "
                                   >
                                     Delete
                                   </button>
@@ -747,7 +1144,16 @@ const fetchCourseDetail = async () => {
                                 setSelectedModuleId(module.id);
                                 setShowCreateLessonModal(true);
                               }}
-                              className="mt-4 px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-lg hover:scale-105 transition text-sm font-medium"
+                              className="
+                                mt-4 px-6 py-2.5 
+                                bg-gradient-to-r from-cyan-700 to-purple-700 
+                                dark:from-cyan-600 dark:to-purple-600 
+                                text-white 
+                                rounded-lg 
+                                hover:scale-105 
+                                transition 
+                                text-sm font-medium
+                              "
                             >
                               + Add Lesson
                             </button>
@@ -761,7 +1167,15 @@ const fetchCourseDetail = async () => {
 
               <button
                 onClick={() => setShowCreateModuleModal(true)}
-                className="w-full max-w-xs mx-auto block py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:scale-105 transition mt-6 text-base font-medium"
+                className="
+                  w-full max-w-xs mx-auto block py-3 
+                  bg-gradient-to-r from-green-700 to-teal-700 
+                  dark:from-green-600 dark:to-teal-600 
+                  text-white 
+                  rounded-xl 
+                  hover:scale-105 
+                  transition mt-6 text-base font-medium
+                "
               >
                 + Create New Module
               </button>
@@ -772,43 +1186,122 @@ const fetchCourseDetail = async () => {
 
       {/* NEW: Edit Module Modal */}
       {showEditModuleModal && editingModule && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-lg border border-cyan-500/30">
-            <h3 className="text-2xl font-bold text-cyan-300 mb-6">Edit Module</h3>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          {/* Bigger modal: max-w-2xl instead of max-w-lg, added max-h and overflow */}
+          <div className="
+            bg-white/95 dark:bg-gray-900 
+            backdrop-blur-xl 
+            border border-cyan-500/30 dark:border-cyan-500/40 
+            rounded-2xl 
+            w-full max-w-3xl 
+            max-h-[85vh] overflow-y-auto 
+            shadow-2xl shadow-cyan-500/20 dark:shadow-cyan-900/40 
+            p-8 lg:p-10
+          ">
+            {/* Heading – cyberpunk gradient in both modes */}
+            <h3 className="
+              text-2xl lg:text-3xl 
+              font-black mb-8 
+              bg-gradient-to-r 
+              from-cyan-700 to-purple-700 
+              dark:from-cyan-400 dark:to-purple-400 
+              bg-clip-text text-transparent
+            ">
+              Edit Module
+            </h3>
+
+            {/* Title input */}
             <input
               type="text"
               placeholder="Module Title *"
               value={editingModule.title}
               onChange={(e) => setEditingModule({ ...editingModule, title: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white"
+              className="
+                w-full p-4 mb-6 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                transition-all duration-200
+              "
             />
+
+            {/* Description textarea */}
             <textarea
               placeholder="Description (optional)"
               value={editingModule.description}
               onChange={(e) => setEditingModule({ ...editingModule, description: e.target.value })}
-              className="w-full p-3 mb-6 bg-gray-800 border border-gray-700 rounded-xl text-white h-24"
+              className="
+                w-full p-4 mb-6 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                h-32 resize-none 
+                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent 
+                transition-all duration-200
+              "
             />
-            {/* Optional: order field if you want to reorder */}
+
+            {/* Order input */}
             <input
               type="number"
               placeholder="Order (optional)"
               value={editingModule.order || ''}
               onChange={(e) => setEditingModule({ ...editingModule, order: Number(e.target.value) || undefined })}
-              className="w-full p-3 mb-6 bg-gray-800 border border-gray-700 rounded-xl text-white"
+              className="
+                w-full p-4 mb-8 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                transition-all duration-200
+              "
             />
+
+            {/* Buttons – neon cyberpunk style */}
             <div className="flex gap-4">
               <button
                 onClick={handleSaveEditModule}
-                className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-xl"
+                className="
+                  flex-1 py-4 
+                  bg-gradient-to-r from-cyan-600 to-cyan-500 
+                  hover:from-cyan-500 hover:to-cyan-400 
+                  dark:from-cyan-700 dark:to-cyan-600 
+                  dark:hover:from-cyan-600 dark:hover:to-cyan-500 
+                  text-white font-medium 
+                  rounded-xl 
+                  shadow-lg shadow-cyan-500/30 
+                  hover:shadow-cyan-500/50 
+                  transform hover:scale-[1.02] 
+                  transition-all duration-200
+                "
               >
                 Save Changes
               </button>
+
               <button
                 onClick={() => {
                   setShowEditModuleModal(false);
                   setEditingModule(null);
                 }}
-                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl"
+                className="
+                  flex-1 py-4 
+                  bg-gradient-to-r from-gray-700 to-gray-600 
+                  hover:from-gray-600 hover:to-gray-500 
+                  dark:from-gray-600 dark:to-gray-500 
+                  dark:hover:from-gray-500 dark:hover:to-gray-400 
+                  text-white font-medium 
+                  rounded-xl 
+                  shadow-lg 
+                  hover:shadow-xl 
+                  transition-all duration-200
+                "
               >
                 Cancel
               </button>
@@ -819,31 +1312,79 @@ const fetchCourseDetail = async () => {
 
       {/* NEW: Edit Lesson Modal (basic – quiz later) */}
       {showEditLessonModal && editingLesson && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-2xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold text-cyan-300 mb-6">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          {/* Bigger modal: max-w-3xl, taller usable height */}
+          <div className="
+            bg-white/95 dark:bg-gray-900 
+            backdrop-blur-xl 
+            border border-cyan-500/30 dark:border-cyan-500/40 
+            rounded-2xl 
+            w-full max-w-5xl 
+            max-h-[90vh] overflow-y-auto 
+            shadow-2xl shadow-cyan-500/20 dark:shadow-cyan-900/40 
+            p-8 lg:p-10
+          ">
+            {/* Heading – cyberpunk gradient, darker in light mode */}
+            <h3 className="
+              text-2xl lg:text-3xl 
+              font-black mb-8 
+              bg-gradient-to-r 
+              from-cyan-700 to-purple-700 
+              dark:from-cyan-400 dark:to-purple-400 
+              bg-clip-text text-transparent
+            ">
               Edit Lesson
             </h3>
 
+            {/* Title input */}
             <input
               type="text"
               placeholder="Lesson Title *"
               value={editingLesson.title}
               onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="
+                w-full p-4 mb-6 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                shadow-sm transition-all duration-200
+              "
             />
 
+            {/* Short description */}
             <textarea
               placeholder="Short description (optional)"
               value={editingLesson.description}
               onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="
+                w-full p-4 mb-6 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                h-28 resize-none 
+                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent 
+                shadow-sm transition-all duration-200
+              "
             />
 
+            {/* Lesson Type select */}
             <select
               value={editingLesson.type}
               onChange={(e) => setEditingLesson({ ...editingLesson, type: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="
+                w-full p-4 mb-6 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                shadow-sm transition-all duration-200
+              "
             >
               <option value="TEXT">Text / Reading</option>
               <option value="VIDEO">Video</option>
@@ -853,71 +1394,189 @@ const fetchCourseDetail = async () => {
               <option value="ASSIGNMENT">Assignment</option>
             </select>
 
+            {/* Duration input */}
             <input
               type="number"
               min="0"
               placeholder="Duration in minutes (optional)"
               value={editingLesson.duration}
               onChange={(e) => setEditingLesson({ ...editingLesson, duration: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="
+                w-full p-4 mb-6 
+                bg-gray-50 dark:bg-gray-800 
+                border border-gray-300 dark:border-gray-700 
+                rounded-xl 
+                text-gray-900 dark:text-white 
+                placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                shadow-sm transition-all duration-200
+              "
             />
 
+            {/*editor for TEXT or QUIZ */}
             {(editingLesson.type === 'TEXT' || editingLesson.type === 'QUIZ') && (
-              <textarea
-                placeholder={
-                  editingLesson.type === 'TEXT'
-                    ? "Main content (markdown supported)"
-                    : "Quiz instructions / introduction (optional, markdown supported)"
-                }
-                value={editingLesson.content}
-                onChange={(e) => setEditingLesson({ ...editingLesson, content: e.target.value })}
-                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
+            <div className="mb-10">
+              <label className="block text-gray-900 dark:text-gray-200 mb-3 font-medium text-lg">
+                {editingLesson.type === 'TEXT' ? 'Main Content' : 'Quiz Instructions / Introduction'}
+              </label>
+
+              {/* Insert Table button */}
+              <div className="mb-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditTablePicker(true)}
+                  className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all"
+                >
+                  Insert Table
+                </button>
+              </div>
+
+              {/* Force remount + editor */}
+              <div key={`editor-key-${showEditLessonModal ? 'active' : 'inactive'}`}>
+  <div className="ql-editor-wrapper">
+    <QuillEditor
+      value={editingLesson.content}
+      onChange={(html) => setEditingLesson((prev) => prev ? { ...prev, content: html } : prev)}
+      quillRef={editQuillRef}
+    />
+  </div>
+</div>
+
+
+              {/* Grid picker */}
+              {showEditTablePicker && (
+                  <div 
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[1000]"
+                    onClick={() => setShowEditTablePicker(false)}
+                  >
+                    <div 
+                      className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl border border-cyan-500 max-w-xs w-full"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <h4 className="text-lg font-bold mb-4 text-center">Choose Table Size</h4>
+                      <div className="grid grid-cols-8 gap-2">
+                        {Array.from({ length: 8 }).map((_, row) =>
+                          Array.from({ length: 8 }).map((_, col) => {
+                            const active = hoveredEditCell?.[0] === row && hoveredEditCell?.[1] === col;
+                            return (
+                              <div
+                                key={`${row}-${col}`}
+                                onMouseEnter={() => setHoveredEditCell([row, col])}
+                                onClick={() => {
+                                  if (editQuillRef.current) {
+                                    insertTable(editQuillRef.current, row + 1, col + 1);
+                                  }
+                                  setShowEditTablePicker(false);
+                                  setHoveredEditCell(null);
+                                }}
+                                className={`w-9 h-9 border rounded cursor-pointer transition-all duration-150 flex items-center justify-center text-xs font-medium
+                                  ${active 
+                                    ? 'bg-cyan-600 text-white border-cyan-800 scale-110 shadow-md' 
+                                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-cyan-100 dark:hover:bg-cyan-700 border-gray-300 dark:border-gray-600'}
+                                `}
+                              >
+                                {row + 1}×{col + 1}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      <p className="text-center mt-4 text-sm text-gray-600 dark:text-gray-400">
+                        Click to insert – Hover for preview
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
+            {/* Video URL */}
             {editingLesson.type === 'VIDEO' && (
               <input
                 type="url"
                 placeholder="Video URL"
                 value={editingLesson.videoUrl}
                 onChange={(e) => setEditingLesson({ ...editingLesson, videoUrl: e.target.value })}
-                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="
+                  w-full p-4 mb-6 
+                  bg-gray-50 dark:bg-gray-800 
+                  border border-gray-300 dark:border-gray-700 
+                  rounded-xl 
+                  text-gray-900 dark:text-white 
+                  placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                  focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                  shadow-sm transition-all duration-200
+                "
               />
             )}
 
+            {/* Audio URL */}
             {editingLesson.type === 'AUDIO' && (
               <input
                 type="url"
                 placeholder="Audio URL"
                 value={editingLesson.audioUrl}
                 onChange={(e) => setEditingLesson({ ...editingLesson, audioUrl: e.target.value })}
-                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="
+                  w-full p-4 mb-6 
+                  bg-gray-50 dark:bg-gray-800 
+                  border border-gray-300 dark:border-gray-700 
+                  rounded-xl 
+                  text-gray-900 dark:text-white 
+                  placeholder:text-gray-500 dark:placeholder:text-gray-500 
+                  focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent 
+                  shadow-sm transition-all duration-200
+                "
               />
             )}
 
-            <label className="flex items-center gap-3 mt-6 mb-8 text-gray-300 cursor-pointer">
+            {/* Published checkbox */}
+            <label className="flex items-center gap-3 mt-6 mb-8 cursor-pointer text-gray-800 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={editingLesson.isPublished}
                 onChange={(e) => setEditingLesson({ ...editingLesson, isPublished: e.target.checked })}
-                className="w-5 h-5 accent-cyan-500"
+                className="w-5 h-5 accent-cyan-600 dark:accent-cyan-500"
               />
-              <span>Published (visible to students)</span>
+              <span className="font-medium">Published (visible to students)</span>
             </label>
 
+            {/* Buttons – neon cyberpunk style */}
             <div className="flex gap-4">
               <button
                 onClick={handleSaveEditLesson}
-                className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white rounded-xl font-medium hover:brightness-110 transition"
+                className="
+                  flex-1 py-4 
+                  bg-gradient-to-r from-cyan-600 to-purple-600 
+                  hover:from-cyan-500 hover:to-purple-500 
+                  dark:from-cyan-700 dark:to-purple-700 
+                  dark:hover:from-cyan-600 dark:hover:to-purple-600 
+                  text-white font-medium 
+                  rounded-xl 
+                  shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 
+                  transform hover:scale-[1.02] 
+                  transition-all duration-200
+                "
               >
                 Save Changes
               </button>
+
               <button
                 onClick={() => {
                   setShowEditLessonModal(false);
                   setEditingLesson(null);
                 }}
-                className="flex-1 py-3.5 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+                className="
+                  flex-1 py-4 
+                  bg-gradient-to-r from-gray-600 to-gray-500 
+                  hover:from-gray-500 hover:to-gray-400 
+                  dark:from-gray-700 dark:to-gray-600 
+                  dark:hover:from-gray-600 dark:hover:to-gray-500 
+                  text-white font-medium 
+                  rounded-xl 
+                  shadow-lg hover:shadow-xl 
+                  transition-all duration-200
+                "
               >
                 Cancel
               </button>
@@ -964,99 +1623,168 @@ const fetchCourseDetail = async () => {
 
       {/* Create Lesson Modal */}
       {showCreateLessonModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-2xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold text-cyan-300 mb-6">
-              Add Lesson to Module
-            </h3>
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+              <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-4xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-cyan-300 mb-6">
+                  Add Lesson to Module
+                </h3>
 
-            {/* Title */}
-            <input
-              type="text"
-              placeholder="Lesson Title *"
-              value={newLesson.title}
-              onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
+                <input
+                  type="text"
+                  placeholder="Lesson Title *"
+                  value={newLesson.title}
+                  onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
 
-            {/* Description */}
-            <textarea
-              placeholder="Short description (optional)"
-              value={newLesson.description}
-              onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
+                <textarea
+                  placeholder="Short description (optional)"
+                  value={newLesson.description}
+                  onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
+                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
 
-            {/* Lesson Type */}
-            <select
-              value={newLesson.type}
-              onChange={(e) => {
-                const newType = e.target.value as typeof newLesson.type;
-                setNewLesson({
-                  ...newLesson,
-                  type: newType,
-                  // Reset irrelevant fields when changing type
-                  content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
-                  videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
-                  audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
-                });
-                if (newType !== 'QUIZ') {
-                  setQuizQuestions([]);
-                }
-              }}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value="TEXT">Text / Reading</option>
-              <option value="VIDEO">Video</option>
-              <option value="AUDIO">Audio</option>
-              <option value="QUIZ">Quiz</option>
-              <option value="INTERACTIVE">Interactive</option>
-              <option value="ASSIGNMENT">Assignment</option>
-            </select>
+                <select
+                  value={newLesson.type}
+                  onChange={(e) => {
+                    const newType = e.target.value as typeof newLesson.type;
+                    setNewLesson({
+                      ...newLesson,
+                      type: newType,
+                      content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
+                      videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
+                      audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
+                    });
+                    if (newType !== 'QUIZ') setQuizQuestions([]);
+                  }}
+                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value="TEXT">Text / Reading</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="AUDIO">Audio</option>
+                  <option value="QUIZ">Quiz</option>
+                  <option value="INTERACTIVE">Interactive</option>
+                  <option value="ASSIGNMENT">Assignment</option>
+                </select>
 
-            {/* Duration */}
-            <input
-              type="number"
-              min="0"
-              placeholder="Duration in minutes (optional)"
-              value={newLesson.duration}
-              onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
-              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Duration in minutes (optional)"
+                  value={newLesson.duration}
+                  onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
+                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
 
-            {/* Conditional content fields */}
-            {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
-              <textarea
-                placeholder={
-                  newLesson.type === 'TEXT'
-                    ? "Main content (markdown supported)"
-                    : "Quiz instructions / introduction (optional, markdown supported)"
-                }
-                value={newLesson.content}
-                onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
-                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-32 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            )}
+                {/* UPDATED: Rich editor instead of textarea */}
+                {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
+                  <div className="mb-8 relative">
+                    <label className="block text-gray-900 dark:text-gray-200 mb-3 font-medium text-lg">
+                      {newLesson.type === 'TEXT' ? 'Main Content' : 'Quiz Instructions / Introduction'}
+                    </label>
 
-            {newLesson.type === 'VIDEO' && (
-              <input
-                type="url"
-                placeholder="Video URL (YouTube, Vimeo, etc.)"
-                value={newLesson.videoUrl}
-                onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
-                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            )}
+                    {/* NEW: Insert Table button – placed above editor for easy access */}
+                    <div className="mb-3 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {setShowCreateTablePicker(true)}}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition flex items-center gap-2"
+                      >
+                        <span>Insert Table</span>
+                        <span className="text-sm opacity-80">(grid picker)</span>
+                      </button>
 
-            {newLesson.type === 'AUDIO' && (
-              <input
-                type="url"
-                placeholder="Audio URL (mp3, streaming link, etc.)"
-                value={newLesson.audioUrl}
-                onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
-                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            )}
+                      {/* Optional tooltip/help text */}
+                      <span className="text-sm text-gray-400">
+                        Click to choose size, or paste HTML table directly
+                      </span>
+                    </div>
+
+                    {/* Scrollable wrapper – makes toolbar sticky inside modal */}
+                    <div className="ql-editor-wrapper">
+                      <QuillEditor
+                      value={newLesson.content}
+                        onChange={(html) =>setNewLesson((p) => ({ ...p, content: html }))
+                      }
+                      quillRef={createQuillRef}
+                      />
+                    </div>
+                    {/* NEW: Grid Picker Popover */}
+                    {showCreateTablePicker && (
+                      <div 
+                        className="fixed inset-0 flex items-center justify-center bg-black/30 z-[9999]" // ← overlay to make it modal-like & catch outside clicks
+                        onClick={() => setShowCreateTablePicker(false)} // close on outside click
+                      >
+                        <div 
+                          className="relative bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl border border-cyan-500/50 max-w-md w-full"
+                          onClick={(e) => e.stopPropagation()} // prevent closing when clicking inside picker
+                        >
+                          <h4 className="text-lg font-semibold mb-4 text-center text-gray-800 dark:text-gray-200">
+                            Choose Table Size
+                          </h4>
+
+                          <div className="grid grid-cols-10 gap-1.5 mb-4">
+                            {Array.from({ length: 10 }).map((_, row) =>
+                              Array.from({ length: 10 }).map((_, col) => {
+                                const active = hoveredCreateCell && row <= hoveredCreateCell[0] && col <= hoveredCreateCell[1];
+
+                                return (
+                                  <div
+                                    key={`${row}-${col}`}
+                                    onMouseEnter={() => setHoveredCreateCell([row, col])}
+                                    onClick={() => {
+                                      insertTable(createQuillRef.current, row + 1, col + 1);
+                                      setShowCreateTablePicker(false);
+                                      setHoveredCreateCell(null);
+                                    }}
+                                    className={`w-7 h-7 border rounded-sm cursor-pointer transition-all duration-150
+                                      ${active 
+                                        ? 'bg-cyan-500 border-cyan-700 shadow-md scale-110' 
+                                        : 'border-gray-300 dark:border-gray-600 hover:bg-cyan-100 dark:hover:bg-cyan-900/30'}
+                                    `}
+                                  />
+                                );
+                              })
+                            )}
+                          </div>
+
+                          <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                            {hoveredCreateCell
+                              ? `${hoveredCreateCell[0] + 1} rows × ${hoveredCreateCell[1] + 1} columns`
+                              : 'Hover to preview — Click to insert'}
+                          </div>
+
+                          <button
+                            onClick={() => setShowCreateTablePicker(false)}
+                            className="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl font-bold"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {newLesson.type === 'VIDEO' && (
+                  <input
+                    type="url"
+                    placeholder="Video URL (YouTube, Vimeo, etc.)"
+                    value={newLesson.videoUrl}
+                    onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
+                    className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                )}
+
+                {newLesson.type === 'AUDIO' && (
+                  <input
+                    type="url"
+                    placeholder="Audio URL (mp3, streaming link, etc.)"
+                    value={newLesson.audioUrl}
+                    onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
+                    className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                )}
 
             {/* ────────────────────────────────────────────────
                 QUIZ SECTION – only shown when type = QUIZ
