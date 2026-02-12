@@ -91,8 +91,6 @@ export default function LessonViewer() {
     
   };
 
-  
-
   useEffect(() => {
     fetchLesson();
   }, [id]);
@@ -231,7 +229,7 @@ export default function LessonViewer() {
 
         setTimeout(() => {
           navigate(`/courses/${lesson.courseId}`);
-        }, 1800);
+        }, 30000);
       } catch (err) {
         console.error('Failed to save progress:', err);
       }
@@ -283,7 +281,7 @@ export default function LessonViewer() {
   const allAnswered = Object.keys(selectedAnswers).length === (quizData?.questions.length || 0);
   const isCompleted = progress?.completed;
   const showNextButton = isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
-  // Determine if we should show the complete button
+  
   const showCompleteButton = !isQuiz && !progress?.completed && canComplete;
   const youtubeEmbedSrc = getYouTubeEmbedUrl(lesson.videoUrl);
 
@@ -466,25 +464,25 @@ export default function LessonViewer() {
                 <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
   {lesson.content ? (
     <div
-      className="
-        [&_*]:text-gray-800 dark:[&_*]:text-gray-200 [&_*]:!important   /* ← force all descendants */
-        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h1]:mb-6
-        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h2]:mb-5
-        [&_h3]:text-xl  [&_h3]:font-bold [&_h3]:text-gray-900 dark:[&_h3]:text-white [&_h3]:mb-4
+      className={`
+        ql-editor                           // ← This is the MOST IMPORTANT line
+                                            // It activates Quill's built-in CSS for bullets
+        prose prose-slate dark:prose-invert // keep your prose if you want
+        max-w-none
+        text-gray-800 dark:text-gray-200
+        leading-relaxed
+        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-6
+        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-5
+        [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-4
         [&_p]:mb-4
-        [&_ul]:list-disc   [&_ul]:ml-6 [&_ul]:mb-4
-        [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:mb-4
+        [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
+        [&_ol]:ml-6 [&_ol]:mb-4
         [&_li]:mb-2
         [&_strong]:font-bold
         [&_a]:text-cyan-600 dark:[&_a]:text-cyan-400 [&_a]:underline
-        [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
-        [&_th]:border [&_th]:border-gray-300 dark:[&_th]:border-gray-600
-        [&_th]:p-3 [&_th]:bg-gray-100 dark:[&_th]:bg-gray-800 dark:[&_th]:text-white
-        [&_td]:border [&_td]:border-gray-300 dark:[&_td]:border-gray-600
-        [&_td]:p-3 dark:[&_td]:text-gray-200
-        [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded [&_pre]:overflow-x-auto
-        [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-1.5 [&_code]:rounded
-      "
+        [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded
+        [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-2 [&_code]:rounded
+      `}
       dangerouslySetInnerHTML={{ __html: lesson.content }}
     />
   ) : (
@@ -577,7 +575,7 @@ export default function LessonViewer() {
       {showQuizResult && (
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-cyan-500/30 rounded-2xl p-8 md:p-12 shadow-xl dark:shadow-cyan-900/20 text-center">
           <h2 className="text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-            {quizScore >= 85 ? "NEURAL LINK ESTABLISHED!" : "REBOOT REQUIRED"}
+            {quizScore >= 85 ? "ANG GALING MO KUPAL!" : "REBOOT REQUIRED"}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-10">

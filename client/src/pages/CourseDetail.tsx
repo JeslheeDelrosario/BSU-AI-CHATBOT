@@ -1,5 +1,5 @@
 // client/src/pages/CourseDetail.tsx
-import { useState, useEffect, useRef  } from 'react';
+import { useState, useEffect, useRef, useCallback  } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Disclosure, Transition } from '@headlessui/react';
 import { ChevronDown } from 'lucide-react';
@@ -9,15 +9,20 @@ import { useToast } from '../components/Toast';
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 
-import TableUp from "quill-table-up";
+// import TableUp from "quill-table-up";
+import BetterTable from 'quill-better-table';
 
 // register module
-Quill.register(
-  {
-    "modules/table-up": TableUp,
-  },
-  true
-);
+// Quill.register(
+//   {
+//     "modules/table-up": TableUp,
+//   },
+//   true
+// );
+
+Quill.register({
+  'modules/better-table': BetterTable,
+}, true);
 
 import api from '../lib/api';
 import { 
@@ -49,101 +54,66 @@ function QuillEditor({
   const editorDivRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
-  const isUserEditing = useRef(false);
-  const ignoreNextSync = useRef(false);
 
   useEffect(() => {
     const container = containerRef.current;
     const editorDiv = editorDivRef.current;
-    
-    if (!container || !editorDiv || initialized.current) {
-      return;
-    }
+
+    if (!container || !editorDiv || initialized.current) return;
 
     console.log("[QuillEditor] Initializing Quill");
+
+    console.log("[QuillEditor] Mounted with initial value:", value.substring(0, 50)); // first 50 chars
     initialized.current = true;
 
-    // Clean up any existing instances
-    const existingToolbars = container.querySelectorAll('.ql-toolbar');
-    existingToolbars.forEach(toolbar => toolbar.remove());
+
+    // Clean old toolbars
+    container.querySelectorAll('.ql-toolbar').forEach(el => el.remove());
     editorDiv.innerHTML = '';
 
     const quill = new Quill(editorDiv, {
-  theme: "snow",
-  modules: {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      ["bold", "italic", "underline"],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["code-block"],
-      ["link"],       
-      [{ align: [] }],
-      ["clean"],
-    ],
-    "table-up":{
-      table: true, 
-    }       
-  }
-});
-
+      theme: "snow",
+      modules: {
+        toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          ["bold", "italic", "underline"],
+          [{ list: "ordered" }, { list: "bullet" }],
+          ["code-block"],
+          ["link"],
+          [{ align: [] }],
+          ["clean"],
+        ],
+        'better-table': true,
+      }
+    });
 
     quillRef.current = quill;
 
-    // Set initial content
+    // Set content ONLY ONCE on mount (no loop)
     if (value) {
-      quill.root.innerHTML = value;
+      quill.clipboard.dangerouslyPasteHTML(0, value, 'silent');
     }
 
-    // Track when user is actively editing
-    let editTimeout: NodeJS.Timeout;
-    
-    const handleTextChange = (_delta: any, _oldDelta: any, source: string) => {
-      if (source === 'user') {
-        isUserEditing.current = true;
-        ignoreNextSync.current = true;
-        
-        clearTimeout(editTimeout);
-        editTimeout = setTimeout(() => {
-          isUserEditing.current = false;
-        }, 500);
-      }
-      
+    // Send changes back to parent – this is one-way
+    const handleTextChange = () => {
       onChange(quill.root.innerHTML);
     };
-
     quill.on("text-change", handleTextChange);
 
-    // Cleanup
     return () => {
       console.log("[QuillEditor] Cleaning up");
-      clearTimeout(editTimeout);
       quill.off("text-change", handleTextChange);
-      
-      if (container) {
-        const toolbars = container.querySelectorAll('.ql-toolbar');
-        toolbars.forEach(toolbar => toolbar.remove());
-      }
-      
+      container.querySelectorAll('.ql-toolbar').forEach(el => el.remove());
       quillRef.current = null;
       initialized.current = false;
     };
-  }, []);
+  }, []); // Empty deps → run only on mount
 
-  useEffect(() => {
-    if (!quillRef.current || !initialized.current) return;
-
-    const quill = quillRef.current;
-
-    if (value !== quill.root.innerHTML) {
-      quill.root.innerHTML = value || "";
-    }
-  }, [value]);
-
-    return (
-      <div ref={containerRef}>
-        <div ref={editorDivRef} />
-      </div>
-    );
+  return (
+    <div ref={containerRef}>
+      <div ref={editorDivRef} />
+    </div>
+  );
 }
 
 export default function CourseDetail() {
@@ -174,31 +144,48 @@ export default function CourseDetail() {
 
   // For Edit Lesson modal (if you open edit)
   const editQuillRef = useRef<Quill | null>(null);
+  const handleEditContentChange = useCallback((html: string) => {
+  setEditingLesson((prev) => prev ? { ...prev, content: html } : prev);
+}, []);
   const [showEditTablePicker, setShowEditTablePicker] = useState(false);
   const [hoveredEditCell, setHoveredEditCell] = useState<[number, number] | null>(null);
+  
+  // useEffect(() => {
+  //   if (!showEditLessonModal || !editingLesson) {
+  //     editReloadRef.current = false; // reset when modal closes
+  //     return;
+  //   }
 
-  useEffect(() => {
-    if (!showEditLessonModal || !editingLesson) return;
+  //   // Early return: if already reloaded or scheduled, skip everything
+  //   if (editReloadRef.current) return;
 
-    const timer = setTimeout(() => {
-      console.log("[Edit Modal] Attempting content reload");
+  //   // Mark as "in progress" immediately (prevents duplicate timeouts)
+  //   editReloadRef.current = true;
 
-      if (!editQuillRef.current) {
-        console.warn("[Edit Modal] Quill not ready – skipping");
-        return;
-      }
+  //   const timer = setTimeout(() => {
+  //     console.log("[Edit Modal] Attempting content reload (guarded single run)");
 
-      try {
-        editQuillRef.current.root.innerHTML = editingLesson.content || "";
-        console.log("[Edit Modal] Content reloaded successfully");
-      } catch (err) {
-        console.error("[Edit Modal] Reload failed", err);
-      }
-    }, 300);
+  //     if (!editQuillRef.current) {
+  //       console.warn("[Edit Modal] Quill not ready – skipping");
+  //       editReloadRef.current = false; // allow retry if failed
+  //       return;
+  //     }
 
-    return () => clearTimeout(timer);
-  }, [showEditLessonModal, editingLesson]); 
-    
+  //     try {
+  //       editQuillRef.current.clipboard.dangerouslyPasteHTML(0, editingLesson.content || '', 'silent');
+  //       console.log("[Edit Modal] Content reloaded successfully");
+  //     } catch (err) {
+  //       console.error("[Edit Modal] Reload failed", err);
+  //       editReloadRef.current = false; // allow retry on error
+  //     }
+  //   }, 300);
+
+  //   // Cleanup: clear timeout + reset flag if modal closes early
+  //   return () => {
+  //     clearTimeout(timer);
+  //     editReloadRef.current = false;
+  //   };
+  // }, [showEditLessonModal, editingLesson]);
 
   const [quizQuestions, setQuizQuestions] = useState<Array<{
     text: string;
@@ -218,7 +205,6 @@ export default function CourseDetail() {
     
   };
 
-  
   const [newModule, setNewModule] = useState({ title: '', description: '' });
   const [newLesson, setNewLesson] = useState({
     title: '',
@@ -231,21 +217,50 @@ export default function CourseDetail() {
     isPublished: false,
   });
 
-  const insertTable = (quill: Quill | null, rows: number, cols: number) => {
-    if (!quill) return;
+// Corrected insertTable – expects the REF (MutableRefObject), not the Quill instance
+const insertTable = (
+  quillRef: React.MutableRefObject<Quill | null>,
+  rows: number,
+  cols: number
+) => {
+  const quill = quillRef.current;
 
-    const table = quill.getModule("table-up") as any;  // ✅ Cast here
-
-    if (table && typeof table.insertTable === "function") {
-    table.insertTable(rows, cols);
+  if (!quill) {
+    showToast({
+      type: 'error',
+      title: 'Editor not ready',
+      message: 'Please wait a moment and try again',
+    });
+    return;
   }
 
+  try {
+    // Get the module – correct name is 'better-table'
+    const tableModule = quill.getModule('better-table') as any;
+
+    if (tableModule && typeof tableModule.insertTable === 'function') {
+      tableModule.insertTable(rows, cols);
+      showToast({
+        type: 'success',
+        title: 'Table Added',
+        message: `${rows} × ${cols} table inserted`,
+      });
+    } else {
+      showToast({
+        type: 'error',
+        title: 'Table module not found',
+        message: 'Make sure quill-better-table is registered correctly',
+      });
+    }
+  } catch (err) {
+    console.error('Failed to insert table:', err);
     showToast({
-      type: "success",
-      title: "Table Added",
-      message: `${rows}×${cols} table inserted`,
+      type: 'error',
+      title: 'Failed to insert table',
+      message: 'Check console for details',
     });
-  };
+  }
+};
 
   useEffect(() => {
     fetchCourseDetail();
@@ -1432,15 +1447,13 @@ export default function CourseDetail() {
               </div>
 
               {/* Force remount + editor */}
-              <div key={`editor-key-${showEditLessonModal ? 'active' : 'inactive'}`}>
-  <div className="ql-editor-wrapper">
-    <QuillEditor
-      value={editingLesson.content}
-      onChange={(html) => setEditingLesson((prev) => prev ? { ...prev, content: html } : prev)}
-      quillRef={editQuillRef}
-    />
-  </div>
-</div>
+              <div className="ql-editor-wrapper">
+            <QuillEditor
+              value={editingLesson.content || ''}  // direct string – stable
+              onChange={handleEditContentChange}   // ← stable callback (add below)
+              quillRef={editQuillRef}
+            />
+          </div>
 
 
               {/* Grid picker */}
@@ -1464,7 +1477,7 @@ export default function CourseDetail() {
                                 onMouseEnter={() => setHoveredEditCell([row, col])}
                                 onClick={() => {
                                   if (editQuillRef.current) {
-                                    insertTable(editQuillRef.current, row + 1, col + 1);
+                                    insertTable(editQuillRef, row + 1, col + 1);
                                   }
                                   setShowEditTablePicker(false);
                                   setHoveredEditCell(null);
@@ -1733,7 +1746,7 @@ export default function CourseDetail() {
                                     key={`${row}-${col}`}
                                     onMouseEnter={() => setHoveredCreateCell([row, col])}
                                     onClick={() => {
-                                      insertTable(createQuillRef.current, row + 1, col + 1);
+                                      insertTable(createQuillRef, row + 1, col + 1);
                                       setShowCreateTablePicker(false);
                                       setHoveredCreateCell(null);
                                     }}
