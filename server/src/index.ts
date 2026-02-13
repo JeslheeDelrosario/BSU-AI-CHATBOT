@@ -1,11 +1,13 @@
 // server/src/index.ts
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import path from 'path';
 
 // Route imports
@@ -37,9 +39,6 @@ import calendarRoutes from './routes/calendar.routes';
 
 // Initialize Redis connection
 import './config/redis.config';
-
-// Load environment variables
-dotenv.config();
 
 // Validate environment variables
 import { validateEnv, isGoogleCalendarConfigured } from './config/env.validation';
