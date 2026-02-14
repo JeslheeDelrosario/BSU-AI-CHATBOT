@@ -144,7 +144,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use('/api', limiter);
+// app.use('/api', limiter);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -159,8 +159,8 @@ app.use('/uploads/post-images', express.static(path.join(__dirname, '../uploads/
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
 // API Routes with specific rate limiters
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
+// app.use('/api/auth/login', authLimiter);
+// app.use('/api/auth/register', authLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/chat-sessions', chatSessionRoutes);
 app.use('/api/admin', adminRoutes);
