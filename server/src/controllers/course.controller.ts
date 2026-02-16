@@ -263,6 +263,7 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    // 1. Get all enrollments + course basic data
     const enrollments = await prisma.enrollment.findMany({
       where: { userId },
       include: {
@@ -276,7 +277,7 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
             },
             _count: {
               select: {
-                Lesson: true,
+                Lesson: true,           // total lessons in the course
               },
             },
           },
@@ -287,13 +288,66 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    return res.json({ enrollments });
+    // 2. Bulk fetch progress + necessary lesson fields for strict completion check
+    const courseIds = enrollments.map((e) => e.courseId);
+
+    const progressRecords = await prisma.progress.findMany({
+      where: {
+        userId,
+        Lesson: {
+          courseId: { in: courseIds },
+        },
+      },
+      select: {
+        lessonId: true,
+        completed: true,
+        score: true,                  // needed for quiz strict check
+        Lesson: {
+          select: {
+            courseId: true,
+            type: true,               // needed to know if it's QUIZ
+          },
+        },
+      },
+    });
+
+    // 3. Count "satisfactorily completed" lessons per course
+    //    → same rule as in getCourseById / LessonViewer
+    const completedByCourse = progressRecords.reduce((acc, record) => {
+      const isSatisfactorilyCompleted =
+        record.completed &&
+        (record.Lesson.type !== 'QUIZ' || (record.score ?? 0) >= 85);
+
+      if (isSatisfactorilyCompleted) {
+        const courseId = record.Lesson.courseId;
+        acc[courseId] = (acc[courseId] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    // 4. Enrich each enrollment
+    const enrichedEnrollments = enrollments.map((enrollment) => {
+      const courseId = enrollment.courseId;
+      const totalLessons = enrollment.Course._count.Lesson || 0;
+      const completedLessons = completedByCourse[courseId] || 0;
+
+      const progressPercentage =
+        totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+      return {
+        ...enrollment,
+        completedLessonsCount: completedLessons,
+        totalLessonsCount: totalLessons,
+        progress: progressPercentage,           // now consistent with unlocking logic
+      };
+    });
+
+    return res.json({ enrollments: enrichedEnrollments });
   } catch (error) {
-    console.error('Get enrollments error:', error);
-    return res.status(500).json({ error: 'Server error fetching enrollments' });
+    console.error('Get my enrollments error:', error);
+    return res.status(500).json({ error: 'Server error fetching your courses' });
   }
 };
-
 export const createCourse = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;

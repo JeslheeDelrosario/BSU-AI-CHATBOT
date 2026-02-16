@@ -316,116 +316,116 @@ const insertTable = (
     }
   };
 
-const handleOpenEditLesson = async (lessonPartial: any) => {
-  try {
-    const res = await api.get(`/lessons/${lessonPartial.id}`);
-    const lesson = res.data.lesson || res.data;
+  const handleOpenEditLesson = async (lessonPartial: any) => {
+    try {
+      const res = await api.get(`/lessons/${lessonPartial.id}`);
+      const lesson = res.data.lesson || res.data;
 
-    let contentForEditor = lesson.content || '';
-    
-    // For QUIZ: extract only instructions for the editor
-    if (lesson.type === 'QUIZ' && lesson.content) {
-      try {
-        const parsed = JSON.parse(lesson.content);
-        contentForEditor = parsed.instructions || '<p>Answer the following questions carefully.</p>';
-        
-        const qs = parsed.questions || [];
-        const loaded = qs.map((q: any) => {
-          const answers = q.answers || [];
-          return {
-            text: q.text || '',
-            options: answers.map((a: any) => a.text || ''),
-            correctIndex: answers.findIndex((a: any) => a.isCorrect) ?? 0,
-            explanation: q.explanation || '',
-          };
-        });
-        setQuizQuestions(loaded);
-      } catch (e) {
-        console.error("Parse error:", e);
+      let contentForEditor = lesson.content || '';
+      
+      // For QUIZ: extract only instructions for the editor
+      if (lesson.type === 'QUIZ' && lesson.content) {
+        try {
+          const parsed = JSON.parse(lesson.content);
+          contentForEditor = parsed.instructions || '';
+          
+          const qs = parsed.questions || [];
+          const loaded = qs.map((q: any) => {
+            const answers = q.answers || [];
+            return {
+              text: q.text || '',
+              options: answers.map((a: any) => a.text || ''),
+              correctIndex: answers.findIndex((a: any) => a.isCorrect) ?? 0,
+              explanation: q.explanation || '',
+            };
+          });
+          setQuizQuestions(loaded);
+        } catch (e) {
+          console.error("Parse error:", e);
+          setQuizQuestions([]);
+        }
+      } else {
         setQuizQuestions([]);
       }
-    } else {
-      setQuizQuestions([]);
+
+      const initial = {
+        id: lesson.id,
+        title: lesson.title,
+        description: lesson.description || '',
+        type: lesson.type,
+        duration: lesson.duration || '',
+        content: contentForEditor,  // ← Use extracted instructions
+        videoUrl: lesson.videoUrl || '',
+        audioUrl: lesson.audioUrl || '',
+        isPublished: lesson.isPublished || false,
+      };
+
+      setEditingLesson(initial);
+      setShowEditLessonModal(true);
+    } catch (err) {
+      console.error("Load failed:", err);
+      showToast({ type: 'error', title: 'Failed to load lesson' });
+    }
+  };
+
+  const handleSaveEditLesson = async () => {
+    if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
+      return showToast({ type: 'error', title: 'Missing Fields' });
     }
 
-    const initial = {
-      id: lesson.id,
-      title: lesson.title,
-      description: lesson.description || '',
-      type: lesson.type,
-      duration: lesson.duration || '',
-      content: contentForEditor,  // ← Use extracted instructions
-      videoUrl: lesson.videoUrl || '',
-      audioUrl: lesson.audioUrl || '',
-      isPublished: lesson.isPublished || false,
-    };
+    if (editingLesson.type === 'QUIZ' && quizQuestions.length === 0) {
+      return showToast({ type: 'error', title: 'No Questions', message: 'Add at least one.' });
+    }
 
-    setEditingLesson(initial);
-    setShowEditLessonModal(true);
-  } catch (err) {
-    console.error("Load failed:", err);
-    showToast({ type: 'error', title: 'Failed to load lesson' });
-  }
-};
+    try {
+      let finalContent = editingLesson.content?.trim() || '';
 
-const handleSaveEditLesson = async () => {
-  if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
-    return showToast({ type: 'error', title: 'Missing Fields' });
-  }
-
-  if (editingLesson.type === 'QUIZ' && quizQuestions.length === 0) {
-    return showToast({ type: 'error', title: 'No Questions', message: 'Add at least one.' });
-  }
-
-  try {
-    let finalContent = editingLesson.content?.trim() || '';
-
-    if (editingLesson.type === 'QUIZ') {
-  const quizJson = {
-    instructions: editingLesson.content || "Answer the following questions.", // ← Editor content
-    questions: quizQuestions.map(q => ({
-      text: q.text.trim(),
-      explanation: q.explanation?.trim() || null,
-      answers: q.options.map((text, i) => ({
-        text: text.trim(),
-        isCorrect: i === q.correctIndex,
+      if (editingLesson.type === 'QUIZ') {
+    const quizJson = {
+      instructions: editingLesson.content || "Answer the following questions.", // ← Editor content
+      questions: quizQuestions.map(q => ({
+        text: q.text.trim(),
+        explanation: q.explanation?.trim() || null,
+        answers: q.options.map((text, i) => ({
+          text: text.trim(),
+          isCorrect: i === q.correctIndex,
+        })),
       })),
-    })),
-  };
-  finalContent = JSON.stringify(quizJson);
-}
-
-    const payload = {
-      ...editingLesson,
-      content: finalContent,  // Use the rebuilt (or cleaned) content
-      // You can remove this if backend ignores it anyway
-      questions: editingLesson.type === 'QUIZ'
-        ? quizQuestions.map(q => ({
-            text: q.text.trim(),
-            explanation: q.explanation?.trim() || null,
-            answers: q.options.map((text, i) => ({
-              text: text.trim(),
-              isCorrect: i === q.correctIndex,
-            })),
-          }))
-        : undefined,
     };
-
-    console.log("Saving payload:", JSON.stringify(payload, null, 2));
-
-    await api.put(`/courses/lessons/${editingLesson.id}`, payload);
-
-    showToast({ type: 'success', title: 'Lesson Updated' });
-
-    setShowEditLessonModal(false);
-    setEditingLesson(null);
-    setQuizQuestions([]);
-    fetchCourseDetail();
-  } catch (err: any) {
-    console.error("Save failed:", err);
-    showToast({ type: 'error', title: 'Update Failed' });
+    finalContent = JSON.stringify(quizJson);
   }
-};
+
+      const payload = {
+        ...editingLesson,
+        content: finalContent,  // Use the rebuilt (or cleaned) content
+        // You can remove this if backend ignores it anyway
+        questions: editingLesson.type === 'QUIZ'
+          ? quizQuestions.map(q => ({
+              text: q.text.trim(),
+              explanation: q.explanation?.trim() || null,
+              answers: q.options.map((text, i) => ({
+                text: text.trim(),
+                isCorrect: i === q.correctIndex,
+              })),
+            }))
+          : undefined,
+      };
+
+      console.log("Saving payload:", JSON.stringify(payload, null, 2));
+
+      await api.put(`/courses/lessons/${editingLesson.id}`, payload);
+
+      showToast({ type: 'success', title: 'Lesson Updated' });
+
+      setShowEditLessonModal(false);
+      setEditingLesson(null);
+      setQuizQuestions([]);
+      fetchCourseDetail();
+    } catch (err: any) {
+      console.error("Save failed:", err);
+      showToast({ type: 'error', title: 'Update Failed' });
+    }
+  };
 
   const handleEnroll = async () => {
     setEnrolling(true);
@@ -487,13 +487,37 @@ const handleSaveEditLesson = async () => {
     }
   };
 
-  const handleLessonClick = (lesson: any) => {
-    if (!isEnrolled) {
-      showToast({ type: 'warning', title: 'Not Enrolled', message: 'Please enroll to access lessons.' });
+  // const handleLessonClick = (lesson: any) => {
+  //   if (!isEnrolled) {
+  //     showToast({ type: 'warning', title: 'Not Enrolled', message: 'Please enroll to access lessons.' });
+  //     return;
+  //   }
+
+  //   if (!lesson.isUnlocked) {
+  //     showToast({
+  //       type: 'info',
+  //       title: 'Lesson Locked',
+  //       message: 'To unlock this lesson, complete the previous one with at least 85% score (if it was a quiz).',
+  //     });
+  //     return;
+  //   }
+
+  //   navigate(`/lessons/${lesson.id}`);
+  // };
+
+  
+  const handleLessonClick = (lesson: any) => {      // pansamantala
+    // Admins can view even if not enrolled
+    if (!isEnrolled && user?.role !== 'ADMIN') {
+      showToast({
+        type: 'warning',
+        title: 'Not Enrolled',
+        message: 'Please enroll to access lessons.',
+      });
       return;
     }
 
-    if (!lesson.isUnlocked) {
+    if (!lesson.isUnlocked && user?.role !== 'ADMIN') {
       showToast({
         type: 'info',
         title: 'Lesson Locked',
@@ -504,6 +528,7 @@ const handleSaveEditLesson = async () => {
 
     navigate(`/lessons/${lesson.id}`);
   };
+
 
   const handleCreateModule = async () => {
   if (!newModule.title.trim()) {
@@ -545,7 +570,7 @@ const handleCreateLesson = async () => {
   }
 
   try {
-    let finalContent = newLesson.content?.trim() || '<p>Answer the following questions carefully.</p>';
+    let finalContent = newLesson.content?.trim() || '';
 
     if (newLesson.type === 'QUIZ') {
       const quizJson = {
@@ -1546,102 +1571,158 @@ const handleCreateLesson = async () => {
               </div>
             {/* Quiz */}
             {editingLesson.type === 'QUIZ' && (
-              <div className="mt-8 space-y-6 border-t border-gray-700 pt-6">
-                <h4 className="text-xl font-bold text-purple-300">Quiz Questions</h4>
+  <div className="mt-8 space-y-6 border-t border-gray-300 dark:border-gray-700 pt-6">
+    <h4 className="text-xl font-bold text-gray-800 dark:text-purple-300">
+      Quiz Questions
+    </h4>
 
-                {quizQuestions.length === 0 && (
-                  <p className="text-gray-400 italic">No questions loaded. Add at least one below.</p>
-                )}
+    {quizQuestions.length === 0 && (
+      <p className="text-gray-500 dark:text-gray-400 italic">
+        No questions added yet. Add at least one below.
+      </p>
+    )}
 
-                {quizQuestions.map((q, qIdx) => (
-                    <div
-                      key={qIdx}
-                      className="p-5 bg-black/40 rounded-xl border border-purple-500/30 relative"
-                    >
-                      <button
-                        onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
-                        className="absolute top-3 right-3 text-red-400 hover:text-red-300 text-sm"
-                      >
-                        Remove
-                      </button>
+    {quizQuestions.map((q, qIdx) => (
+      <div
+        key={qIdx}
+        className={`
+          p-5 rounded-xl border relative
+          bg-white dark:bg-black/40
+          border-gray-300 dark:border-purple-500/30
+          shadow-sm dark:shadow-none
+        `}
+      >
+        {/* Remove button – red in both modes, but softer in light */}
+        <button
+          onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
+          className={`
+            absolute top-3 right-3 text-sm font-medium
+            text-red-600 hover:text-red-700
+            dark:text-red-400 dark:hover:text-red-300
+            transition-colors
+          `}
+        >
+          Remove
+        </button>
 
-                      <div className="mb-4">
-                        <label className="block text-purple-200 mb-1">Question {qIdx + 1}</label>
-                        <input
-                          type="text"
-                          value={q.text}
-                          onChange={(e) => {
-                            const updated = [...quizQuestions];
-                            updated[qIdx].text = e.target.value;
-                            setQuizQuestions(updated);
-                          }}
-                          className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white"
-                          placeholder="Enter question text here..."
-                        />
-                      </div>
+        <div className="mb-4">
+          <label className="block mb-1 font-medium text-gray-700 dark:text-purple-200">
+            Question {qIdx + 1}
+          </label>
+          <input
+            type="text"
+            value={q.text}
+            onChange={(e) => {
+              const updated = [...quizQuestions];
+              updated[qIdx].text = e.target.value;
+              setQuizQuestions(updated);
+            }}
+            className={`
+              w-full p-3 rounded-xl border
+              bg-gray-50 dark:bg-gray-800
+              border-gray-300 dark:border-gray-700
+              text-gray-900 dark:text-white
+              placeholder-gray-400 dark:placeholder-gray-500
+              focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+              transition-all
+            `}
+            placeholder="Enter question text here..."
+          />
+        </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                        {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
-                          <div key={optIdx} className="flex items-center gap-3">
-                            <span className="text-gray-400 w-6 font-medium">{letter}.</span>
-                            <input
-                              type="text"
-                              value={q.options[optIdx] || ''}
-                              onChange={(e) => {
-                                const updated = [...quizQuestions];
-                                updated[qIdx].options[optIdx] = e.target.value;
-                                setQuizQuestions(updated);
-                              }}
-                              className="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                              placeholder={`Option ${letter}`}
-                            />
-                            <input
-                              type="radio"
-                              name={`correct-${qIdx}`}
-                              checked={q.correctIndex === optIdx}
-                              onChange={() => {
-                                const updated = [...quizQuestions];
-                                updated[qIdx].correctIndex = optIdx;
-                                setQuizQuestions(updated);
-                              }}
-                              className="w-5 h-5 text-purple-500 focus:ring-purple-500"
-                            />
-                          </div>
-                        ))}
-                      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
+            <div key={optIdx} className="flex items-center gap-3">
+              <span className="text-gray-500 dark:text-gray-400 w-6 font-medium">
+                {letter}.
+              </span>
+              <input
+                type="text"
+                value={q.options[optIdx] || ''}
+                onChange={(e) => {
+                  const updated = [...quizQuestions];
+                  updated[qIdx].options[optIdx] = e.target.value;
+                  setQuizQuestions(updated);
+                }}
+                className={`
+                  flex-1 p-2.5 rounded-lg border
+                  bg-gray-50 dark:bg-gray-800
+                  border-gray-300 dark:border-gray-700
+                  text-gray-900 dark:text-white
+                  placeholder-gray-400 dark:placeholder-gray-500
+                  focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
+                  transition-all
+                `}
+                placeholder={`Option ${letter}`}
+              />
+              <input
+                type="radio"
+                name={`correct-${qIdx}`}
+                checked={q.correctIndex === optIdx}
+                onChange={() => {
+                  const updated = [...quizQuestions];
+                  updated[qIdx].correctIndex = optIdx;
+                  setQuizQuestions(updated);
+                }}
+                className={`
+                  w-5 h-5
+                  text-purple-600 dark:text-purple-500
+                  border-gray-300 dark:border-gray-600
+                  focus:ring-purple-500
+                  cursor-pointer
+                `}
+              />
+            </div>
+          ))}
+        </div>
 
-                      <textarea
-                        placeholder="Explanation / feedback (optional)"
-                        value={q.explanation || ''}
-                        onChange={(e) => {
-                          const updated = [...quizQuestions];
-                          updated[qIdx].explanation = e.target.value;
-                          setQuizQuestions(updated);
-                        }}
-                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white h-20"
-                      />
-                    </div>
-                  ))}
+        <textarea
+          placeholder="Explanation / feedback (optional)"
+          value={q.explanation || ''}
+          onChange={(e) => {
+            const updated = [...quizQuestions];
+            updated[qIdx].explanation = e.target.value;
+            setQuizQuestions(updated);
+          }}
+          className={`
+            w-full p-3 rounded-xl border resize-none h-20
+            bg-gray-50 dark:bg-gray-800
+            border-gray-300 dark:border-gray-700
+            text-gray-900 dark:text-white
+            placeholder-gray-400 dark:placeholder-gray-500
+            focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
+            transition-all
+          `}
+        />
+      </div>
+    ))}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuizQuestions([
-                        ...quizQuestions,
-                        {
-                          text: '',
-                          options: ['', '', '', ''],
-                          correctIndex: 0,
-                          explanation: '',
-                        },
-                      ]);
-                    }}
-                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:brightness-110 transition"
-                  >
-                    + Add New Question
-                  </button>
-                </div>
-              )}
+    <button
+      type="button"
+      onClick={() => {
+        setQuizQuestions([
+          ...quizQuestions,
+          {
+            text: '',
+            options: ['', '', '', ''],
+            correctIndex: 0,
+            explanation: '',
+          },
+        ]);
+      }}
+      className={`
+        w-full py-3 rounded-xl font-medium text-white
+        bg-gradient-to-r from-purple-600 to-pink-600
+        hover:from-purple-700 hover:to-pink-700
+        dark:from-purple-700 dark:to-pink-700
+        dark:hover:from-purple-600 dark:hover:to-pink-600
+        transition-all duration-200 shadow-sm hover:shadow
+      `}
+    >
+      + Add New Question
+    </button>
+  </div>
+)}
 
 
               {/* Grid picker */}

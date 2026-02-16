@@ -25,42 +25,53 @@ export const getLessonById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Lesson not found' });
     }
 
+    // Get all published lessons of this course in correct order
+    const courseLessons = await prisma.lesson.findMany({
+      where: {
+        courseId: lesson.courseId,
+        isPublished: true,
+      },
+      orderBy: [
+        { module: { order: 'asc' } }, // module order first
+        { order: 'asc' },             // lesson order inside module
+      ],
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        order: true,
+        moduleId: true,
+      },
+    });
+
+
     // Check if user is enrolled in the course
     if (userId) {
-      const enrollment = await prisma.enrollment.findUnique({
-        where: {
-          userId_courseId: {
-            userId,
-            courseId: lesson.courseId,
+      // Skip enrollment check for admins
+      if (req.user?.role !== 'ADMIN') {
+        const enrollment = await prisma.enrollment.findUnique({
+          where: {
+            userId_courseId: { userId, courseId: lesson.courseId },
           },
-        },
-      });
+        });
 
-      if (!enrollment) {
-        return res.status(403).json({ error: 'Not enrolled in this course' });
+        if (!enrollment) {
+          return res.status(403).json({ error: 'Not enrolled in this course' });
+        }
       }
 
       // Get or create progress for this lesson
       let progress = await prisma.progress.findUnique({
-        where: {
-          userId_lessonId: {
-            userId,
-            lessonId: id,
-          },
-        },
+        where: { userId_lessonId: { userId, lessonId: id } },
       });
 
       if (!progress) {
         progress = await prisma.progress.create({
-          data: {
-            userId,
-            lessonId: id,
-            updatedAt: new Date(),
-          },
+          data: { userId, lessonId: id, updatedAt: new Date() },
         });
       }
 
-      return res.json({ lesson, progress });
+      return res.json({ lesson, progress, courseLessons });
     } else {
       return res.json({ lesson });
     }

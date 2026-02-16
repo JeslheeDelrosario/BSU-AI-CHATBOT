@@ -447,10 +447,18 @@ select::-webkit-scrollbar-thumb:hover {
   line-height: 1.6 !important;
 }
 
+.ql-snow .ql-picker-options{
+  background-color: #ffffff;
+}
+
+.dark .ql-snow .ql-picker-options{
+  background-color: #000000;
+}
+
 
 /* Light mode background */
 .ql-editor {
-  background: rgba(224, 251, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
 }
 
 /* Dark mode – force white text on EVERYTHING inside */
@@ -476,6 +484,51 @@ select::-webkit-scrollbar-thumb:hover {
 .ql-editor.ql-blank::before {
   color: hsl(var(--muted-foreground));
   font-style: italic;
+}
+
+/* ────────────────────────────────────────────────
+   CODE BLOCKS & INLINE CODE – THE MAIN FIX
+───────────────────────────────────────────────── */
+
+/* Quill syntax code blocks – highest priority overrides */
+.ql-editor pre.ql-syntax,
+.ql-editor pre[class*="language-"],
+.ql-editor code.ql-syntax,
+.ql-code-block-container {
+  background: #1F1F1F !important;           /* slate-900 – dark & readable */
+  color: #e2e8f0 !important;                /* slate-200 – good contrast */
+  border: 1px solid #334155 !important;     /* visible border */
+  border-radius: 0.75rem !important;
+  padding: 1.25rem !important;
+  margin: 1.5rem 0 !important;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', monospace !important;
+}
+
+/* Dark mode specific – make sure it wins */
+.dark .ql-editor pre.ql-syntax,
+.dark .ql-editor pre[class*="language-"],
+.dark .ql-editor code.ql-syntax,
+.dark .ql-editor .ql-code-block-container {
+  background: #1F1F1F !important;           /* even darker slate-950 option if you prefer */
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+
+/* Inline code (not full block) */
+.ql-editor code:not(.ql-syntax) {
+  background: #1F1F1F !important;   /* muted dark bg */
+  color: #a5b4fc !important;                      /* indigo-300 – stands out */
+  padding: 0.15rem 0.35rem !important;
+  border-radius: 0.375rem !important;
+  font-size: 0.95em !important;
+}
+
+/* Syntax-highlighted spans inside code blocks – prevent white bg leak */
+.ql-editor pre.ql-syntax span,
+.ql-editor code span {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 /* Toolbar icons (unchanged) */
@@ -605,7 +658,7 @@ select::-webkit-scrollbar-thumb:hover {
 
 .ql-editor table {
   width: auto !important;
-  max-width: 100% !important;
+  min-width: max-content !important;
   border-collapse: collapse !important;
   margin: 1.25rem auto;
   table-layout: auto !important;
@@ -618,7 +671,8 @@ select::-webkit-scrollbar-thumb:hover {
   vertical-align: top !important;
   background: #ffffff !important;
   color: #111827 !important;
-  word-break: break-word !important;
+  white-space: nowrap !important;   
+  word-break: normal !important;    
 }
 
 .ql-editor th {

@@ -25,6 +25,7 @@ export default function LessonViewer() {
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
+  const [courseLessons, setCourseLessons] = useState<any[]>([]);
 
   const fetchLesson = async () => {
     try {
@@ -50,6 +51,9 @@ export default function LessonViewer() {
 
       setLesson(fetchedLesson);
       setProgress(response.data.progress);
+
+      setCourseLessons(response.data.courseLessons || []);
+
 
       // Parse quiz data if needed
       if (fetchedLesson.type === 'QUIZ' && fetchedLesson.content) {
@@ -165,9 +169,9 @@ export default function LessonViewer() {
       });
 
       // Auto-redirect back to course after 1.5 seconds
-      setTimeout(() => {
-        navigate(`/courses/${lesson.courseId}`);
-      }, 1500);
+      // setTimeout(() => {
+      //   navigate(`/courses/${lesson.courseId}`);
+      // }, 30000);
     } catch (err: any) {
       console.error('Failed to mark complete:', err);
       showToast({
@@ -181,8 +185,13 @@ export default function LessonViewer() {
   };
 
   const handleGoToNext = () => {
-    navigate(`/courses/${lesson.courseId}`);
+    if (nextLesson) {
+      navigate(`/lessons/${nextLesson.id}`);
+    } else {
+      navigate(`/courses/${lesson.courseId}`);
+    }
   };
+
 
   const handleSelectAnswer = (qIndex: number, optionText: string) => {
     setSelectedAnswers(prev => ({ ...prev, [qIndex]: optionText }));
@@ -227,9 +236,9 @@ export default function LessonViewer() {
         });
         setProgress({ ...progress, completed: true, score });
 
-        setTimeout(() => {
-          navigate(`/courses/${lesson.courseId}`);
-        }, 30000);
+        // setTimeout(() => {
+        //   navigate(`/courses/${lesson.courseId}`);
+        // }, 30000);
       } catch (err) {
         console.error('Failed to save progress:', err);
       }
@@ -272,6 +281,17 @@ export default function LessonViewer() {
       </div>
     );
   }
+
+  const currentLessonIndex = courseLessons.findIndex(
+    (l) => l.id === lesson?.id
+  );
+
+  const nextLesson =
+    currentLessonIndex !== -1 &&
+    currentLessonIndex < courseLessons.length - 1
+      ? courseLessons[currentLessonIndex + 1]
+      : null;
+
 
   const isQuiz = lesson.type === 'QUIZ';
   const currentQuestion = quizData?.questions[currentQuestionIndex];
@@ -328,11 +348,15 @@ export default function LessonViewer() {
         <div className="p-6 md:p-10">
           {isQuiz ? (
             <>
-              <div className="mb-10">
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {quizData?.instructions || 'Test your knowledge. Score 85%+ to unlock the next lesson.'}
-                </p>
-              </div>
+              <div className="mb-10 prose prose-slate dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
+      <div
+        dangerouslySetInnerHTML={{
+          __html:
+            quizData?.instructions?.trim() ||
+            'Test your knowledge. Score 85%+ to unlock the next lesson.',
+        }}
+      />
+    </div>
 
               <div className="mb-10">
                 <div className="flex justify-between text-sm text-gray-600 dark:text-cyan-300/80 mb-2">
@@ -457,38 +481,32 @@ export default function LessonViewer() {
             </>
           ) : (
             <div className="space-y-6 text-gray-800 dark:text-gray-200">
-              { (lesson.content || 
-                (lesson.type !== 'VIDEO' && lesson.type !== 'AUDIO') ||
-                (!lesson.videoUrl && !lesson.audioUrl)
-              ) && (
-                  <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
-                  {lesson.content ? (
-                    <div
-                      className={`
-                        ql-editor                           
-                        prose prose-slate dark:prose-invert 
-                        max-w-none
-                        text-gray-800 dark:text-gray-200
-                        leading-relaxed
-                        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-6
-                        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-5
-                        [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-4
-                        [&_p]:mb-4
-                        [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
-                        [&_ol]:ml-6 [&_ol]:mb-4
-                        [&_li]:mb-2
-                        [&_strong]:font-bold
-                        [&_a]:text-cyan-600 dark:[&_a]:text-cyan-400 [&_a]:underline
-                        [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded
-                        [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-2 [&_code]:rounded
-                      `}
-                      dangerouslySetInnerHTML={{ __html: lesson.content }}
-                    />
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic py-4">
-                      No additional text content for this lesson.
-                    </p>
-                  )}
+              {['TEXT', 'READ', 'INTERACTIVE', 'ASSIGNMENT', 'QUIZ'].includes(lesson.type) &&
+              lesson.content &&
+              lesson.content.trim() !== '' &&
+              lesson.content !== '<p><br></p>' && (
+                <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
+                  <div
+                    className={`
+                      ql-editor                           
+                      prose prose-slate dark:prose-invert 
+                      max-w-none
+                      text-gray-800 dark:text-gray-200
+                      leading-relaxed
+                      [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-6
+                      [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-5
+                      [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-4
+                      [&_p]:mb-4
+                      [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
+                      [&_ol]:ml-6 [&_ol]:mb-4
+                      [&_li]:mb-2
+                      [&_strong]:font-bold
+                      [&_a]:text-cyan-600 dark:[&_a]:text-cyan-400 [&_a]:underline
+                      [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded
+                      [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-2 [&_code]:rounded
+                    `}
+                    dangerouslySetInnerHTML={{ __html: lesson.content }}
+                  />
                 </div>
               )}
 
@@ -559,16 +577,36 @@ export default function LessonViewer() {
       </div>
 
       {/* NEW: Next Lesson Button – appears after completion */}
-      {showNextButton && (
-        <div className="flex justify-center mt-10">
-          <button
-            onClick={handleGoToNext}
-            className="flex items-center gap-3 px-12 py-5 text-xl font-bold bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-2xl transition-all duration-300 shadow-xl shadow-cyan-500/40 hover:shadow-cyan-500/60 hover:scale-105"
-          >
-            Next Lesson →
-          </button>
-        </div>
-      )}
+     
+{showNextButton && (
+  <div className="flex justify-center mt-10 gap-6 flex-wrap">
+    {nextLesson ? (
+      <button
+        onClick={handleGoToNext}
+        className="flex items-center gap-3 px-12 py-5 text-xl font-bold 
+                   bg-gradient-to-r from-cyan-600 to-purple-600 
+                   hover:from-cyan-500 hover:to-purple-500 text-white 
+                   rounded-2xl transition-all duration-300 
+                   shadow-xl shadow-cyan-500/40 hover:shadow-cyan-500/60 
+                   hover:scale-105"
+      >
+        Next Lesson →
+      </button>
+    ) : (
+      <button
+        onClick={() => navigate(`/courses/${lesson.courseId}`)}
+        className="flex items-center gap-3 px-12 py-5 text-xl font-bold 
+                   bg-gradient-to-r from-emerald-600 to-teal-600 
+                   hover:from-emerald-500 hover:to-teal-500 text-white 
+                   rounded-2xl transition-all duration-300 
+                   shadow-xl shadow-emerald-500/40 hover:shadow-emerald-500/60 
+                   hover:scale-105"
+      >
+        Back to Course Overview
+      </button>
+    )}
+  </div>
+)}
 
       {/* Result Panel */}
       {showQuizResult && (
@@ -610,11 +648,12 @@ export default function LessonViewer() {
                 </button>
 
                 <button
-                  onClick={() => navigate(`/courses/${lesson.courseId}`)}
-                  className="px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-bold transition hover:scale-105 shadow-lg shadow-cyan-500/30"
-                >
-                  Proceed to Next Lesson
-                </button>
+  onClick={handleGoToNext}
+  className="..."
+>
+  {nextLesson ? "Proceed to Next Lesson →" : "Finish Course 🎉"}
+</button>
+
               </>
             ) : (
               <>
