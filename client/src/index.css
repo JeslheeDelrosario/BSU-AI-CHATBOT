@@ -443,7 +443,7 @@ select::-webkit-scrollbar-thumb:hover {
 .ql-editor {
   min-height: 250px !important;
   padding: 28px 32px !important;
-  font-size: 1.1rem;
+  font-size: 16px; 
   line-height: 1.6 !important;
 }
 
@@ -513,6 +513,59 @@ select::-webkit-scrollbar-thumb:hover {
   padding: 4px 8px;
   border-radius: 6px;
 }
+
+/* Show actual font sizes in dropdown preview */
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10pt"]::before {
+  content: '10pt';
+  font-size: 10pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="11pt"]::before {
+  content: '11pt';
+  font-size: 11pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12pt"]::before {
+  content: '12pt';
+  font-size: 12pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14pt"]::before {
+  content: '14pt';
+  font-size: 14pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16pt"]::before {
+  content: '16pt';
+  font-size: 16pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18pt"]::before {
+  content: '18pt';
+  font-size: 18pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24pt"]::before {
+  content: '24pt';
+  font-size: 24pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30pt"]::before {
+  content: '30pt';
+  font-size: 30pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36pt"]::before {
+  content: '36pt';
+  font-size: 36pt !important;
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="100pt"]::before {
+  content: '100pt';
+  font-size: 100pt !important;
+}
+
+/* Add more sizes as needed */
 
 /* Bullets & numbers – pure white in dark mode */
 .ql-editor ul > li::before,

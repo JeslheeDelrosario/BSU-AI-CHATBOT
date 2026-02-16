@@ -30,6 +30,10 @@ import {
   Brain, Zap, MessageSquare, GraduationCap 
 } from 'lucide-react';
 
+const SizeStyle = Quill.import('attributors/style/size') as any;
+SizeStyle.whitelist = ['10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '24pt', '30pt', '36pt', '100pt'];
+Quill.register(SizeStyle, true);
+
 type EditingLesson = {
   id: string;
   title: string;
@@ -70,12 +74,13 @@ function QuillEditor({
     // Clean old toolbars
     container.querySelectorAll('.ql-toolbar').forEach(el => el.remove());
     editorDiv.innerHTML = '';
-
+    
     const quill = new Quill(editorDiv, {
       theme: "snow",
       modules: {
         toolbar: [
-          [{ header: [1, 2, 3, false] }],
+          // [{ header: [1, 2, 3, false] }],
+          [{ size: ['10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '24pt', '30pt', '36pt', '100pt'] }],
           ["bold", "italic", "underline"],
           [{ list: "ordered" }, { list: "bullet" }],
           ["code-block"],
@@ -311,50 +316,116 @@ const insertTable = (
     }
   };
 
-  const handleOpenEditLesson = (lesson: any) => {
-    setEditingLesson({
+const handleOpenEditLesson = async (lessonPartial: any) => {
+  try {
+    const res = await api.get(`/lessons/${lessonPartial.id}`);
+    const lesson = res.data.lesson || res.data;
+
+    let contentForEditor = lesson.content || '';
+    
+    // For QUIZ: extract only instructions for the editor
+    if (lesson.type === 'QUIZ' && lesson.content) {
+      try {
+        const parsed = JSON.parse(lesson.content);
+        contentForEditor = parsed.instructions || '<p>Answer the following questions carefully.</p>';
+        
+        const qs = parsed.questions || [];
+        const loaded = qs.map((q: any) => {
+          const answers = q.answers || [];
+          return {
+            text: q.text || '',
+            options: answers.map((a: any) => a.text || ''),
+            correctIndex: answers.findIndex((a: any) => a.isCorrect) ?? 0,
+            explanation: q.explanation || '',
+          };
+        });
+        setQuizQuestions(loaded);
+      } catch (e) {
+        console.error("Parse error:", e);
+        setQuizQuestions([]);
+      }
+    } else {
+      setQuizQuestions([]);
+    }
+
+    const initial = {
       id: lesson.id,
       title: lesson.title,
       description: lesson.description || '',
       type: lesson.type,
       duration: lesson.duration || '',
-      content: lesson.content || '',
+      content: contentForEditor,  // ← Use extracted instructions
       videoUrl: lesson.videoUrl || '',
       audioUrl: lesson.audioUrl || '',
       isPublished: lesson.isPublished || false,
-    });
+    };
+
+    setEditingLesson(initial);
     setShowEditLessonModal(true);
+  } catch (err) {
+    console.error("Load failed:", err);
+    showToast({ type: 'error', title: 'Failed to load lesson' });
+  }
+};
+
+const handleSaveEditLesson = async () => {
+  if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
+    return showToast({ type: 'error', title: 'Missing Fields' });
+  }
+
+  if (editingLesson.type === 'QUIZ' && quizQuestions.length === 0) {
+    return showToast({ type: 'error', title: 'No Questions', message: 'Add at least one.' });
+  }
+
+  try {
+    let finalContent = editingLesson.content?.trim() || '';
+
+    if (editingLesson.type === 'QUIZ') {
+  const quizJson = {
+    instructions: editingLesson.content || "Answer the following questions.", // ← Editor content
+    questions: quizQuestions.map(q => ({
+      text: q.text.trim(),
+      explanation: q.explanation?.trim() || null,
+      answers: q.options.map((text, i) => ({
+        text: text.trim(),
+        isCorrect: i === q.correctIndex,
+      })),
+    })),
   };
+  finalContent = JSON.stringify(quizJson);
+}
 
-  const handleSaveEditLesson = async () => {
-    if (!editingLesson || !editingLesson.title.trim() || !editingLesson.type) {
-      return showToast({
-        type: 'error',
-        title: 'Missing Fields',
-        message: 'Title and type are required'
-      });
-    }
+    const payload = {
+      ...editingLesson,
+      content: finalContent,  // Use the rebuilt (or cleaned) content
+      // You can remove this if backend ignores it anyway
+      questions: editingLesson.type === 'QUIZ'
+        ? quizQuestions.map(q => ({
+            text: q.text.trim(),
+            explanation: q.explanation?.trim() || null,
+            answers: q.options.map((text, i) => ({
+              text: text.trim(),
+              isCorrect: i === q.correctIndex,
+            })),
+          }))
+        : undefined,
+    };
 
-    try {
-      await api.put(`/courses/lessons/${editingLesson.id}`, editingLesson);  
+    console.log("Saving payload:", JSON.stringify(payload, null, 2));
 
-      showToast({
-        type: 'success',
-        title: 'Lesson Updated',
-        message: 'Lesson has been updated successfully'
-      });
+    await api.put(`/courses/lessons/${editingLesson.id}`, payload);
 
-      setShowEditLessonModal(false);
-      setEditingLesson(null);
-      fetchCourseDetail();
-    } catch (err: any) {
-      showToast({
-        type: 'error',
-        title: 'Update Failed',
-        message: err.response?.data?.error || err.message || 'Failed to update lesson'
-      });
-    }
-  };
+    showToast({ type: 'success', title: 'Lesson Updated' });
+
+    setShowEditLessonModal(false);
+    setEditingLesson(null);
+    setQuizQuestions([]);
+    fetchCourseDetail();
+  } catch (err: any) {
+    console.error("Save failed:", err);
+    showToast({ type: 'error', title: 'Update Failed' });
+  }
+};
 
   const handleEnroll = async () => {
     setEnrolling(true);
@@ -462,66 +533,85 @@ const insertTable = (
     }
   };
 
-  const handleCreateLesson = async () => {
-    if (!newLesson.title.trim()) {
-      return showToast({
-        type: 'error',
-        title: 'Missing Title',
-        message: 'Lesson title is required'
-      });
-    }
-    if (!selectedModuleId) {
-      return showToast({
-        type: 'error',
-        title: 'No Module Selected',
-        message: 'Please select a module first'
-      });
-    }
-    if (newLesson.type === 'QUIZ' && quizQuestions.length === 0) {
-      return showToast({
-        type: 'error',
-        title: 'No Questions',
-        message: 'Add at least one question for a quiz'
-      });
-    }
+const handleCreateLesson = async () => {
+  if (!newLesson.title.trim()) {
+    return showToast({ type: 'error', title: 'Missing Title', message: 'Lesson title is required' });
+  }
+  if (!selectedModuleId) {
+    return showToast({ type: 'error', title: 'No Module Selected', message: 'Please select a module first' });
+  }
+  if (newLesson.type === 'QUIZ' && quizQuestions.length === 0) {
+    return showToast({ type: 'error', title: 'No Questions', message: 'Add at least one question for a quiz' });
+  }
 
-    try {
-      const payload = {
-        ...newLesson,
-        questions: newLesson.type === 'QUIZ' ? quizQuestions.map(q => ({
-          text: q.text,
-          explanation: q.explanation || null,
-          answers: q.options.map((opt, i) => ({
-            text: opt,
+  try {
+    let finalContent = newLesson.content?.trim() || '<p>Answer the following questions carefully.</p>';
+
+    if (newLesson.type === 'QUIZ') {
+      const quizJson = {
+        instructions: "Answer the following questions.",
+        questions: quizQuestions.map(q => ({
+          text: q.text.trim(),
+          explanation: q.explanation?.trim() || null,
+          answers: q.options.map((text, i) => ({
+            text: text.trim(),
             isCorrect: i === q.correctIndex,
           })),
-        })) : undefined,
+        })),
       };
-
-      await api.post(`/courses/${id}/modules/${selectedModuleId}/lessons`, payload);
-
-      showToast({
-        type: 'success',
-        title: 'Lesson Created',
-        message: 'New lesson has been added successfully'
-      });
-
-      setShowCreateLessonModal(false);
-      setNewLesson({
-        title: '', description: '', type: 'TEXT', duration: '', content: '',
-        videoUrl: '', audioUrl: '', isPublished: false,
-      });
-      setQuizQuestions([]);
-      setSelectedModuleId(null);
-      fetchCourseDetail();
-    } catch (err: any) {
-      showToast({
-        type: 'error',
-        title: 'Failed to Create Lesson',
-        message: err.response?.data?.error || 'An error occurred while creating the lesson'
-      });
+      finalContent = JSON.stringify(quizJson); // ← Saves updated questions
     }
-  };
+
+    const payload = {
+      ...newLesson,
+      content: finalContent,
+      // You can keep sending separate 'questions' if backend starts using it later,
+      // but right now it's ignored — so it's optional
+      ...(newLesson.type === 'QUIZ' && {
+        questions: quizQuestions.map(q => ({
+          text: q.text.trim(),
+          explanation: q.explanation?.trim() || null,
+          answers: q.options.map((text, i) => ({
+            text: text.trim(),
+            isCorrect: i === q.correctIndex,
+          })),
+        })),
+      }),
+    };
+
+    console.log("Creating lesson payload:", JSON.stringify(payload, null, 2));
+
+    await api.post(`/courses/${id}/modules/${selectedModuleId}/lessons`, payload);
+
+    showToast({
+      type: 'success',
+      title: 'Lesson Created',
+      message: 'New lesson has been added successfully'
+    });
+
+    setShowCreateLessonModal(false);
+    setNewLesson({
+      title: '',
+      description: '',
+      type: 'TEXT',
+      duration: '',
+      content: '',
+      videoUrl: '',
+      audioUrl: '',
+      isPublished: false,
+    });
+    setQuizQuestions([]);
+    setSelectedModuleId(null);
+    fetchCourseDetail();
+  } catch (err: any) {
+    console.error("Create lesson failed:", err);
+    showToast({
+      type: 'error',
+      title: 'Failed to Create Lesson',
+      message: err.response?.data?.error || 'An error occurred while creating the lesson'
+    });
+  }
+};
 
   const handleDeleteModule = async () => {
     if (!moduleToDelete) return;
@@ -1448,12 +1538,110 @@ const insertTable = (
 
               {/* Force remount + editor */}
               <div className="ql-editor-wrapper">
-            <QuillEditor
-              value={editingLesson.content || ''}  // direct string – stable
-              onChange={handleEditContentChange}   // ← stable callback (add below)
-              quillRef={editQuillRef}
-            />
-          </div>
+                <QuillEditor
+                  value={editingLesson.content || ''}  // direct string – stable
+                  onChange={handleEditContentChange}   // ← stable callback (add below)
+                  quillRef={editQuillRef}
+                />
+              </div>
+            {/* Quiz */}
+            {editingLesson.type === 'QUIZ' && (
+              <div className="mt-8 space-y-6 border-t border-gray-700 pt-6">
+                <h4 className="text-xl font-bold text-purple-300">Quiz Questions</h4>
+
+                {quizQuestions.length === 0 && (
+                  <p className="text-gray-400 italic">No questions loaded. Add at least one below.</p>
+                )}
+
+                {quizQuestions.map((q, qIdx) => (
+                    <div
+                      key={qIdx}
+                      className="p-5 bg-black/40 rounded-xl border border-purple-500/30 relative"
+                    >
+                      <button
+                        onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
+                        className="absolute top-3 right-3 text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+
+                      <div className="mb-4">
+                        <label className="block text-purple-200 mb-1">Question {qIdx + 1}</label>
+                        <input
+                          type="text"
+                          value={q.text}
+                          onChange={(e) => {
+                            const updated = [...quizQuestions];
+                            updated[qIdx].text = e.target.value;
+                            setQuizQuestions(updated);
+                          }}
+                          className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white"
+                          placeholder="Enter question text here..."
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
+                          <div key={optIdx} className="flex items-center gap-3">
+                            <span className="text-gray-400 w-6 font-medium">{letter}.</span>
+                            <input
+                              type="text"
+                              value={q.options[optIdx] || ''}
+                              onChange={(e) => {
+                                const updated = [...quizQuestions];
+                                updated[qIdx].options[optIdx] = e.target.value;
+                                setQuizQuestions(updated);
+                              }}
+                              className="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                              placeholder={`Option ${letter}`}
+                            />
+                            <input
+                              type="radio"
+                              name={`correct-${qIdx}`}
+                              checked={q.correctIndex === optIdx}
+                              onChange={() => {
+                                const updated = [...quizQuestions];
+                                updated[qIdx].correctIndex = optIdx;
+                                setQuizQuestions(updated);
+                              }}
+                              className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <textarea
+                        placeholder="Explanation / feedback (optional)"
+                        value={q.explanation || ''}
+                        onChange={(e) => {
+                          const updated = [...quizQuestions];
+                          updated[qIdx].explanation = e.target.value;
+                          setQuizQuestions(updated);
+                        }}
+                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white h-20"
+                      />
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuizQuestions([
+                        ...quizQuestions,
+                        {
+                          text: '',
+                          options: ['', '', '', ''],
+                          correctIndex: 0,
+                          explanation: '',
+                        },
+                      ]);
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:brightness-110 transition"
+                  >
+                    + Add New Question
+                  </button>
+                </div>
+              )}
 
 
               {/* Grid picker */}
@@ -1542,6 +1730,8 @@ const insertTable = (
                 "
               />
             )}
+
+            
 
             {/* Published checkbox */}
             <label className="flex items-center gap-3 mt-6 mb-8 cursor-pointer text-gray-800 dark:text-gray-300">
@@ -1636,172 +1826,171 @@ const insertTable = (
 
       {/* Create Lesson Modal */}
       {showCreateLessonModal && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-              <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-4xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-bold text-cyan-300 mb-6">
-                  Add Lesson to Module
-                </h3>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-4xl border border-cyan-500/30 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold text-cyan-300 mb-6">
+              Add Lesson to Module
+            </h3>
 
-                <input
-                  type="text"
-                  placeholder="Lesson Title *"
-                  value={newLesson.title}
-                  onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
+            <input
+              type="text"
+              placeholder="Lesson Title *"
+              value={newLesson.title}
+              onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-                <textarea
-                  placeholder="Short description (optional)"
-                  value={newLesson.description}
-                  onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
-                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
+            <textarea
+              placeholder="Short description (optional)"
+              value={newLesson.description}
+              onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-                <select
-                  value={newLesson.type}
-                  onChange={(e) => {
-                    const newType = e.target.value as typeof newLesson.type;
-                    setNewLesson({
-                      ...newLesson,
-                      type: newType,
-                      content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
-                      videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
-                      audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
-                    });
-                    if (newType !== 'QUIZ') setQuizQuestions([]);
-                  }}
-                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  <option value="TEXT">Text / Reading</option>
-                  <option value="VIDEO">Video</option>
-                  <option value="AUDIO">Audio</option>
-                  <option value="QUIZ">Quiz</option>
-                  <option value="INTERACTIVE">Interactive</option>
-                  <option value="ASSIGNMENT">Assignment</option>
-                </select>
+            <select
+              value={newLesson.type}
+              onChange={(e) => {
+                const newType = e.target.value as typeof newLesson.type;
+                setNewLesson({
+                  ...newLesson,
+                  type: newType,
+                  content: newType === 'TEXT' || newType === 'QUIZ' ? newLesson.content : '',
+                  videoUrl: newType === 'VIDEO' ? newLesson.videoUrl : '',
+                  audioUrl: newType === 'AUDIO' ? newLesson.audioUrl : '',
+                });
+                if (newType !== 'QUIZ') setQuizQuestions([]);
+              }}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="TEXT">Text / Reading</option>
+              <option value="VIDEO">Video</option>
+              <option value="AUDIO">Audio</option>
+              <option value="QUIZ">Quiz</option>
+              <option value="INTERACTIVE">Interactive</option>
+              <option value="ASSIGNMENT">Assignment</option>
+            </select>
 
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Duration in minutes (optional)"
-                  value={newLesson.duration}
-                  onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
-                  className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
+            <input
+              type="number"
+              min="0"
+              placeholder="Duration in minutes (optional)"
+              value={newLesson.duration}
+              onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
+              className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-                {/* UPDATED: Rich editor instead of textarea */}
-                {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
-                  <div className="mb-8 relative">
-                    <label className="block text-gray-900 dark:text-gray-200 mb-3 font-medium text-lg">
-                      {newLesson.type === 'TEXT' ? 'Main Content' : 'Quiz Instructions / Introduction'}
-                    </label>
+            {/* UPDATED: Rich editor instead of textarea */}
+            {(newLesson.type === 'TEXT' || newLesson.type === 'QUIZ') && (
+              <div className="mb-8 relative">
+                <label className="block text-gray-900 dark:text-gray-200 mb-3 font-medium text-lg">
+                  {newLesson.type === 'TEXT' ? 'Main Content' : 'Quiz Instructions / Introduction'}
+                </label>
 
-                    {/* NEW: Insert Table button – placed above editor for easy access */}
-                    <div className="mb-3 flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {setShowCreateTablePicker(true)}}
-                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition flex items-center gap-2"
-                      >
-                        <span>Insert Table</span>
-                        <span className="text-sm opacity-80">(grid picker)</span>
-                      </button>
+                {/* NEW: Insert Table button – placed above editor for easy access */}
+                <div className="mb-3 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {setShowCreateTablePicker(true)}}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition flex items-center gap-2"
+                  >
+                    <span>Insert Table</span>
+                    <span className="text-sm opacity-80">(grid picker)</span>
+                  </button>
 
-                      {/* Optional tooltip/help text */}
-                      <span className="text-sm text-gray-400">
-                        Click to choose size, or paste HTML table directly
-                      </span>
-                    </div>
+                  {/* Optional tooltip/help text */}
+                  <span className="text-sm text-gray-400">
+                    Click to choose size, or paste HTML table directly
+                  </span>
+                </div>
 
-                    {/* Scrollable wrapper – makes toolbar sticky inside modal */}
-                    <div className="ql-editor-wrapper">
-                      <QuillEditor
-                      value={newLesson.content}
-                        onChange={(html) =>setNewLesson((p) => ({ ...p, content: html }))
-                      }
-                      quillRef={createQuillRef}
-                      />
-                    </div>
-                    {/* NEW: Grid Picker Popover */}
-                    {showCreateTablePicker && (
-                      <div 
-                        className="fixed inset-0 flex items-center justify-center bg-black/30 z-[9999]" // ← overlay to make it modal-like & catch outside clicks
-                        onClick={() => setShowCreateTablePicker(false)} // close on outside click
-                      >
-                        <div 
-                          className="relative bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl border border-cyan-500/50 max-w-md w-full"
-                          onClick={(e) => e.stopPropagation()} // prevent closing when clicking inside picker
-                        >
-                          <h4 className="text-lg font-semibold mb-4 text-center text-gray-800 dark:text-gray-200">
-                            Choose Table Size
-                          </h4>
+                {/* Scrollable wrapper – makes toolbar sticky inside modal */}
+                <div className="ql-editor-wrapper">
+                  <QuillEditor
+                  value={newLesson.content}
+                    onChange={(html) =>setNewLesson((p) => ({ ...p, content: html }))
+                  }
+                  quillRef={createQuillRef}
+                  />
+                </div>
+                {/* NEW: Grid Picker Popover */}
+                {showCreateTablePicker && (
+                  <div 
+                    className="fixed inset-0 flex items-center justify-center bg-black/30 z-[9999]" // ← overlay to make it modal-like & catch outside clicks
+                    onClick={() => setShowCreateTablePicker(false)} // close on outside click
+                  >
+                    <div 
+                      className="relative bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl border border-cyan-500/50 max-w-md w-full"
+                      onClick={(e) => e.stopPropagation()} // prevent closing when clicking inside picker
+                    >
+                      <h4 className="text-lg font-semibold mb-4 text-center text-gray-800 dark:text-gray-200">
+                        Choose Table Size
+                      </h4>
 
-                          <div className="grid grid-cols-10 gap-1.5 mb-4">
-                            {Array.from({ length: 10 }).map((_, row) =>
-                              Array.from({ length: 10 }).map((_, col) => {
-                                const active = hoveredCreateCell && row <= hoveredCreateCell[0] && col <= hoveredCreateCell[1];
+                      <div className="grid grid-cols-10 gap-1.5 mb-4">
+                        {Array.from({ length: 10 }).map((_, row) =>
+                          Array.from({ length: 10 }).map((_, col) => {
+                            const active = hoveredCreateCell && row <= hoveredCreateCell[0] && col <= hoveredCreateCell[1];
 
-                                return (
-                                  <div
-                                    key={`${row}-${col}`}
-                                    onMouseEnter={() => setHoveredCreateCell([row, col])}
-                                    onClick={() => {
-                                      insertTable(createQuillRef, row + 1, col + 1);
-                                      setShowCreateTablePicker(false);
-                                      setHoveredCreateCell(null);
-                                    }}
-                                    className={`w-7 h-7 border rounded-sm cursor-pointer transition-all duration-150
-                                      ${active 
-                                        ? 'bg-cyan-500 border-cyan-700 shadow-md scale-110' 
-                                        : 'border-gray-300 dark:border-gray-600 hover:bg-cyan-100 dark:hover:bg-cyan-900/30'}
-                                    `}
-                                  />
-                                );
-                              })
-                            )}
-                          </div>
-
-                          <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                            {hoveredCreateCell
-                              ? `${hoveredCreateCell[0] + 1} rows × ${hoveredCreateCell[1] + 1} columns`
-                              : 'Hover to preview — Click to insert'}
-                          </div>
-
-                          <button
-                            onClick={() => setShowCreateTablePicker(false)}
-                            className="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl font-bold"
-                          >
-                            ×
-                          </button>
-                        </div>
+                            return (
+                              <div
+                                key={`${row}-${col}`}
+                                onMouseEnter={() => setHoveredCreateCell([row, col])}
+                                onClick={() => {
+                                  insertTable(createQuillRef, row + 1, col + 1);
+                                  setShowCreateTablePicker(false);
+                                  setHoveredCreateCell(null);
+                                }}
+                                className={`w-7 h-7 border rounded-sm cursor-pointer transition-all duration-150
+                                  ${active 
+                                    ? 'bg-cyan-500 border-cyan-700 shadow-md scale-110' 
+                                    : 'border-gray-300 dark:border-gray-600 hover:bg-cyan-100 dark:hover:bg-cyan-900/30'}
+                                `}
+                              />
+                            );
+                          })
+                        )}
                       </div>
-                    )}
+
+                      <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        {hoveredCreateCell
+                          ? `${hoveredCreateCell[0] + 1} rows × ${hoveredCreateCell[1] + 1} columns`
+                          : 'Hover to preview — Click to insert'}
+                      </div>
+
+                      <button
+                        onClick={() => setShowCreateTablePicker(false)}
+                        className="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl font-bold"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
 
-                {newLesson.type === 'VIDEO' && (
-                  <input
-                    type="url"
-                    placeholder="Video URL (YouTube, Vimeo, etc.)"
-                    value={newLesson.videoUrl}
-                    onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
-                    className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                )}
+            {newLesson.type === 'VIDEO' && (
+              <input
+                type="url"
+                placeholder="Video URL (YouTube, Vimeo, etc.)"
+                value={newLesson.videoUrl}
+                onChange={(e) => setNewLesson({ ...newLesson, videoUrl: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
 
-                {newLesson.type === 'AUDIO' && (
-                  <input
-                    type="url"
-                    placeholder="Audio URL (mp3, streaming link, etc.)"
-                    value={newLesson.audioUrl}
-                    onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
-                    className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                )}
+            {newLesson.type === 'AUDIO' && (
+              <input
+                type="url"
+                placeholder="Audio URL (mp3, streaming link, etc.)"
+                value={newLesson.audioUrl}
+                onChange={(e) => setNewLesson({ ...newLesson, audioUrl: e.target.value })}
+                className="w-full p-3 mb-4 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
 
-            {/* ────────────────────────────────────────────────
-                QUIZ SECTION – only shown when type = QUIZ
-            ──────────────────────────────────────────────── */}
+            {/* QUIZ SECTION – only shown when type = QUIZ */}
+           
             {newLesson.type === 'QUIZ' && (
               <div className="mt-8 space-y-6 border-t border-gray-700 pt-6">
                 <h4 className="text-xl font-bold text-purple-300">Quiz Questions</h4>

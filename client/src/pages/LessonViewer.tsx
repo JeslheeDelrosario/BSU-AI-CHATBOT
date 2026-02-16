@@ -461,36 +461,35 @@ export default function LessonViewer() {
                 (lesson.type !== 'VIDEO' && lesson.type !== 'AUDIO') ||
                 (!lesson.videoUrl && !lesson.audioUrl)
               ) && (
-                <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
-  {lesson.content ? (
-    <div
-      className={`
-        ql-editor                           // ← This is the MOST IMPORTANT line
-                                            // It activates Quill's built-in CSS for bullets
-        prose prose-slate dark:prose-invert // keep your prose if you want
-        max-w-none
-        text-gray-800 dark:text-gray-200
-        leading-relaxed
-        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-6
-        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-5
-        [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-4
-        [&_p]:mb-4
-        [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
-        [&_ol]:ml-6 [&_ol]:mb-4
-        [&_li]:mb-2
-        [&_strong]:font-bold
-        [&_a]:text-cyan-600 dark:[&_a]:text-cyan-400 [&_a]:underline
-        [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded
-        [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-2 [&_code]:rounded
-      `}
-      dangerouslySetInnerHTML={{ __html: lesson.content }}
-    />
-  ) : (
-    <p className="text-gray-500 dark:text-gray-400 italic py-4">
-      No additional text content for this lesson.
-    </p>
-  )}
-</div>
+                  <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
+                  {lesson.content ? (
+                    <div
+                      className={`
+                        ql-editor                           
+                        prose prose-slate dark:prose-invert 
+                        max-w-none
+                        text-gray-800 dark:text-gray-200
+                        leading-relaxed
+                        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-6
+                        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-5
+                        [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-4
+                        [&_p]:mb-4
+                        [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
+                        [&_ol]:ml-6 [&_ol]:mb-4
+                        [&_li]:mb-2
+                        [&_strong]:font-bold
+                        [&_a]:text-cyan-600 dark:[&_a]:text-cyan-400 [&_a]:underline
+                        [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded
+                        [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-2 [&_code]:rounded
+                      `}
+                      dangerouslySetInnerHTML={{ __html: lesson.content }}
+                    />
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400 italic py-4">
+                      No additional text content for this lesson.
+                    </p>
+                  )}
+                </div>
               )}
 
               {lesson.videoUrl && (
@@ -575,7 +574,7 @@ export default function LessonViewer() {
       {showQuizResult && (
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-cyan-500/30 rounded-2xl p-8 md:p-12 shadow-xl dark:shadow-cyan-900/20 text-center">
           <h2 className="text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-            {quizScore >= 85 ? "ANG GALING MO KUPAL!" : "REBOOT REQUIRED"}
+            {quizScore >= 85 ? "Congratulations!" : "REBOOT REQUIRED"}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-10">
