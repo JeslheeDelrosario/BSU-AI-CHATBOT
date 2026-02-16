@@ -31,6 +31,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
     try {
       setLoading(true);
       const [notifRes, countRes] = await Promise.all([
@@ -48,6 +50,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUnreadCount = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
     try {
       const res = await api.get('/notifications/unread-count');
       setUnreadCount(res.data.count);
