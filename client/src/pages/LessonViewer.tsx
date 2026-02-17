@@ -3,8 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import {
-  ArrowLeft, CheckCircle, Clock, FileText, Video, Headphones, XCircle, Brain, Check
-} from 'lucide-react';
+  ArrowLeft, CheckCircle, Clock, FileText, Video, Headphones, XCircle, Brain, Check, AlertTriangle, } from "lucide-react";
 import { useToast } from '../components/Toast';
 export default function LessonViewer() {
   const { id } = useParams<{ id: string }>();
@@ -25,8 +24,10 @@ export default function LessonViewer() {
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
+  const [showMissingWarning, setShowMissingWarning] = useState(false);
   const [courseLessons, setCourseLessons] = useState<any[]>([]);
 
+  
   const fetchLesson = async () => {
     try {
       const response = await api.get(`/lessons/${id}`);
@@ -84,6 +85,9 @@ export default function LessonViewer() {
     }>;
   } | null>(null);
 
+  const isLastQuestion =currentQuestionIndex === (quizData?.questions.length || 0) - 1;
+  const allAnswered = Object.keys(selectedAnswers).length === (quizData?.questions.length || 0);
+
   const lessonTypeDisplay: Record<string, string> = {
     TEXT: 'Reading',
     READ: 'Reading',
@@ -98,6 +102,12 @@ export default function LessonViewer() {
   useEffect(() => {
     fetchLesson();
   }, [id]);
+
+  useEffect(() => {
+    if (allAnswered) {
+      setShowMissingWarning(false);
+    }
+  }, [allAnswered]);
 
   // NEW: Timer for non-quiz lessons – enable complete button after min time
   useEffect(() => {
@@ -115,6 +125,8 @@ export default function LessonViewer() {
     const secs = seconds % 60;
     return mins > 0 ? `${mins} min ${secs} sec` : `${secs} sec`;
   };
+
+  
 
   const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -210,6 +222,17 @@ export default function LessonViewer() {
   };
 
   const handleSubmitQuiz = async () => {
+
+    if (!allAnswered) {
+      setShowMissingWarning(true);
+      showToast({
+        type: "warning",
+        title: "Incomplete Quiz",
+        message: "Please answer all questions before submitting.",
+      });
+      return;
+    }
+
     setCompleting(true);
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
     setTimeTaken(elapsedSeconds);
@@ -286,19 +309,12 @@ export default function LessonViewer() {
     (l) => l.id === lesson?.id
   );
 
-  const nextLesson =
-    currentLessonIndex !== -1 &&
-    currentLessonIndex < courseLessons.length - 1
-      ? courseLessons[currentLessonIndex + 1]
-      : null;
-
-
+  const nextLesson = currentLessonIndex !== -1 && currentLessonIndex < courseLessons.length - 1 ? courseLessons[currentLessonIndex + 1] : null;
   const isQuiz = lesson.type === 'QUIZ';
   const currentQuestion = quizData?.questions[currentQuestionIndex];
   const selectedAnswer = selectedAnswers[currentQuestionIndex];
   const isSubmitted = submittedQuestions.has(currentQuestionIndex);
-  const isLastQuestion = currentQuestionIndex === (quizData?.questions.length || 0) - 1;
-  const allAnswered = Object.keys(selectedAnswers).length === (quizData?.questions.length || 0);
+  
   const isCompleted = progress?.completed;
   const showNextButton = isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
   
@@ -306,7 +322,7 @@ export default function LessonViewer() {
   const youtubeEmbedSrc = getYouTubeEmbedUrl(lesson.videoUrl);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8  min-h-screen">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8 min-h-screen">
       {/* Header Bar */}
       <div className="flex items-center justify-between">
         <button
@@ -337,7 +353,7 @@ export default function LessonViewer() {
               </span>
               <div className="flex items-center gap-3 text-sm opacity-90 mt-1">
                 <Clock className="w-4 h-4" />
-                {lesson.duration || '?'} min
+                {lesson.duration || "?"} min
               </div>
             </div>
           </div>
@@ -349,26 +365,36 @@ export default function LessonViewer() {
           {isQuiz ? (
             <>
               <div className="mb-10 prose prose-slate dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
-      <div
-        dangerouslySetInnerHTML={{
-          __html:
-            quizData?.instructions?.trim() ||
-            'Test your knowledge. Score 85%+ to unlock the next lesson.',
-        }}
-      />
-    </div>
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      quizData?.instructions?.trim() ||
+                      "Test your knowledge. Score 85%+ to unlock the next lesson.",
+                  }}
+                />
+              </div>
 
               <div className="mb-10">
                 <div className="flex justify-between text-sm text-gray-600 dark:text-cyan-300/80 mb-2">
-                  <span>Question {currentQuestionIndex + 1} / {quizData?.questions.length || 0}</span>
                   <span>
-                    {Math.round(((currentQuestionIndex + 1) / (quizData?.questions.length || 1)) * 100)}%
+                    Question {currentQuestionIndex + 1} /{" "}
+                    {quizData?.questions.length || 0}
+                  </span>
+                  <span>
+                    {Math.round(
+                      ((currentQuestionIndex + 1) /
+                        (quizData?.questions.length || 1)) *
+                        100,
+                    )}
+                    %
                   </span>
                 </div>
                 <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-cyan-500/20">
                   <div
                     className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-500"
-                    style={{ width: `${((currentQuestionIndex + 1) / (quizData?.questions.length || 1)) * 100}%` }}
+                    style={{
+                      width: `${((currentQuestionIndex + 1) / (quizData?.questions.length || 1)) * 100}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -381,43 +407,61 @@ export default function LessonViewer() {
                     </h3>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {currentQuestion?.answers.map((option: any, idx: number) => (
-                        <label
-                          key={idx}
-                          className={`
+                      {currentQuestion?.answers.map(
+                        (option: any, idx: number) => (
+                          <label
+                            key={idx}
+                            className={`
                             flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all duration-300
-                            ${selectedAnswer === option.text
-                              ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40'
-                              : 'border-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/20'}
-                            ${isSubmitted && option.isCorrect ? 'border-green-500 bg-green-50 dark:bg-green-950/30' : ''}
-                            ${isSubmitted && selectedAnswer === option.text && !option.isCorrect
-                              ? 'border-red-500 bg-red-50 dark:bg-red-950/30' : ''}
+                            ${
+                              selectedAnswer === option.text
+                                ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40"
+                                : "border-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/20"
+                            }
+                            ${isSubmitted && option.isCorrect ? "border-green-500 bg-green-50 dark:bg-green-950/30" : ""}
+                            ${
+                              isSubmitted &&
+                              selectedAnswer === option.text &&
+                              !option.isCorrect
+                                ? "border-red-500 bg-red-50 dark:bg-red-950/30"
+                                : ""
+                            }
                           `}
-                        >
-                          <input
-                            type="radio"
-                            name={`q-${currentQuestionIndex}`}
-                            checked={selectedAnswer === option.text}
-                            onChange={() => handleSelectAnswer(currentQuestionIndex, option.text)}
-                            disabled={isSubmitted}
-                            className="w-5 h-5 accent-cyan-600 dark:accent-cyan-400"
-                          />
-                          <span className="text-gray-800 dark:text-gray-200 flex-1">
-                            {String.fromCharCode(65 + idx)}. {option.text}
-                          </span>
-                        </label>
-                      ))}
+                          >
+                            <input
+                              type="radio"
+                              name={`q-${currentQuestionIndex}`}
+                              checked={selectedAnswer === option.text}
+                              onChange={() =>
+                                handleSelectAnswer(
+                                  currentQuestionIndex,
+                                  option.text,
+                                )
+                              }
+                              disabled={isSubmitted}
+                              className="w-5 h-5 accent-cyan-600 dark:accent-cyan-400"
+                            />
+                            <span className="text-gray-800 dark:text-gray-200 flex-1">
+                              {String.fromCharCode(65 + idx)}. {option.text}
+                            </span>
+                          </label>
+                        ),
+                      )}
                     </div>
 
                     {isSubmitted && currentQuestion && (
                       <div className="mt-8 p-6 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
-                        {selectedAnswer === currentQuestion.answers.find((a: any) => a.isCorrect)?.text ? (
+                        {selectedAnswer ===
+                        currentQuestion.answers.find((a: any) => a.isCorrect)
+                          ?.text ? (
                           <div className="flex gap-4 text-green-700 dark:text-green-400">
                             <CheckCircle className="w-6 h-6 mt-1 flex-shrink-0" />
                             <div>
                               <p className="font-bold text-lg">Correct!</p>
                               {currentQuestion.explanation && (
-                                <p className="mt-2 text-gray-700 dark:text-gray-300">{currentQuestion.explanation}</p>
+                                <p className="mt-2 text-gray-700 dark:text-gray-300">
+                                  {currentQuestion.explanation}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -427,12 +471,19 @@ export default function LessonViewer() {
                             <div>
                               <p className="font-bold text-lg">Incorrect</p>
                               <p className="mt-1 text-gray-700 dark:text-gray-300">
-                                Correct answer: <span className="font-medium text-gray-900 dark:text-white">
-                                  {currentQuestion.answers.find((a: any) => a.isCorrect)?.text}
+                                Correct answer:{" "}
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {
+                                    currentQuestion.answers.find(
+                                      (a: any) => a.isCorrect,
+                                    )?.text
+                                  }
                                 </span>
                               </p>
                               {currentQuestion.explanation && (
-                                <p className="mt-3 text-gray-700 dark:text-gray-300">{currentQuestion.explanation}</p>
+                                <p className="mt-3 text-gray-700 dark:text-gray-300">
+                                  {currentQuestion.explanation}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -440,6 +491,15 @@ export default function LessonViewer() {
                       </div>
                     )}
                   </div>
+
+                  {!allAnswered && showMissingWarning && (
+                    <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-400 dark:border-yellow-600/60 rounded-xl flex items-center gap-3 text-yellow-800 dark:text-yellow-200">
+                      <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                      <p className="text-sm font-medium">
+                        Please answer all questions to continue.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6">
                     <button
@@ -453,15 +513,15 @@ export default function LessonViewer() {
                     {isLastQuestion ? (
                       <button
                         onClick={handleSubmitQuiz}
-                        disabled={!allAnswered || completing}
-                        className={`
-                          px-10 py-4 rounded-xl font-bold transition-all duration-300
-                          ${allAnswered && !completing
-                            ? 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105'
-                            : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}
-                        `}
+                        className={`px-10 py-4 rounded-xl font-bold transition-all duration-300
+                        ${
+                          completing
+                            ? "bg-gray-400 text-gray-700 cursor-wait"
+                            : "bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105"
+                        }
+                      `}
                       >
-                        {completing ? 'Submitting...' : 'Submit Quiz'}
+                        {completing ? "Submitting..." : "Submit Quiz"}
                       </button>
                     ) : (
                       <button
@@ -481,13 +541,15 @@ export default function LessonViewer() {
             </>
           ) : (
             <div className="space-y-6 text-gray-800 dark:text-gray-200">
-              {['TEXT', 'READ', 'INTERACTIVE', 'ASSIGNMENT', 'QUIZ'].includes(lesson.type) &&
-              lesson.content &&
-              lesson.content.trim() !== '' &&
-              lesson.content !== '<p><br></p>' && (
-                <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
-                  <div
-                    className={`
+              {["TEXT", "READ", "INTERACTIVE", "ASSIGNMENT", "QUIZ"].includes(
+                lesson.type,
+              ) &&
+                lesson.content &&
+                lesson.content.trim() !== "" &&
+                lesson.content !== "<p><br></p>" && (
+                  <div className="max-w-none text-base leading-relaxed text-gray-800 dark:text-gray-200">
+                    <div
+                      className={`
                       ql-editor                           
                       prose prose-slate dark:prose-invert 
                       max-w-none
@@ -505,10 +567,10 @@ export default function LessonViewer() {
                       [&_pre]:bg-gray-800 [&_pre]:text-gray-200 [&_pre]:p-4 [&_pre]:rounded
                       [&_code]:bg-gray-800 [&_code]:text-cyan-300 [&_code]:px-2 [&_code]:rounded
                     `}
-                    dangerouslySetInnerHTML={{ __html: lesson.content }}
-                  />
-                </div>
-              )}
+                      dangerouslySetInnerHTML={{ __html: lesson.content }}
+                    />
+                  </div>
+                )}
 
               {lesson.videoUrl && (
                 <>
@@ -536,11 +598,7 @@ export default function LessonViewer() {
               )}
 
               {lesson.audioUrl && (
-                <audio
-                  src={lesson.audioUrl}
-                  controls
-                  className="w-full mt-6"
-                />
+                <audio src={lesson.audioUrl} controls className="w-full mt-6" />
               )}
               {/* NEW: Complete button for non-quiz lessons */}
               {showCompleteButton && (
@@ -550,14 +608,17 @@ export default function LessonViewer() {
                     disabled={completing}
                     className={`
                       flex items-center gap-3 px-10 py-5 text-lg font-bold rounded-2xl transition-all duration-300
-                      ${completing 
-                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
-                        : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105'
+                      ${
+                        completing
+                          ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                          : "bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105"
                       }
                     `}
                   >
                     <Check className="w-6 h-6" />
-                    {completing ? 'Marking as Complete...' : 'Mark Lesson as Complete'}
+                    {completing
+                      ? "Marking as Complete..."
+                      : "Mark Lesson as Complete"}
                   </button>
                 </div>
               )}
@@ -577,36 +638,36 @@ export default function LessonViewer() {
       </div>
 
       {/* NEW: Next Lesson Button – appears after completion */}
-     
-{showNextButton && (
-  <div className="flex justify-center mt-10 gap-6 flex-wrap">
-    {nextLesson ? (
-      <button
-        onClick={handleGoToNext}
-        className="flex items-center gap-3 px-12 py-5 text-xl font-bold 
+
+      {showNextButton && (
+        <div className="flex justify-center mt-10 gap-6 flex-wrap">
+          {nextLesson ? (
+            <button
+              onClick={handleGoToNext}
+              className="flex items-center gap-3 px-12 py-5 text-xl font-bold 
                    bg-gradient-to-r from-cyan-600 to-purple-600 
                    hover:from-cyan-500 hover:to-purple-500 text-white 
                    rounded-2xl transition-all duration-300 
                    shadow-xl shadow-cyan-500/40 hover:shadow-cyan-500/60 
                    hover:scale-105"
-      >
-        Next Lesson →
-      </button>
-    ) : (
-      <button
-        onClick={() => navigate(`/courses/${lesson.courseId}`)}
-        className="flex items-center gap-3 px-12 py-5 text-xl font-bold 
+            >
+              Next Lesson →
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(`/courses/${lesson.courseId}`)}
+              className="flex items-center gap-3 px-12 py-5 text-xl font-bold 
                    bg-gradient-to-r from-emerald-600 to-teal-600 
                    hover:from-emerald-500 hover:to-teal-500 text-white 
                    rounded-2xl transition-all duration-300 
                    shadow-xl shadow-emerald-500/40 hover:shadow-emerald-500/60 
                    hover:scale-105"
-      >
-        Back to Course Overview
-      </button>
-    )}
-  </div>
-)}
+            >
+              Back to Course Overview
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Result Panel */}
       {showQuizResult && (
@@ -617,14 +678,20 @@ export default function LessonViewer() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-10">
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-cyan-500/20 rounded-xl p-6">
-              <p className="text-cyan-700 dark:text-cyan-300 text-lg mb-2">Your Score</p>
-              <p className={`text-5xl font-black ${quizScore >= 85 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="text-cyan-700 dark:text-cyan-300 text-lg mb-2">
+                Your Score
+              </p>
+              <p
+                className={`text-5xl font-black ${quizScore >= 85 ? "text-green-600" : "text-red-600"}`}
+              >
                 {quizScore}%
               </p>
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-cyan-500/20 rounded-xl p-6">
-              <p className="text-cyan-700 dark:text-cyan-300 text-lg mb-2">Time Taken</p>
+              <p className="text-cyan-700 dark:text-cyan-300 text-lg mb-2">
+                Time Taken
+              </p>
               <p className="text-4xl font-bold text-purple-600 dark:text-purple-300">
                 {formatTime(timeTaken)}
               </p>
@@ -647,13 +714,9 @@ export default function LessonViewer() {
                   Retry Challenge
                 </button>
 
-                <button
-  onClick={handleGoToNext}
-  className="..."
->
-  {nextLesson ? "Proceed to Next Lesson →" : "Finish Course 🎉"}
-</button>
-
+                <button onClick={handleGoToNext} className="...">
+                  {nextLesson ? "Proceed to Next Lesson →" : "Finish Course 🎉"}
+                </button>
               </>
             ) : (
               <>
@@ -673,15 +736,13 @@ export default function LessonViewer() {
               </>
             )}
           </div>
-
-          
         </div>
       )}
 
       {/* AI Tutor CTA */}
       <div className="text-center">
         <button
-          onClick={() => navigate('/ai-tutor')}
+          onClick={() => navigate("/ai-tutor")}
           className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-medium transition hover:scale-105 shadow-lg shadow-cyan-500/30"
         >
           <Brain className="w-6 h-6" />

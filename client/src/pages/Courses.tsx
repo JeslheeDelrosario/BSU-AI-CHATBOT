@@ -498,7 +498,16 @@ export default function Courses() {
 
                 {/* Enrolled Badge */}
                 {isEnrolled && (
-                  <div className="absolute top-4 right-4 z-20">
+                  <div
+                    className={`
+                    absolute z-20
+                    ${
+                      isAdmin
+                        ? "absolute top-4 right-4 z-20 opacity-100 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none" 
+                        : "top-4 right-4" // for students Acc
+                    }
+                  `}
+                  >
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/95 text-white text-xs font-bold rounded-full shadow-lg backdrop-blur-sm border border-green-400/60">
                       <CheckCircle className="w-3.5 h-3.5" />
                       Enrolled
@@ -529,14 +538,14 @@ export default function Courses() {
 
               {/* Admin Buttons */}
               {isAdmin && (
-                <div className="absolute top-4 right-4 flex gap-3opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                <div className="absolute top-4 right-4 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-30">
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       openEditModal(course);
                     }}
-                    className="p-3 bg-blue-600/90 hover:bg-blue-700 text-whiterounded-full shadow-lg hover:scale-110 transition-transform"
+                    className="p-2.5 rounded-full bg-gradient-to-br from-blue-600/90 to-indigo-600/90 hover:from-blue-500 hover:to-indigo-500 backdrop-blur-sm border border-blue-400/30 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-110 active:scale-95 transition-all duration-200"
                     title={
                       accessibilitySettings.language === "fil"
                         ? "I-edit ang Kurso"
@@ -545,13 +554,14 @@ export default function Courses() {
                   >
                     <Edit className="w-5 h-5" />
                   </button>
+
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       openDeleteModal(course);
                     }}
-                    className="p-3 bg-red-600/90 hover:bg-red-700 text-whiterounded-full shadow-lg hover:scale-110 transition-transform"
+                    className="p-2.5 rounded-full bg-gradient-to-br from-red-600/90 to-rose-600/90 hover:from-red-500 hover:to-rose-500 backdrop-blur-sm border border-red-400/30 text-white shadow-lg shadow-red-500/30 hover:shadow-red-500/50 hover:scale-110 active:scale-95 transition-all duration-200"
                     title={
                       accessibilitySettings.language === "fil"
                         ? "Tanggalin ang Kurso"

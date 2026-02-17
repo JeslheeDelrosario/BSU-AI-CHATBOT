@@ -9,8 +9,8 @@
      ===================================================== */
   :root {
     /* Backgrounds */
-    --background: 210 40% 98%;        /* soft cool white */
-    --foreground: 222 47% 11%;        /* near-black, high contrast */
+    --background: 210 40% 98%; /* soft cool white */
+    --foreground: 222 47% 11%; /* near-black, high contrast */
 
     /* Cards & Popovers */
     --card: 0 0% 100%;
@@ -37,7 +37,7 @@
     --destructive-foreground: 0 0% 98%;
 
     /* Borders & Inputs */
-    --border: 214 32% 88%;            /* visible borders */
+    --border: 214 32% 88%; /* visible borders */
     --input: 214 32% 88%;
     --ring: 222 47% 11%;
 
@@ -106,30 +106,76 @@
   }
 
   /* Scale all text elements proportionally */
-  body, p, span, div, li, td, th, label, input, textarea, select, button, a {
+  body,
+  p,
+  span,
+  div,
+  li,
+  td,
+  th,
+  label,
+  input,
+  textarea,
+  select,
+  button,
+  a {
     font-size: inherit;
   }
 
   /* Headings scale proportionally */
-  h1 { font-size: calc(var(--base-font-size, 16px) * 2.25); }
-  h2 { font-size: calc(var(--base-font-size, 16px) * 1.875); }
-  h3 { font-size: calc(var(--base-font-size, 16px) * 1.5); }
-  h4 { font-size: calc(var(--base-font-size, 16px) * 1.25); }
-  h5 { font-size: calc(var(--base-font-size, 16px) * 1.125); }
-  h6 { font-size: var(--base-font-size, 16px); }
+  h1 {
+    font-size: calc(var(--base-font-size, 16px) * 2.25);
+  }
+  h2 {
+    font-size: calc(var(--base-font-size, 16px) * 1.875);
+  }
+  h3 {
+    font-size: calc(var(--base-font-size, 16px) * 1.5);
+  }
+  h4 {
+    font-size: calc(var(--base-font-size, 16px) * 1.25);
+  }
+  h5 {
+    font-size: calc(var(--base-font-size, 16px) * 1.125);
+  }
+  h6 {
+    font-size: var(--base-font-size, 16px);
+  }
 
   /* Ensure text classes respect the base size */
-  .text-xs { font-size: calc(var(--base-font-size, 16px) * 0.75) !important; }
-  .text-sm { font-size: calc(var(--base-font-size, 16px) * 0.875) !important; }
-  .text-base { font-size: var(--base-font-size, 16px) !important; }
-  .text-lg { font-size: calc(var(--base-font-size, 16px) * 1.125) !important; }
-  .text-xl { font-size: calc(var(--base-font-size, 16px) * 1.25) !important; }
-  .text-2xl { font-size: calc(var(--base-font-size, 16px) * 1.5) !important; }
-  .text-3xl { font-size: calc(var(--base-font-size, 16px) * 1.875) !important; }
-  .text-4xl { font-size: calc(var(--base-font-size, 16px) * 2.25) !important; }
-  .text-5xl { font-size: calc(var(--base-font-size, 16px) * 3) !important; }
-  .text-6xl { font-size: calc(var(--base-font-size, 16px) * 3.75) !important; }
-  .text-7xl { font-size: calc(var(--base-font-size, 16px) * 4.5) !important; }
+  .text-xs {
+    font-size: calc(var(--base-font-size, 16px) * 0.75) !important;
+  }
+  .text-sm {
+    font-size: calc(var(--base-font-size, 16px) * 0.875) !important;
+  }
+  .text-base {
+    font-size: var(--base-font-size, 16px) !important;
+  }
+  .text-lg {
+    font-size: calc(var(--base-font-size, 16px) * 1.125) !important;
+  }
+  .text-xl {
+    font-size: calc(var(--base-font-size, 16px) * 1.25) !important;
+  }
+  .text-2xl {
+    font-size: calc(var(--base-font-size, 16px) * 1.5) !important;
+  }
+  .text-3xl {
+    font-size: calc(var(--base-font-size, 16px) * 1.875) !important;
+  }
+  .text-4xl {
+    font-size: calc(var(--base-font-size, 16px) * 2.25) !important;
+  }
+  .text-5xl {
+    font-size: calc(var(--base-font-size, 16px) * 3) !important;
+  }
+  .text-6xl {
+    font-size: calc(var(--base-font-size, 16px) * 3.75) !important;
+  }
+  .text-7xl {
+    font-size: calc(var(--base-font-size, 16px) * 4.5) !important;
+  }
 }
 
 /* =====================================================
@@ -153,22 +199,24 @@
 
 /* Dyslexia-Friendly Font */
 @font-face {
-  font-family: 'OpenDyslexic';
-  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff') format('woff');
+  font-family: "OpenDyslexic";
+  src: url("https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff")
+    format("woff");
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'OpenDyslexic';
-  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff') format('woff');
+  font-family: "OpenDyslexic";
+  src: url("https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff")
+    format("woff");
   font-weight: bold;
   font-style: normal;
 }
 
 .dyslexia-font,
 .dyslexia-font * {
-  font-family: 'OpenDyslexic', sans-serif !important;
+  font-family: "OpenDyslexic", sans-serif !important;
   letter-spacing: 0.05em;
   word-spacing: 0.1em;
   line-height: 1.8;
@@ -311,21 +359,21 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Scrollbar size – thin and modern */
 ::-webkit-scrollbar {
-  width: 8px;               /* vertical scrollbar thickness – 8px is balanced */
-  height: 8px;              /* horizontal scrollbar thickness */
+  width: 8px; /* vertical scrollbar thickness – 8px is balanced */
+  height: 8px; /* horizontal scrollbar thickness */
 }
 
 /* Track (background behind thumb) */
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;      /* almost black – blends perfectly with #000 bg */
+  background: #0a0a0a; /* almost black – blends perfectly with #000 bg */
   border-left: 1px solid rgba(103, 232, 249, 0.06); /* very subtle cyan edge */
 }
 
 /* Thumb (the part you drag) */
 ::-webkit-scrollbar-thumb {
-  background: rgba(103, 232, 249, 0.35);   /* soft semi-transparent cyan */
+  background: rgba(103, 232, 249, 0.35); /* soft semi-transparent cyan */
   border-radius: 6px;
-  border: 2px solid #0a0a0a;               /* prevents color bleed on edges */
+  border: 2px solid #0a0a0a; /* prevents color bleed on edges */
   transition: all 0.3s ease;
 }
 
@@ -337,7 +385,7 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Active / dragging: vivid cyan + stronger glow */
 ::-webkit-scrollbar-thumb:active {
-  background: #22d3ee;                    /* strong cyan (#22d3ee) */
+  background: #22d3ee; /* strong cyan (#22d3ee) */
   box-shadow: 0 0 18px rgba(34, 211, 238, 0.7);
 }
 
@@ -361,18 +409,34 @@ select::-webkit-scrollbar-thumb:hover {
    ===================================================== */
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes zoom-in-95 {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-from-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .animate-in {
@@ -391,7 +455,6 @@ select::-webkit-scrollbar-thumb:hover {
 .slide-in-from-right {
   animation-name: slide-in-from-right;
 }
-
 
 /* =====================================================
    QUILL EDITOR – GLOBAL STYLES (STRONG DARK MODE FIX)
@@ -418,43 +481,41 @@ select::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--background));
 }
 
-
 /* Toolbar */
 .ql-toolbar {
   position: sticky !important;
   top: 0 !important;
   z-index: 10 !important;
-  flex-shrink: 0;                     /* don't let toolbar shrink */
+  flex-shrink: 0; /* don't let toolbar shrink */
   background: hsl(var(--card)) !important;
   border: none !important;
   border-bottom: 1px solid hsl(var(--border)) !important;
   border-radius: 0.75rem 0.75rem 0 0;
   padding: 12px 16px !important;
   min-height: 56px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .dark .ql-toolbar {
   background: #8b919b !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* Editor core */
 .ql-editor {
   min-height: 250px !important;
   padding: 28px 32px !important;
-  font-size: 16px; 
+  font-size: 16px;
   line-height: 1.6 !important;
 }
 
-.ql-snow .ql-picker-options{
+.ql-snow .ql-picker-options {
   background-color: #ffffff;
 }
 
-.dark .ql-snow .ql-picker-options{
+.dark .ql-snow .ql-picker-options {
   background-color: #000000;
 }
-
 
 /* Light mode background */
 .ql-editor {
@@ -471,8 +532,8 @@ select::-webkit-scrollbar-thumb:hover {
 .dark .ql-editor strong,
 .dark .ql-editor em,
 .dark .ql-editor a {
-  color: #ffffff !important;           /* pure white – highest priority */
-  background: transparent !important;   /* prevent any dark bg override */
+  color: #ffffff !important; /* pure white – highest priority */
+  background: transparent !important; /* prevent any dark bg override */
 }
 
 /* Make sure paragraphs don't have weird bg */
@@ -495,14 +556,14 @@ select::-webkit-scrollbar-thumb:hover {
 .ql-editor pre[class*="language-"],
 .ql-editor code.ql-syntax,
 .ql-code-block-container {
-  background: #1F1F1F !important;           /* slate-900 – dark & readable */
-  color: #e2e8f0 !important;                /* slate-200 – good contrast */
-  border: 1px solid #334155 !important;     /* visible border */
+  background: #1f1f1f !important; /* slate-900 – dark & readable */
+  color: #e2e8f0 !important; /* slate-200 – good contrast */
+  border: 1px solid #334155 !important; /* visible border */
   border-radius: 0.75rem !important;
   padding: 1.25rem !important;
   margin: 1.5rem 0 !important;
   overflow-x: auto;
-  font-family: 'Consolas', 'Monaco', monospace !important;
+  font-family: "Consolas", "Monaco", monospace !important;
 }
 
 /* Dark mode specific – make sure it wins */
@@ -510,15 +571,15 @@ select::-webkit-scrollbar-thumb:hover {
 .dark .ql-editor pre[class*="language-"],
 .dark .ql-editor code.ql-syntax,
 .dark .ql-editor .ql-code-block-container {
-  background: #1F1F1F !important;           /* even darker slate-950 option if you prefer */
+  background: #1f1f1f !important; /* even darker slate-950 option if you prefer */
   color: #e2e8f0 !important;
   border-color: #475569 !important;
 }
 
 /* Inline code (not full block) */
 .ql-editor code:not(.ql-syntax) {
-  background: #1F1F1F !important;   /* muted dark bg */
-  color: #a5b4fc !important;                      /* indigo-300 – stands out */
+  background: #1f1f1f !important; /* muted dark bg */
+  color: #a5b4fc !important; /* indigo-300 – stands out */
   padding: 0.15rem 0.35rem !important;
   border-radius: 0.375rem !important;
   font-size: 0.95em !important;
@@ -532,19 +593,31 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 /* Toolbar icons (unchanged) */
-.ql-stroke { stroke: #1f2937 !important; }
-.dark .ql-stroke { stroke: #e5e7eb !important; }
+.ql-stroke {
+  stroke: #1f2937 !important;
+}
+.dark .ql-stroke {
+  stroke: #e5e7eb !important;
+}
 
-.ql-fill { fill: #1f2937 !important; }
-.dark .ql-fill { fill: #e5e7eb !important; }
+.ql-fill {
+  fill: #1f2937 !important;
+}
+.dark .ql-fill {
+  fill: #e5e7eb !important;
+}
 
 .ql-toolbar button:hover .ql-stroke,
 .ql-toolbar button:focus .ql-stroke,
-.ql-toolbar button.ql-active .ql-stroke { stroke: #06b6d4 !important; }
+.ql-toolbar button.ql-active .ql-stroke {
+  stroke: #06b6d4 !important;
+}
 
 .ql-toolbar button:hover .ql-fill,
 .ql-toolbar button:focus .ql-fill,
-.ql-toolbar button.ql-active .ql-fill { fill: #06b6d4 !important; }
+.ql-toolbar button.ql-active .ql-fill {
+  fill: #06b6d4 !important;
+}
 
 .ql-toolbar button:hover,
 .ql-toolbar button:focus,
@@ -569,52 +642,52 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Show actual font sizes in dropdown preview */
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10pt"]::before {
-  content: '10pt';
+  content: "10pt";
   font-size: 10pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="11pt"]::before {
-  content: '11pt';
+  content: "11pt";
   font-size: 11pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12pt"]::before {
-  content: '12pt';
+  content: "12pt";
   font-size: 12pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14pt"]::before {
-  content: '14pt';
+  content: "14pt";
   font-size: 14pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16pt"]::before {
-  content: '16pt';
+  content: "16pt";
   font-size: 16pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18pt"]::before {
-  content: '18pt';
+  content: "18pt";
   font-size: 18pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24pt"]::before {
-  content: '24pt';
+  content: "24pt";
   font-size: 24pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30pt"]::before {
-  content: '30pt';
+  content: "30pt";
   font-size: 30pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36pt"]::before {
-  content: '36pt';
+  content: "36pt";
   font-size: 36pt !important;
 }
 
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="100pt"]::before {
-  content: '100pt';
+  content: "100pt";
   font-size: 100pt !important;
 }
 
@@ -623,12 +696,12 @@ select::-webkit-scrollbar-thumb:hover {
 /* Bullets & numbers – pure white in dark mode */
 .ql-editor ul > li::before,
 .ql-editor ol > li::before {
-  color: #1e2937 !important;           /* light mode */
+  color: #1e2937 !important; /* light mode */
 }
 
 .dark .ql-editor ul > li::before,
 .dark .ql-editor ol > li::before {
-  color: #ffffff !important;           /* bright white in dark mode */
+  color: #ffffff !important; /* bright white in dark mode */
 }
 
 .ql-editor li {
@@ -642,15 +715,14 @@ select::-webkit-scrollbar-thumb:hover {
 /* Remove default paragraph margins in Quill */
 .ql-editor p,
 .ql-editor p + p {
-  margin: 0 !important;               /* no extra space between paragraphs */
+  margin: 0 !important; /* no extra space between paragraphs */
   padding: 0 !important;
 }
 
 /* Tighten line spacing overall (adjust 1.5–1.6 if you want even tighter) */
 .ql-editor {
-  line-height: 1.6 !important;        /* ← was 1.8 → feels less "double spaced" */
+  line-height: 1.6 !important; /* ← was 1.8 → feels less "double spaced" */
 }
-
 
 /* ────────────────────────────────────────────────
    TABLES – basic visibility in both modes
@@ -666,13 +738,13 @@ select::-webkit-scrollbar-thumb:hover {
 
 .ql-editor th,
 .ql-editor td {
-  border: 2px solid #111827 !important;   /* dark gray – light mode */
+  border: 2px solid #111827 !important; /* dark gray – light mode */
   padding: 12px 16px !important;
   vertical-align: top !important;
   background: #ffffff !important;
   color: #111827 !important;
-  white-space: nowrap !important;   
-  word-break: normal !important;    
+  white-space: nowrap !important;
+  word-break: normal !important;
 }
 
 .ql-editor th {
@@ -683,7 +755,7 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Dark mode table */
 .dark .ql-editor table {
-  border-color: #94a3b8 !important;       /* slate-400 – light & visible */
+  border-color: #94a3b8 !important; /* slate-400 – light & visible */
 }
 
 .dark .ql-editor th,
@@ -706,4 +778,51 @@ select::-webkit-scrollbar-thumb:hover {
 .dark .ql-editor td:hover,
 .dark .ql-editor th:hover {
   background: rgba(6, 182, 212, 0.18) !important;
+}
+
+/* GLOBAL LOADING SCREEN */
+
+/* Slow pulsing for logo & background glow */
+@keyframes pulse-slow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.92;
+  }
+}
+
+/* Very subtle background pulse */
+@keyframes pulse-slow-bg {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Gentle text glow pulse */
+@keyframes pulse-text {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+.animate-pulse-slow-bg {
+  animation: pulse-slow-bg 8s ease-in-out infinite;
+}
+.animate-pulse-text {
+  animation: pulse-text 3s ease-in-out infinite;
 }
