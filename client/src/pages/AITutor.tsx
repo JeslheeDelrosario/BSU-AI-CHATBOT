@@ -1,17 +1,31 @@
 // client/src/pages/AITutor.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../lib/api';
-import { Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare, MoreVertical, Star, Edit2 } from 'lucide-react'; // Re-added Menu icon
+import { 
+  Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare, MoreVertical, 
+  Star, Edit2, ArrowDown, Search, AlertTriangle, Smile, Pin, PinOff,
+  Palette, Bell, Clock, Sparkles,
+  CheckCircle2, XCircle, WifiOff, Copy, Check
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import QuizModal from '../components/QuizModal';
 import QuizCard from '../components/QuizCard';
+import ConsultationBookingCard from '../components/ConsultationBookingCard';
 
 interface Message {
   role: 'user' | 'ai';
   content: string;
+  timestamp?: string;
+  quizData?: any;
+  isPinned?: boolean;
+  consultationData?: {
+    faculty: any[];
+    selectedFaculty?: any;
+  };
+  showConsultationBooking?: boolean;
 }
 
 interface Chat {
@@ -21,6 +35,40 @@ interface Chat {
   updatedAt: string | number;
   isStarred: boolean;
 }
+
+// Common emoji set for quick reactions
+const EMOJI_OPTIONS = ['👍', '👎', '❤️', '😂', '🤔', '🎉', '💡', '✅'];
+
+// Chat background options
+const BG_OPTIONS = [
+  { id: 'default', label: 'Default', class: 'bg-slate-50 dark:bg-slate-950' },
+  { id: 'dots', label: 'Dots', class: 'bg-slate-50 dark:bg-slate-950 bg-[radial-gradient(circle,_rgba(6,182,212,0.05)_1px,_transparent_1px)] bg-[length:20px_20px]' },
+  { id: 'grid', label: 'Grid', class: 'bg-slate-50 dark:bg-slate-950 bg-[linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)] bg-[length:32px_32px]' },
+  { id: 'gradient', label: 'Gradient', class: 'bg-gradient-to-br from-slate-50 via-cyan-50/30 to-purple-50/20 dark:from-slate-950 dark:via-cyan-950/20 dark:to-purple-950/10' },
+];
+
+// Utility function to format timestamp
+const formatTimestamp = (timestamp?: string) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+};
+
+// Utility function to get message divider label
+const getMessageDivider = (timestamp?: string, language: string = 'en') => {
+  if (!timestamp) return null;
+  const messageDate = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const isToday = messageDate.toDateString() === today.toDateString();
+  const isYesterday = messageDate.toDateString() === yesterday.toDateString();
+  
+  if (isToday) return language === 'fil' ? 'Ngayon' : 'Today';
+  if (isYesterday) return language === 'fil' ? 'Kahapon' : 'Yesterday';
+  return messageDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 export default function AITutor() {
   const { settings: accessibilitySettings } = useAccessibility();
@@ -39,30 +87,107 @@ export default function AITutor() {
   // Quiz state
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentExam, setCurrentExam] = useState<any>(null);
-  const [generatingQuiz, setGeneratingQuiz] = useState(false);
-  const [generatedExams, setGeneratedExams] = useState<Map<string, any>>(new Map());
   
-  // Re-added: to control main navigation sidebar from Layout.tsx
-  // const [sidebarOpen, setSidebarOpen] = useState(false);
   const { setSidebarOpen } = useSidebar();
   
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // New feature states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [chatBg, setChatBg] = useState(() => localStorage.getItem('tisaChatBg') || 'default');
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [systemBanner, setSystemBanner] = useState<{ message: string; type: 'info' | 'warning' | 'success' } | null>(null);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [copiedMsgIdx, setCopiedMsgIdx] = useState<number | null>(null);
+  const [hoveredMsgIdx, setHoveredMsgIdx] = useState<number | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const currentChat = chats.find(c => c.id === currentChatId) ?? null;
+  const pinnedMessages = messages.filter(m => m.isPinned);
+  const currentBgClass = BG_OPTIONS.find(b => b.id === chatBg)?.class || BG_OPTIONS[0].class;
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Detect scroll position to show/hide scroll-to-bottom button
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom && messages.length > 0);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [messages.length]);
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+  }, [input]);
+
+  // Persist chat background preference
+  useEffect(() => {
+    localStorage.setItem('tisaChatBg', chatBg);
+  }, [chatBg]);
+
+  // Copy message to clipboard
+  const copyMessage = useCallback((content: string, idx: number) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedMsgIdx(idx);
+      setTimeout(() => setCopiedMsgIdx(null), 2000);
+    });
+  }, []);
+
+  // Toggle pin on a message
+  const togglePinMessage = useCallback((idx: number) => {
+    setMessages(prev => prev.map((m, i) => i === idx ? { ...m, isPinned: !m.isPinned } : m));
+  }, []);
+
+  // Get session status indicator
+  const getSessionStatus = useCallback((chat: Chat): { label: string; color: string } => {
+    if (!chat.messages || chat.messages.length === 0) {
+      return { label: accessibilitySettings.language === 'fil' ? 'Bago' : 'New', color: 'text-emerald-500' };
+    }
+    const lastMsg = chat.messages[chat.messages.length - 1];
+    if (lastMsg?.timestamp) {
+      const hoursSince = (Date.now() - new Date(lastMsg.timestamp).getTime()) / (1000 * 60 * 60);
+      if (hoursSince < 1) return { label: accessibilitySettings.language === 'fil' ? 'Aktibo' : 'Active', color: 'text-cyan-500' };
+    }
+    return { label: accessibilitySettings.language === 'fil' ? 'Natapos' : 'Ended', color: 'text-slate-400' };
+  }, [accessibilitySettings.language]);
+
   // Load chats on mount
   useEffect(() => {
     const load = async () => {
+      setIsLoadingChats(true);
       try {
         const res = await api.get('/chat-sessions');
         const serverChats: Chat[] = Array.isArray(res.data) ? res.data : [];
         setChats(serverChats);
+        setConnectionError(false);
 
         if (serverChats.length > 0) {
           setCurrentChatId(serverChats[0].id);
@@ -70,10 +195,14 @@ export default function AITutor() {
         }
       } catch (err) {
         console.error('Failed to load chat sessions', err);
+        setConnectionError(true);
+        setSystemBanner({ message: accessibilitySettings.language === 'fil' ? 'Hindi makakonekta sa server. Subukan muli.' : 'Unable to connect to server. Please try again.', type: 'warning' });
+      } finally {
+        setIsLoadingChats(false);
       }
     };
     load();
-  }, []);
+  }, [accessibilitySettings.language]);
 
   const startNewChat = async () => {
     try {
@@ -171,24 +300,28 @@ export default function AITutor() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMsg: Message = { role: 'user', content: input };
+    const userMsg: Message = { role: 'user', content: input, timestamp: new Date().toISOString() };
     const tempMessages = [...messages, userMsg];
     setMessages(tempMessages);
     setInput('');
     setLoading(true);
 
     try {
-      // Use temporary title for new chats, will be updated with AI-generated title
       const tempTitle = accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat';
       let chatId = currentChatId;
+      let isNewChat = false;
+      let existingTitle = currentChat?.title || '';
 
       if (!chatId) {
+        isNewChat = true;
         const createRes = await api.post('/chat-sessions', { title: tempTitle, messages: tempMessages });
         chatId = createRes.data.id;
+        existingTitle = tempTitle;
         setCurrentChatId(chatId);
         setChats(prev => [createRes.data, ...prev]);
       } else {
-        await api.put(`/chat-sessions/${chatId}`, { title: currentChat?.title || tempTitle, messages: tempMessages });
+        existingTitle = currentChat?.title || tempTitle;
+        await api.put(`/chat-sessions/${chatId}`, { title: existingTitle, messages: tempMessages });
         setChats(prev =>
           prev
             .map(c => (c.id === chatId ? { ...c, messages: tempMessages, updatedAt: Date.now() } : c))
@@ -201,58 +334,98 @@ export default function AITutor() {
         type: 'QUESTION',
         chatSessionId: chatId 
       });
+
+      // Resolve title: always prefer AI-generated title, especially for new chats
+      // For existing chats, only update if the current title is still the temp title
+      const generatedTitle = res.data?.generatedTitle;
+      let finalTitle = existingTitle;
+      if (generatedTitle) {
+        finalTitle = generatedTitle;
+      } else if (isNewChat || existingTitle === tempTitle || existingTitle === 'New Chat' || existingTitle === 'Bagong Chat') {
+        // Backend didn't return a title — use a fallback from the user message (Title Case)
+        const words = userMsg.content.replace(/[^\w\s]/gi, '').trim().split(/\s+/).filter(w => w.length > 2).slice(0, 5);
+        finalTitle = words.length > 0
+          ? words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+          : tempTitle;
+        if (finalTitle.length > 50) finalTitle = finalTitle.substring(0, 47) + '...';
+      }
       
       // Check if AI wants to generate a quiz
-      if (res.data?.generateQuiz) {
-        setGeneratingQuiz(true);
-        try {
-          const examResponse = await api.post('/practice-exams', res.data.quizParams);
-          const exam = examResponse.data.exam;
-          
-          // Store exam in map for later access
-          setGeneratedExams(prev => new Map(prev).set(exam.id, exam));
-          
-          // Add AI message with quiz card (using special marker)
-          const aiMsg: Message = { 
-            role: 'ai', 
-            content: `__QUIZ_CARD__${exam.id}__${res.data.response}` 
-          };
-          const finalMessages = [...tempMessages, aiMsg];
-          setMessages(finalMessages);
-          
-          if (chatId) {
-            await api.put(`/chat-sessions/${chatId}`, { messages: finalMessages });
-          }
-        } catch (error) {
-          console.error('Failed to generate quiz:', error);
-          const errorMsg: Message = { 
-            role: 'ai', 
-            content: accessibilitySettings.language === 'fil' 
-              ? 'Paumanhin, nabigo ang paglikha ng quiz. Pakisubukan muli.' 
-              : 'Sorry, failed to generate quiz. Please try again.' 
-          };
-          setMessages([...tempMessages, errorMsg]);
-        } finally {
-          setGeneratingQuiz(false);
+      if (res.data?.generateQuiz && res.data?.quiz) {
+        console.log('[Quiz] Quiz generated by backend:', res.data.quiz);
+        
+        const exam = {
+          id: res.data.quiz.id,
+          title: res.data.quiz.title,
+          description: res.data.quiz.description,
+          subject: res.data.quizParams?.topic || 'General',
+          difficulty: 'Mixed',
+          totalQuestions: res.data.quiz.totalQuestions,
+          estimatedTime: res.data.quiz.estimatedTime,
+          questions: res.data.quiz.questions,
+          createdAt: res.data.quiz.createdAt
+        };
+        
+        const aiMsg: Message = { 
+          role: 'ai', 
+          content: `__QUIZ_CARD__${exam.id}__${res.data.response}`,
+          timestamp: new Date().toISOString(),
+          quizData: exam
+        };
+        const finalMessages = [...tempMessages, aiMsg];
+        setMessages(finalMessages);
+        
+        if (chatId) {
+          await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
+          setChats(prev => {
+            const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
+            return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+          });
         }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Check if AI response includes consultation booking UI
+      if (res.data?.showConsultationBooking && res.data?.consultationData) {
+        const aiMsg: Message = { 
+          role: 'ai', 
+          content: res.data.response,
+          timestamp: new Date().toISOString(),
+          showConsultationBooking: true,
+          consultationData: res.data.consultationData
+        };
+        const finalMessages = [...tempMessages, aiMsg];
+        setMessages(finalMessages);
+        
+        if (res.data?.suggestions) {
+          setSuggestions(res.data.suggestions);
+        }
+        setShowGreeting(false);
+        
+        if (chatId) {
+          await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
+          setChats(prev => {
+            const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
+            return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+          });
+        }
+        
         setLoading(false);
         return;
       }
       
       const aiText = res.data?.response ?? '*No response*';
-      const aiMsg: Message = { role: 'ai', content: aiText };
+      const aiMsg: Message = { role: 'ai', content: aiText, timestamp: new Date().toISOString() };
       const finalMessages = [...tempMessages, aiMsg];
       
-      // Update suggestions from AI response
       if (res.data?.suggestions) {
         setSuggestions(res.data.suggestions);
       }
       setShowGreeting(false);
 
       setMessages(finalMessages);
-
-      // Use AI-generated title if available, otherwise keep current title
-      const finalTitle = res.data?.generatedTitle || currentChat?.title || tempTitle;
 
       if (chatId) {
         await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
@@ -261,24 +434,113 @@ export default function AITutor() {
           return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('sendMessage error', err);
-      const errorMsg: Message = { role: 'ai', content: accessibilitySettings.language === 'fil' ? '*Paumanhin, may naganap na error. Pakisubukan muli.*' : '*Sorry, I encountered an error. Please try again.*' };
+      const isNetwork = !err?.response;
+      setConnectionError(isNetwork);
+      const errorContent = isNetwork
+        ? (accessibilitySettings.language === 'fil' ? '__ERROR__NETWORK__Hindi makakonekta sa server. Suriin ang iyong internet connection.' : '__ERROR__NETWORK__Unable to connect to server. Check your internet connection.')
+        : (accessibilitySettings.language === 'fil' ? '__ERROR__SERVER__Paumanhin, may naganap na error. Pakisubukan muli.' : '__ERROR__SERVER__Sorry, I encountered an error. Please try again.');
+      const errorMsg: Message = { role: 'ai', content: errorContent, timestamp: new Date().toISOString() };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+    // Allow Shift+Enter for new lines in textarea
+  };
+
+  const renderChatItem = (chat: Chat) => {
+    const status = getSessionStatus(chat);
+    return (
+      <div
+        key={chat.id}
+        onClick={() => selectChat(chat)}
+        className={`p-3 rounded-xl cursor-pointer transition-all group relative
+          ${chat.id === currentChatId
+            ? 'bg-gradient-to-r from-cyan-500/10 to-purple-600/10 border border-cyan-500/30 dark:border-cyan-500/40 shadow-sm'
+            : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-transparent'
+          }`}
+      >
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <MessageSquare className={`w-4 h-4 flex-shrink-0 ${chat.id === currentChatId ? 'text-cyan-500' : 'text-slate-400'}`} />
+            <div className="flex-1 min-w-0">
+              {editingChatId === chat.id ? (
+                <input
+                  type="text"
+                  value={tempTitle}
+                  autoFocus
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  onBlur={async () => {
+                    if (tempTitle.trim().length > 0) await renameChat(chat.id, tempTitle.trim());
+                    setEditingChatId(null);
+                    setTempTitle('');
+                  }}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { setEditingChatId(null); setTempTitle(''); }
+                  }}
+                  className="w-full bg-white dark:bg-slate-950 border border-cyan-500 rounded-lg px-2 py-1 text-sm text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate" title={chat.title}>
+                    {chat.isStarred && <Star className="w-3 h-3 inline-block mr-1 fill-yellow-400 text-yellow-400 -mt-0.5" />}
+                    {chat.title}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`text-[10px] font-medium ${status.color}`}>{status.label}</span>
+                    <span className="text-[10px] text-slate-400">·</span>
+                    <span className="text-[10px] text-slate-400">{chat.messages?.length || 0} msgs</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === chat.id ? null : chat.id); }}
+              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+              title={accessibilitySettings.language === 'fil' ? 'Mga pagpipilian' : 'Options'}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {openMenuId === chat.id && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }} />
+                <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1">
+                  <button onClick={(e) => toggleStarChat(chat.id, e)} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2.5">
+                    <Star className={`w-4 h-4 ${chat.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                    {chat.isStarred ? (accessibilitySettings.language === 'fil' ? 'Alisin sa star' : 'Unstar') : (accessibilitySettings.language === 'fil' ? 'I-star' : 'Star')}
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setEditingChatId(chat.id); setTempTitle(chat.title); }} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2.5">
+                    <Edit2 className="w-4 h-4" />
+                    {accessibilitySettings.language === 'fil' ? 'Palitan ang pangalan' : 'Rename'}
+                  </button>
+                  <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
+                  <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setShowDeleteConfirm(chat.id); }} className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5">
+                    <Trash2 className="w-4 h-4" />
+                    {accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
+    <div className="fixed inset-0 flex overflow-hidden">
       
       <style>{`
         .scrollbar-cyberpunk::-webkit-scrollbar { width: 6px; }
@@ -308,330 +570,274 @@ export default function AITutor() {
         }
       `}</style>
 
-      {/* Mobile Overlay for Chat History */}
-      {chatHistoryOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setChatHistoryOpen(false)}
-        />
-      )}
-
-      {/* Mobile Overlay for Main Navigation Sidebar */}
-      {/* {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )} */}
-
-      {/* Sidebar - Chat History (unchanged) */}
-      <aside className={`
-        fixed lg:static inset-y-0 right-0 z-50 w-72 lg:w-64 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800
-        shadow-2xl transform transition-transform duration-300 ease-out
-        ${chatHistoryOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-      `}>
-        {/* ... entire sidebar content unchanged ... */}
-        <div className="flex flex-col h-full">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-                {accessibilitySettings.language === 'fil' ? 'Kasaysayan ng Chat' : 'Chat History'}
-              </h2>
-              <button 
-                onClick={() => setChatHistoryOpen(false)} 
-                className="lg:hidden text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                {accessibilitySettings.language === 'fil' ? 'Tanggalin ang Chat?' : 'Delete Chat?'}
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              {accessibilitySettings.language === 'fil' ? 'Hindi na ito maibabalik. Sigurado ka ba?' : 'This action cannot be undone. Are you sure?'}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeleteConfirm(null)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                {accessibilitySettings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
+              </button>
+              <button onClick={() => { deleteChat(showDeleteConfirm); setShowDeleteConfirm(null); }} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors shadow-lg">
+                {accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            <button
-              onClick={startNewChat}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200"
+      {/* Clear Chat Confirmation Dialog */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowClearConfirm(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                {accessibilitySettings.language === 'fil' ? 'I-clear ang Chat?' : 'Clear Chat?'}
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              {accessibilitySettings.language === 'fil' ? 'Mababura ang lahat ng mensahe sa chat na ito.' : 'All messages in this chat will be removed.'}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearConfirm(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                {accessibilitySettings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
+              </button>
+              <button onClick={() => { setMessages([]); setShowClearConfirm(false); if (currentChatId) api.put(`/chat-sessions/${currentChatId}`, { messages: [] }).catch(console.error); }} className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors shadow-lg">
+                {accessibilitySettings.language === 'fil' ? 'I-clear' : 'Clear'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Overlay for Chat History */}
+      {chatHistoryOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" onClick={() => setChatHistoryOpen(false)} />
+      )}
+
+      {/* ===== REDESIGNED SIDEBAR ===== */}
+      <aside className={`
+        fixed lg:static inset-y-0 right-0 z-50 w-72 lg:w-72 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800
+        shadow-2xl transform transition-transform duration-300 ease-out flex flex-col
+        ${chatHistoryOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+      `}>
+        {/* TISA Branding Header */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-xl font-black bg-gradient-to-r from-cyan-500 to-purple-500 bg-clip-text text-transparent">
+                TISA
+              </span>
+            </div>
+            <button 
+              onClick={() => setChatHistoryOpen(false)} 
+              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              title={accessibilitySettings.language === 'fil' ? 'Isara' : 'Close'}
             >
-              <Plus className="w-4 h-4" />
-              {accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat'}
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto scrollbar-cyberpunk p-3 space-y-2">
-            {chats.length === 0 ? (
-              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">{accessibilitySettings.language === 'fil' ? 'Wala pang mga chat' : 'No chats yet'}</p>
-            ) : (
-              <>
-                {/* Starred Section */}
-                {chats.filter(c => c.isStarred).length > 0 && (
-                  <>
-                    <div className="px-2 py-1.5">
-                      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        {accessibilitySettings.language === 'fil' ? 'Naka-star' : 'Starred'}
-                      </h3>
-                    </div>
-                    {chats.filter(c => c.isStarred).map(chat => (
-                <div
-                  key={chat.id}
-                  onClick={() => selectChat(chat)}
-                  className={`p-3 rounded-lg cursor-pointer transition-all group relative
-                    ${chat.id === currentChatId
-                      ? 'bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
-                    }`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      {editingChatId === chat.id ? (
-                        <input
-                          type="text"
-                          value={tempTitle}
-                          autoFocus
-                          onChange={(e) => setTempTitle(e.target.value)}
-                          onBlur={async () => {
-                            if (tempTitle.trim().length > 0) {
-                              await renameChat(chat.id, tempTitle.trim());
-                            }
-                            setEditingChatId(null);
-                            setTempTitle('');
-                          }}
-                          onKeyDown={async (e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                            if (e.key === 'Escape') {
-                              setEditingChatId(null);
-                              setTempTitle('');
-                            }
-                          }}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-slate-900 dark:text-white font-medium truncate focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                      ) : (
-                        <p
-                          className="text-sm font-medium text-slate-900 dark:text-white truncate"
-                          title={chat.title}
-                        >
-                          {chat.title}
-                        </p>
-                      )}
-                    </div>
+          {/* New Chat Button */}
+          <button
+            onClick={startNewChat}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/25 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+            title={accessibilitySettings.language === 'fil' ? 'Gumawa ng bagong chat' : 'Start a new conversation'}
+          >
+            <Plus className="w-4 h-4" />
+            {accessibilitySettings.language === 'fil' ? 'Bagong Chat' : 'New Chat'}
+          </button>
 
-                    {/* Three-dot menu button */}
-                    <div className="relative flex-shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === chat.id ? null : chat.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-
-                      {/* Dropdown menu */}
-                      {openMenuId === chat.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                            }}
-                          />
-                          <div className="absolute right-0 top-8 z-50 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1">
-                            <button
-                              onClick={(e) => toggleStarChat(chat.id, e)}
-                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
-                            >
-                              <Star className={`w-4 h-4 ${chat.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                              {chat.isStarred 
-                                ? (accessibilitySettings.language === 'fil' ? 'Alisin sa star' : 'Unstar')
-                                : (accessibilitySettings.language === 'fil' ? 'I-star' : 'Star')
-                              }
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                setEditingChatId(chat.id);
-                                setTempTitle(chat.title);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                              {accessibilitySettings.language === 'fil' ? 'Palitan ang pangalan' : 'Rename'}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                deleteChat(chat.id);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              {accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-                  </>
-                )}
-
-                {/* Recents Section */}
-                {chats.filter(c => !c.isStarred).length > 0 && (
-                  <>
-                    <div className="px-2 py-1.5 mt-4">
-                      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        {accessibilitySettings.language === 'fil' ? 'Kamakailan' : 'Recents'}
-                      </h3>
-                    </div>
-                    {chats.filter(c => !c.isStarred).map(chat => (
-                <div
-                  key={chat.id}
-                  onClick={() => selectChat(chat)}
-                  className={`p-3 rounded-lg cursor-pointer transition-all group relative
-                    ${chat.id === currentChatId
-                      ? 'bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
-                    }`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      {editingChatId === chat.id ? (
-                        <input
-                          type="text"
-                          value={tempTitle}
-                          autoFocus
-                          onChange={(e) => setTempTitle(e.target.value)}
-                          onBlur={async () => {
-                            if (tempTitle.trim().length > 0) {
-                              await renameChat(chat.id, tempTitle.trim());
-                            }
-                            setEditingChatId(null);
-                            setTempTitle('');
-                          }}
-                          onKeyDown={async (e) => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                            if (e.key === 'Escape') {
-                              setEditingChatId(null);
-                              setTempTitle('');
-                            }
-                          }}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-slate-900 dark:text-white font-medium truncate focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                      ) : (
-                        <p
-                          className="text-sm font-medium text-slate-900 dark:text-white truncate"
-                          title={chat.title}
-                        >
-                          {chat.title}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Three-dot menu button */}
-                    <div className="relative flex-shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === chat.id ? null : chat.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-
-                      {/* Dropdown menu */}
-                      {openMenuId === chat.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                            }}
-                          />
-                          <div className="absolute right-0 top-8 z-50 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1">
-                            <button
-                              onClick={(e) => toggleStarChat(chat.id, e)}
-                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
-                            >
-                              <Star className={`w-4 h-4 ${chat.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                              {chat.isStarred 
-                                ? (accessibilitySettings.language === 'fil' ? 'Alisin sa star' : 'Unstar')
-                                : (accessibilitySettings.language === 'fil' ? 'I-star' : 'Star')
-                              }
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                setEditingChatId(chat.id);
-                                setTempTitle(chat.title);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                              {accessibilitySettings.language === 'fil' ? 'Palitan ang pangalan' : 'Rename'}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                deleteChat(chat.id);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              {accessibilitySettings.language === 'fil' ? 'Tanggalin' : 'Delete'}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-                  </>
-                )}
-              </>
+          {/* Search Bar */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={accessibilitySettings.language === 'fil' ? 'Maghanap ng chat...' : 'Search chats...'}
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500 transition-all"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" title="Clear search">
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
         </div>
+
+        {/* Chat List */}
+        <div className="flex-1 overflow-y-auto scrollbar-cyberpunk p-2 space-y-1">
+          {isLoadingChats ? (
+            <div className="space-y-2 p-2">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="animate-pulse flex items-center gap-2.5 p-3 rounded-xl">
+                  <div className="w-4 h-4 bg-slate-200 dark:bg-slate-700 rounded" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-lg w-3/4" />
+                    <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (() => {
+            const filteredChats = searchQuery.trim()
+              ? chats.filter(chat => 
+                  chat.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  chat.messages.some(msg => msg.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                )
+              : chats;
+
+            return filteredChats.length === 0 ? (
+              <div className="text-center mt-12 px-4">
+                <MessageSquare className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {searchQuery.trim() 
+                    ? (accessibilitySettings.language === 'fil' ? 'Walang nahanap' : 'No results found')
+                    : (accessibilitySettings.language === 'fil' ? 'Wala pang mga chat' : 'No chats yet')
+                  }
+                </p>
+                {!searchQuery.trim() && (
+                  <p className="text-xs text-slate-400 mt-1">{accessibilitySettings.language === 'fil' ? 'Magsimula ng bagong usapan' : 'Start a new conversation'}</p>
+                )}
+              </div>
+            ) : (
+              <>
+                {filteredChats.filter(c => c.isStarred).length > 0 && (
+                  <>
+                    <div className="px-3 py-2">
+                      <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        {accessibilitySettings.language === 'fil' ? 'Naka-star' : 'Starred'}
+                      </h3>
+                    </div>
+                    {filteredChats.filter(c => c.isStarred).map(chat => renderChatItem(chat))}
+                  </>
+                )}
+                {filteredChats.filter(c => !c.isStarred).length > 0 && (
+                  <>
+                    <div className="px-3 py-2 mt-2">
+                      <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        {accessibilitySettings.language === 'fil' ? 'Kamakailan' : 'Recents'}
+                      </h3>
+                    </div>
+                    {filteredChats.filter(c => !c.isStarred).map(chat => renderChatItem(chat))}
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </div>
       </aside>
 
-      {/* Main Chat Area - Layout preserved exactly */}
+      {/* ===== MAIN CHAT AREA ===== */}
       <div className="flex-1 flex flex-col relative">
         
-        {/* Mobile Header - Now with hamburger menu on left */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
-          
-          {/* NEW: Hamburger menu to open main navigation */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-900 dark:text-white"
-            title="Open Menu"
-          >
+        {/* Mobile Header */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-900 dark:text-white" title={accessibilitySettings.language === 'fil' ? 'Buksan ang menu' : 'Open menu'}>
             <Menu className="w-6 h-6" />
           </button>
-
-          {/* Title - centered */}
           <h1 className="text-lg font-bold text-slate-900 dark:text-white truncate max-w-48">
             {currentChat?.title || 'TISA AI Tutor'}
           </h1>
-
-          {/* Chat History button */}
-          <button
-            onClick={() => setChatHistoryOpen(true)}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-900 dark:text-white"
-            title="Chat History"
-          >
+          <button onClick={() => setChatHistoryOpen(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-900 dark:text-white" title={accessibilitySettings.language === 'fil' ? 'Kasaysayan ng chat' : 'Chat history'}>
             <MessageSquare className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Messages Container - unchanged */}
-        <div className="flex-1 overflow-y-auto scrollbar-cyberpunk pt-16 lg:pt-0">
+        {/* Desktop Conversation Header Bar */}
+        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex-shrink-0 relative z-50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-slate-900 dark:text-white">{currentChat?.title || 'TISA AI Tutor'}</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {loading 
+                  ? (accessibilitySettings.language === 'fil' ? 'Nagta-type...' : 'Typing...') 
+                  : (accessibilitySettings.language === 'fil' ? 'Online · Handa na tumulong' : 'Online · Ready to help')
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {/* Background Customization */}
+            <div className="relative">
+              <button onClick={() => setShowBgPicker(!showBgPicker)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title={accessibilitySettings.language === 'fil' ? 'Baguhin ang background' : 'Change background'}>
+                <Palette className="w-4 h-4" />
+              </button>
+              {showBgPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowBgPicker(false)} />
+                  <div className="absolute right-0 top-10 z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-3 w-44">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Background</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {BG_OPTIONS.map(bg => (
+                        <button key={bg.id} onClick={() => { setChatBg(bg.id); setShowBgPicker(false); }} className={`px-3 py-2 text-xs rounded-lg border transition-all ${chatBg === bg.id ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 font-medium' : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-300'}`}>
+                          {bg.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            {messages.length > 0 && (
+              <button onClick={() => setShowClearConfirm(true)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title={accessibilitySettings.language === 'fil' ? 'I-clear ang chat' : 'Clear chat'}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* System Notification Banner */}
+        {systemBanner && (
+          <div className={`flex-shrink-0 px-4 py-2.5 flex items-center justify-between gap-3 text-sm ${
+            systemBanner.type === 'warning' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-b border-amber-200 dark:border-amber-800' :
+            systemBanner.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-b border-emerald-200 dark:border-emerald-800' :
+            'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-b border-blue-200 dark:border-blue-800'
+          }`}>
+            <div className="flex items-center gap-2">
+              {systemBanner.type === 'warning' ? <AlertTriangle className="w-4 h-4 flex-shrink-0" /> : systemBanner.type === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <Bell className="w-4 h-4 flex-shrink-0" />}
+              <span>{systemBanner.message}</span>
+            </div>
+            <button onClick={() => setSystemBanner(null)} className="p-0.5 hover:opacity-70 transition-opacity flex-shrink-0" title={accessibilitySettings.language === 'fil' ? 'I-dismiss' : 'Dismiss'}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Pinned Messages Area */}
+        {pinnedMessages.length > 0 && (
+          <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-2">
+            <div className="max-w-3xl mx-auto flex items-center gap-2">
+              <Pin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <p className="text-xs text-amber-800 dark:text-amber-200 truncate">{pinnedMessages[pinnedMessages.length - 1].content.substring(0, 100)}{pinnedMessages[pinnedMessages.length - 1].content.length > 100 ? '...' : ''}</p>
+              <span className="text-[10px] text-amber-500 flex-shrink-0">({pinnedMessages.length})</span>
+            </div>
+          </div>
+        )}
+
+        {/* Messages Container */}
+        <div ref={messagesContainerRef} className={`flex-1 overflow-y-auto scrollbar-cyberpunk pt-16 lg:pt-0 relative ${currentBgClass}`}>
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
             {messages.length === 0 ? (
               <div className="text-center mt-20">
@@ -642,8 +848,21 @@ export default function AITutor() {
                   TISA AI Tutor
                 </h2>
                 <p className="text-base text-slate-600 dark:text-slate-400">
-                  Your Student Assistant. Ask anything about College of Science.
+                  {accessibilitySettings.language === 'fil' 
+                    ? 'Ang iyong Student Assistant. Magtanong tungkol sa College of Science.'
+                    : 'Your Student Assistant. Ask anything about College of Science.'}
                 </p>
+                
+                {/* Connection Error State */}
+                {connectionError && (
+                  <div className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300">
+                    <WifiOff className="w-4 h-4" />
+                    {accessibilitySettings.language === 'fil' ? 'Hindi makakonekta sa server' : 'Unable to connect to server'}
+                    <button onClick={() => window.location.reload()} className="ml-2 px-2 py-0.5 text-xs bg-red-100 dark:bg-red-900/40 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors" title="Retry">
+                      Retry
+                    </button>
+                  </div>
+                )}
                 
                 {/* Greeting Message */}
                 {showGreeting && greeting && (
@@ -685,89 +904,145 @@ export default function AITutor() {
               </div>
             ) : (
               <>
-                {messages.map((msg, i) => (
-                  <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center shadow-lg
-                      ${msg.role === 'ai' 
-                        ? 'bg-gradient-to-br from-cyan-500 to-purple-600' 
-                        : 'bg-gradient-to-br from-purple-500 to-pink-600'
-                      }`}
-                    >
-                      {msg.role === 'ai' ? (
-                        <Bot className="w-5 h-5 text-white" />
-                      ) : (
-                        <User className="w-5 h-5 text-white" />
+                {messages.map((msg, i) => {
+                  const showDivider = i === 0 || 
+                    (msg.timestamp && messages[i-1]?.timestamp && 
+                     getMessageDivider(msg.timestamp, accessibilitySettings.language) !== 
+                     getMessageDivider(messages[i-1].timestamp, accessibilitySettings.language));
+                  const dividerLabel = showDivider ? getMessageDivider(msg.timestamp, accessibilitySettings.language) : null;
+                  const isError = msg.content.startsWith('__ERROR__');
+                  
+                  return (
+                    <div key={i}>
+                      {dividerLabel && (
+                        <div className="flex items-center justify-center my-6">
+                          <div className="flex-1 border-t border-slate-200 dark:border-slate-700"></div>
+                          <span className="px-4 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full">{dividerLabel}</span>
+                          <div className="flex-1 border-t border-slate-200 dark:border-slate-700"></div>
+                        </div>
                       )}
-                    </div>
-
-                    <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
-                      {/* Check if message contains quiz card marker */}
-                      {msg.role === 'ai' && msg.content.startsWith('__QUIZ_CARD__') ? (
-                        <div className="space-y-3">
-                          {(() => {
-                            const parts = msg.content.split('__');
-                            const examId = parts[2];
-                            const responseText = parts.slice(3).join('__');
-                            const exam = generatedExams.get(examId);
-                            
-                            return (
-                              <>
-                                {responseText && (
-                                  <div className="inline-block max-w-full px-4 py-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {responseText}
-                                      </ReactMarkdown>
-                                    </div>
-                                  </div>
-                                )}
-                                {exam && (
-                                  <QuizCard
-                                    exam={exam}
-                                    onClick={() => {
-                                      setCurrentExam(exam);
-                                      setShowQuiz(true);
-                                    }}
-                                  />
-                                )}
-                              </>
-                            );
-                          })()}
+                      
+                      {/* Error/Status Message UI */}
+                      {isError ? (
+                        <div className="flex justify-center my-4">
+                          <div className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm shadow-sm ${
+                            msg.content.includes('NETWORK') 
+                              ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                              : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                          }`}>
+                            {msg.content.includes('NETWORK') ? <WifiOff className="w-4 h-4 flex-shrink-0" /> : <XCircle className="w-4 h-4 flex-shrink-0" />}
+                            <span>{msg.content.split('__').pop()}</span>
+                            <button onClick={() => setMessages(prev => prev.filter((_, idx) => idx !== i))} className="p-0.5 hover:opacity-70" title={accessibilitySettings.language === 'fil' ? 'I-dismiss' : 'Dismiss'}>
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        <div className={`inline-block max-w-full px-4 py-3 rounded-2xl shadow-md
-                        ${msg.role === 'ai'
-                          ? 'bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
-                          : 'bg-gradient-to-r from-cyan-500/10 to-purple-600/10 border border-cyan-500/20 dark:border-cyan-500/30'
-                        }`}
+                      <div 
+                        className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} group/msg`}
+                        onMouseEnter={() => setHoveredMsgIdx(i)}
+                        onMouseLeave={() => setHoveredMsgIdx(null)}
                       >
-                        {msg.role === 'ai' ? (
-                          <div className="prose prose-sm lg:prose-base dark:prose-invert max-w-none
-                            [&>p]:text-slate-900 dark:[&>p]:text-slate-100 [&>p]:leading-relaxed
-                            [&>strong]:text-slate-900 dark:[&>strong]:text-white [&>strong]:font-semibold
-                            [&>em]:text-slate-700 dark:[&>em]:text-slate-300
-                            [&>code]:text-slate-900 dark:[&>code]:text-slate-100 [&>code]:bg-slate-100 dark:[&>code]:bg-slate-900 [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded
-                            [&>pre]:bg-slate-100 dark:[&>pre]:bg-slate-900 [&>pre]:border [&>pre]:border-slate-200 dark:[&>pre]:border-slate-700
-                            [&>ul]:text-slate-900 dark:[&>ul]:text-slate-100
-                            [&>ol]:text-slate-900 dark:[&>ol]:text-slate-100
-                            [&>h1]:text-slate-900 dark:[&>h1]:text-white
-                            [&>h2]:text-slate-900 dark:[&>h2]:text-white
-                            [&>h3]:text-slate-900 dark:[&>h3]:text-white
-                          ">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <p className="text-base lg:text-[17px] leading-relaxed text-slate-900 dark:text-slate-100">
-                            {msg.content}
-                          </p>
-                        )}
+                        <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center shadow-lg
+                          ${msg.role === 'ai' ? 'bg-gradient-to-br from-cyan-500 to-purple-600' : 'bg-gradient-to-br from-purple-500 to-pink-600'}`}
+                        >
+                          {msg.role === 'ai' ? <Bot className="w-5 h-5 text-white" /> : <User className="w-5 h-5 text-white" />}
+                        </div>
+
+                        <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
+                          {msg.role === 'ai' && msg.content.startsWith('__QUIZ_CARD__') ? (
+                            <div className="space-y-3">
+                              {(() => {
+                                const parts = msg.content.split('__');
+                                const responseText = parts.slice(3).join('__');
+                                const exam = msg.quizData;
+                                return (
+                                  <>
+                                    {responseText && (
+                                      <div className="inline-block max-w-full px-4 py-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{responseText}</ReactMarkdown>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {exam && <QuizCard exam={exam} onClick={() => { setCurrentExam(exam); setShowQuiz(true); }} />}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          ) : msg.role === 'ai' && msg.showConsultationBooking && msg.consultationData ? (
+                            <div className="space-y-3 max-w-lg">
+                              <div className="inline-block max-w-full px-4 py-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <div className="prose prose-sm dark:prose-invert max-w-none
+                                  [&>p]:text-slate-900 dark:[&>p]:text-slate-100 [&>p]:leading-relaxed
+                                  [&>strong]:text-slate-900 dark:[&>strong]:text-white [&>strong]:font-semibold
+                                  [&>ul]:text-slate-900 dark:[&>ul]:text-slate-100
+                                ">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                </div>
+                                {msg.timestamp && (
+                                  <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatTimestamp(msg.timestamp)}
+                                  </div>
+                                )}
+                              </div>
+                              <ConsultationBookingCard 
+                                faculty={msg.consultationData.faculty}
+                                selectedFaculty={msg.consultationData.selectedFaculty}
+                                language={accessibilitySettings.language}
+                              />
+                            </div>
+                          ) : (
+                            <div className="relative inline-block max-w-full">
+                              <div className={`px-4 py-3 rounded-2xl shadow-md ${msg.isPinned ? 'ring-2 ring-amber-400/50' : ''}
+                                ${msg.role === 'ai'
+                                  ? 'bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
+                                  : 'bg-gradient-to-r from-cyan-500/10 to-purple-600/10 border border-cyan-500/20 dark:border-cyan-500/30'
+                                }`}
+                              >
+                                {msg.role === 'ai' ? (
+                                  <div className="prose prose-sm lg:prose-base dark:prose-invert max-w-none
+                                    [&>p]:text-slate-900 dark:[&>p]:text-slate-100 [&>p]:leading-relaxed
+                                    [&>strong]:text-slate-900 dark:[&>strong]:text-white [&>strong]:font-semibold
+                                    [&>em]:text-slate-700 dark:[&>em]:text-slate-300
+                                    [&>code]:text-slate-900 dark:[&>code]:text-slate-100 [&>code]:bg-slate-100 dark:[&>code]:bg-slate-900 [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded
+                                    [&>pre]:bg-slate-100 dark:[&>pre]:bg-slate-900 [&>pre]:border [&>pre]:border-slate-200 dark:[&>pre]:border-slate-700
+                                    [&>ul]:text-slate-900 dark:[&>ul]:text-slate-100 [&>ol]:text-slate-900 dark:[&>ol]:text-slate-100
+                                    [&>h1]:text-slate-900 dark:[&>h1]:text-white [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h3]:text-slate-900 dark:[&>h3]:text-white
+                                  ">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                  </div>
+                                ) : (
+                                  <p className="text-base lg:text-[17px] leading-relaxed text-slate-900 dark:text-slate-100">{msg.content}</p>
+                                )}
+                                {msg.timestamp && (
+                                  <div className={`text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                    <Clock className="w-3 h-3" />
+                                    {formatTimestamp(msg.timestamp)}
+                                    {msg.isPinned && <Pin className="w-3 h-3 text-amber-500 ml-1" />}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Message Action Toolbar */}
+                              {hoveredMsgIdx === i && (
+                                <div className={`absolute -top-8 ${msg.role === 'user' ? 'right-0' : 'left-0'} flex items-center gap-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg px-1 py-0.5 z-10`}>
+                                  <button onClick={() => copyMessage(msg.content, i)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors" title={accessibilitySettings.language === 'fil' ? 'Kopyahin' : 'Copy'}>
+                                    {copiedMsgIdx === i ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button onClick={() => togglePinMessage(i)} className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors" title={msg.isPinned ? (accessibilitySettings.language === 'fil' ? 'I-unpin' : 'Unpin') : (accessibilitySettings.language === 'fil' ? 'I-pin' : 'Pin')}>
+                                    {msg.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {loading && (
                   <div className="flex gap-4">
@@ -810,25 +1085,61 @@ export default function AITutor() {
             )}
             <div ref={messagesEndRef} />
           </div>
+          
+          {/* Scroll to Bottom Button */}
+          {showScrollButton && (
+            <button
+              onClick={scrollToBottom}
+              className="fixed bottom-24 right-8 z-30 p-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
+              aria-label="Scroll to bottom"
+            >
+              <ArrowDown className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
-        {/* Input Bar - unchanged */}
+        {/* Input Bar with Emoji Picker */}
         <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
           <div className="max-w-3xl mx-auto px-4 py-4">
             <div className="flex gap-3 items-end">
-              <input
-                type="text"
+              <div className="relative">
+                <button
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="p-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  title={accessibilitySettings.language === 'fil' ? 'Emoji' : 'Emoji'}
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
+                {showEmojiPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
+                    <div className="absolute bottom-14 left-0 z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-3">
+                      <div className="grid grid-cols-4 gap-1">
+                        {EMOJI_OPTIONS.map(emoji => (
+                          <button key={emoji} onClick={() => { setInput(prev => prev + emoji); setShowEmojiPicker(false); }} className="w-10 h-10 flex items-center justify-center text-xl hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder={accessibilitySettings.language === 'fil' ? 'Magtanong kay TISA ng kahit ano...' : 'Ask TISA anything...'}
-                className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base lg:text-[17px] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm"
+                className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base lg:text-[17px] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm resize-none overflow-hidden min-h-[48px] max-h-[200px]"
                 disabled={loading}
+                rows={1}
               />
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
                 className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+                title={accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}
               >
                 <Send className="w-4 h-4" />
                 <span className="hidden sm:inline">{accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}</span>

@@ -157,3 +157,5 @@ async function seedBSBiologyCurriculum() {
 }
 
 seedBSBiologyCurriculum();
+
+export { seedBSBiologyCurriculum };

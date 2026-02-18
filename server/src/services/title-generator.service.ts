@@ -1,7 +1,9 @@
 // server/src/services/title-generator.service.ts
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 let openai: OpenAI | null = null;
+let geminiTitleModel: any = null;
 
 try {
   if (process.env.OPENAI_API_KEY) {
@@ -13,72 +15,99 @@ try {
   console.error('Failed to initialize OpenAI for title generation:', error);
 }
 
+try {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey && geminiKey !== 'your-gemini-api-key-here') {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    geminiTitleModel = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      generationConfig: { maxOutputTokens: 30, temperature: 0.7 }
+    });
+  }
+} catch (error) {
+  console.error('Failed to initialize Gemini for title generation:', error);
+}
+
+/**
+ * Build the title generation prompt
+ */
+function buildTitlePrompt(userMessage: string, aiResponse?: string, language: string = 'en'): string {
+  const langNote = language === 'fil' ? 'Generate the title in Filipino.' : 'Generate the title in English.';
+  if (aiResponse) {
+    return `Based on this conversation, generate a concise, descriptive title (max 6 words):\n\nUser: ${userMessage}\nAssistant: ${aiResponse.substring(0, 200)}\n\nGenerate ONLY the title, no quotes, no explanation. Make it specific and informative.\n${langNote}`;
+  }
+  return `Generate a concise, descriptive title (max 6 words) for a conversation that starts with:\n\n"${userMessage}"\n\nGenerate ONLY the title, no quotes, no explanation. Make it specific and informative.\n${langNote}`;
+}
+
+/**
+ * Convert a string to Title Case (e.g. "hello world" → "Hello World")
+ * Preserves acronyms/abbreviations that are already uppercase (e.g. "BSU", "COS")
+ */
+function toTitleCase(str: string): string {
+  const minorWords = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'by', 'in', 'of', 'sa', 'ng', 'mga', 'na', 'ang']);
+  return str.split(/\s+/).map((word, idx) => {
+    if (!word) return word;
+    if (word === word.toUpperCase() && word.length >= 2) return word;
+    if (idx > 0 && minorWords.has(word.toLowerCase())) return word.toLowerCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+/**
+ * Clean and validate a generated title
+ */
+function cleanTitle(raw: string): string | null {
+  let title = raw.trim().replace(/^["']|["']$/g, '');
+  title = toTitleCase(title);
+  if (title.length > 60) title = title.substring(0, 57) + '...';
+  return title.length >= 3 ? title : null;
+}
+
 /**
  * Generate a concise, meaningful chat title using AI
- * Similar to ChatGPT's title generation approach
+ * Priority: Gemini (free) → OpenAI → Pattern-based fallback
  */
 export async function generateChatTitle(
   userMessage: string,
   aiResponse?: string,
   language: string = 'en'
 ): Promise<string> {
-  try {
-    if (!openai) {
-      return fallbackTitleGeneration(userMessage, language);
+  const prompt = buildTitlePrompt(userMessage, aiResponse, language);
+
+  // PRIORITY 1: Gemini (free tier)
+  if (geminiTitleModel) {
+    try {
+      const result = await geminiTitleModel.generateContent(prompt);
+      const text = await result.response.text();
+      const title = cleanTitle(text);
+      if (title) return title;
+    } catch (error: any) {
+      console.warn('[TitleGen] Gemini failed:', error.message);
     }
-
-    const titlePrompt = aiResponse
-      ? `Based on this conversation, generate a concise, descriptive title (max 6 words):
-
-User: ${userMessage}
-Assistant: ${aiResponse.substring(0, 200)}
-
-Generate ONLY the title, no quotes, no explanation. Make it specific and informative.
-${language === 'fil' ? 'Generate the title in Filipino.' : 'Generate the title in English.'}`
-      : `Generate a concise, descriptive title (max 6 words) for a conversation that starts with:
-
-"${userMessage}"
-
-Generate ONLY the title, no quotes, no explanation. Make it specific and informative.
-${language === 'fil' ? 'Generate the title in Filipino.' : 'Generate the title in English.'}`;
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a title generator. Create concise, descriptive titles (max 6 words) for conversations. Return ONLY the title, no quotes or extra text.'
-        },
-        {
-          role: 'user',
-          content: titlePrompt
-        }
-      ],
-      max_tokens: 20,
-      temperature: 0.7,
-    });
-
-    let title = completion.choices[0]?.message?.content?.trim() || '';
-    
-    // Remove quotes if AI added them
-    title = title.replace(/^["']|["']$/g, '');
-    
-    // Limit to 60 characters
-    if (title.length > 60) {
-      title = title.substring(0, 57) + '...';
-    }
-
-    // Fallback if title is empty or too short
-    if (!title || title.length < 3) {
-      return fallbackTitleGeneration(userMessage, language);
-    }
-
-    return title;
-
-  } catch (error) {
-    console.error('Error generating AI title:', error);
-    return fallbackTitleGeneration(userMessage, language);
   }
+
+  // PRIORITY 2: OpenAI
+  if (openai) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: 'You are a title generator. Create concise, descriptive titles (max 6 words) for conversations. Return ONLY the title, no quotes or extra text.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 20,
+        temperature: 0.7,
+      });
+      const text = completion.choices[0]?.message?.content || '';
+      const title = cleanTitle(text);
+      if (title) return title;
+    } catch (error: any) {
+      console.warn('[TitleGen] OpenAI failed:', error.message);
+    }
+  }
+
+  // PRIORITY 3: Pattern-based fallback
+  return fallbackTitleGeneration(userMessage, language);
 }
 
 /**
@@ -174,7 +203,7 @@ function fallbackTitleGeneration(userMessage: string, language: string = 'en'): 
     .slice(0, 4);
 
   if (words.length > 0) {
-    const title = words.join(' ');
+    const title = toTitleCase(words.join(' '));
     return title.length > 40 
       ? title.substring(0, 37) + '...' 
       : title;

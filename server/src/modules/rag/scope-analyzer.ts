@@ -19,16 +19,14 @@ export interface ScopeAnalysisResult {
 export function analyzeQueryScope(userMessage: string): ScopeAnalysisResult {
   const lowerMsg = userMessage.toLowerCase();
 
-  // PRIORITY 0: Language Detection
-  const langResult = detectLanguage(userMessage);
-  if (!langResult.isEnglishOrFilipino) {
+  // PRIORITY 0: BSU COS Keywords (Check FIRST to avoid false language rejections)
+  const keywordResult = detectBSUKeywords(lowerMsg);
+  if (keywordResult.isMatch) {
     return {
-      isInScope: false,
-      confidence: langResult.confidence,
-      category: 'unsupported_language',
-      reason: langResult.detectedLanguage 
-        ? `Query is in ${langResult.detectedLanguage}. Only English and Filipino (Tagalog) are supported.`
-        : 'Query appears to be in a foreign language. Only English and Filipino (Tagalog) are supported.'
+      isInScope: true,
+      confidence: keywordResult.confidence,
+      category: 'bsu_cos',
+      reason: keywordResult.reason
     };
   }
 
@@ -54,14 +52,16 @@ export function analyzeQueryScope(userMessage: string): ScopeAnalysisResult {
     };
   }
 
-  // PRIORITY 3: BSU COS Keywords
-  const keywordResult = detectBSUKeywords(lowerMsg);
-  if (keywordResult.isMatch) {
+  // PRIORITY 3: Language Detection (Check AFTER BSU keywords)
+  const langResult = detectLanguage(userMessage);
+  if (!langResult.isEnglishOrFilipino) {
     return {
-      isInScope: true,
-      confidence: keywordResult.confidence,
-      category: 'bsu_cos',
-      reason: keywordResult.reason
+      isInScope: false,
+      confidence: langResult.confidence,
+      category: 'unsupported_language',
+      reason: langResult.detectedLanguage 
+        ? `Query is in ${langResult.detectedLanguage}. Only English and Filipino (Tagalog) are supported.`
+        : 'Query appears to be in a foreign language. Only English and Filipino (Tagalog) are supported.'
     };
   }
 

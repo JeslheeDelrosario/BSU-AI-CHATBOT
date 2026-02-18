@@ -24,10 +24,11 @@ export default function Settings() {
   // Local state for pending accessibility changes (only applied on Save)
   const [pendingAccessibilitySettings, setPendingAccessibilitySettings] = useState(accessibilitySettings);
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    courseUpdates: true,
-    achievements: true,
-    weeklyReport: true,
+  const [notificationSettings, setNotificationSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tisaNotificationSettings');
+      return saved ? JSON.parse(saved) : { courseUpdates: true, achievements: true, weeklyReport: true, learningStyle: 'visual' };
+    } catch { return { courseUpdates: true, achievements: true, weeklyReport: true, learningStyle: 'visual' }; }
   });
 
   useEffect(() => {
@@ -75,6 +76,9 @@ export default function Settings() {
         firstName: profileSettings.firstName,
         lastName: profileSettings.lastName,
       });
+
+      // Persist notification settings to localStorage
+      localStorage.setItem('tisaNotificationSettings', JSON.stringify(notificationSettings));
 
       if (accessibilitySaved) {
         showToast({ type: 'success', title: t.settings.messages.profileUpdated });
@@ -210,11 +214,15 @@ export default function Settings() {
                         <p className="text-muted-foreground mt-1">{t.settings.notifications.learningStyleDescription}</p>
                       </div>
                       <div className="relative">
-                        <select className="appearance-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all">
-                          <option>{t.settings.notifications.learningStyleOptions.visual}</option>
-                          <option>{t.settings.notifications.learningStyleOptions.auditory}</option>
-                          <option>{t.settings.notifications.learningStyleOptions.kinesthetic}</option>
-                          <option>{t.settings.notifications.learningStyleOptions.mixed}</option>
+                        <select
+                          value={notificationSettings.learningStyle}
+                          onChange={(e) => setNotificationSettings({ ...notificationSettings, learningStyle: e.target.value })}
+                          className="appearance-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all"
+                        >
+                          <option value="visual">{t.settings.notifications.learningStyleOptions.visual}</option>
+                          <option value="auditory">{t.settings.notifications.learningStyleOptions.auditory}</option>
+                          <option value="kinesthetic">{t.settings.notifications.learningStyleOptions.kinesthetic}</option>
+                          <option value="mixed">{t.settings.notifications.learningStyleOptions.mixed}</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
                           <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,7 +338,6 @@ export default function Settings() {
                   <SettingCard title={t.settings.notifications.courseUpdates.title} description={t.settings.notifications.courseUpdates.description} checked={notificationSettings.courseUpdates} onChange={(v) => setNotificationSettings({ ...notificationSettings, courseUpdates: v })} />
                   <SettingCard title={t.settings.notifications.achievements.title} description={t.settings.notifications.achievements.description} checked={notificationSettings.achievements} onChange={(v) => setNotificationSettings({ ...notificationSettings, achievements: v })} />
                   <SettingCard title={t.settings.notifications.weeklyReport.title} description={t.settings.notifications.weeklyReport.description} checked={notificationSettings.weeklyReport} onChange={(v) => setNotificationSettings({ ...notificationSettings, weeklyReport: v })} />
-                  <SettingCard title="Weekly Progress Report" description="Summary of your learning" checked={notificationSettings.weeklyReport} onChange={(v) => setNotificationSettings({ ...notificationSettings, weeklyReport: v })} />
                 </div>
               </div>
             )}
@@ -345,7 +352,9 @@ export default function Settings() {
                 className="flex items-center gap-3 px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-lg sm:text-xl rounded-2xl shadow-xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <Save className="w-6 h-6 sm:w-7 sm:h-7" />
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving 
+                  ? (accessibilitySettings.language === 'fil' ? 'Sine-save...' : 'Saving...') 
+                  : (accessibilitySettings.language === 'fil' ? 'I-save ang mga Pagbabago' : 'Save Changes')}
               </button>
             </div>
           </div>

@@ -151,3 +151,5 @@ async function seedBSFoodTechCurriculum() {
 }
 
 seedBSFoodTechCurriculum();
+
+export { seedBSFoodTechCurriculum };
