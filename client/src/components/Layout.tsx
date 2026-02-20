@@ -292,34 +292,50 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className={`flex-1 flex flex-col relative z-10 min-h-screen overflow-y-auto transition-all duration-500 ${
           mainSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-80'
         }`}>
-          {/* Mobile Header */}
-          <header className="lg:hidden sticky top-0 z-40 bg-card/60 backdrop-blur-2xl border-b border-border px-6 py-5 flex items-center justify-between">
-            <button 
-              onClick={() => setSidebarOpen(!sidebarOpen)} 
-              className="text-cyan-400 hover:text-cyan-300 transition-colors"
-              title={sidebarOpen ? "Close Menu" : "Open Menu"}
-            >
-              {sidebarOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
-            </button>
-            <div className="flex items-center gap-3">
-              <img src="/icon-logo.png" alt="TISA" className="w-9 h-9" />
-              <span className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                TISA
-              </span>
-            </div>
-            <NotificationBell />
-          </header>
+          {/* Mobile Header - Hidden on AI Tutor page */}
+          {!isAITutorPage && (
+            <header className="lg:hidden sticky top-0 z-40 bg-card/60 backdrop-blur-2xl border-b border-border px-6 py-5 flex items-center justify-between">
+              <button 
+                onClick={() => setSidebarOpen(!sidebarOpen)} 
+                className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                title={sidebarOpen ? "Close Menu" : "Open Menu"}
+              >
+                {sidebarOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
+              </button>
+              <div className="flex items-center gap-3">
+                <img src="/icon-logo.png" alt="TISA" className="w-9 h-9" />
+                <span className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                  TISA
+                </span>
+              </div>
+              <NotificationBell />
+            </header>
+          )}
 
-          {/* Desktop Header with Notification Bell */}
-          <header className="hidden lg:flex sticky top-0 z-40 bg-card/60 backdrop-blur-2xl border-b border-border px-10 py-5 items-center justify-end">
-            <NotificationBell />
-          </header>
+          {/* Desktop Header with Notification Bell - Hidden on AI Tutor page */}
+          {!isAITutorPage && (
+            <header className="hidden lg:flex sticky top-0 z-40 bg-card/60 backdrop-blur-2xl border-b border-border px-10 py-5 items-center justify-end">
+              <NotificationBell />
+            </header>
+          )}
 
           {/* Page Content */}
           <main className="flex-1 p-6 lg:p-10">
             {children}
           </main>
         </div>
+
+        {/* Floating Chat Widget Button - visible on all pages except AI Tutor */}
+        {!isAITutorPage && (
+          <Link
+            to="/ai-tutor"
+            className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full shadow-2xl hover:shadow-cyan-500/40 flex items-center justify-center text-white transform hover:scale-110 active:scale-95 transition-all duration-200 group"
+            title={accessibilitySettings.language === 'fil' ? 'Kausapin si TISA AI Tutor' : 'Chat with TISA AI Tutor'}
+          >
+            <MessageSquare className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
+          </Link>
+        )}
       </div>
     </>
   );

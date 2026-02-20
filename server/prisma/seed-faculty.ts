@@ -138,8 +138,13 @@ async function seedFaculty() {
   }
 }
 
-seedFaculty()
-  .catch((e) => {
-    console.error(e);
-    throw e;
-  });
+// Run if executed directly
+if (require.main === module) {
+  seedFaculty()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    });
+}
+
+export { seedFaculty };

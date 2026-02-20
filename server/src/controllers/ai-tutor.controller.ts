@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { AIInteractionType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../lib/prisma';
 import { 
   generateSmartSuggestions, 
@@ -18,8 +19,31 @@ import {
   generateCourseRecommendation,
   RAGContext
 } from '../services/rag-context.service';
+import { quizGeneratorService } from '../services/quiz-generator.service';
 
-// Initialize OpenAI client
+// Initialize Gemini AI client (FREE!)
+let geminiAI: GoogleGenerativeAI | null = null;
+let geminiModel: any = null;
+try {
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') {
+    geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // Use gemini-2.5-flash (latest working model as of 2026)
+    geminiModel = geminiAI.getGenerativeModel({ 
+      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+      }
+    });
+    console.log('✓ Gemini AI enabled (FREE tier) - Model: gemini-2.0-flash');
+  } else {
+    console.warn('⚠ Gemini API key not configured');
+  }
+} catch (error) {
+  console.error('Failed to initialize Gemini client:', error);
+}
+
+// Initialize OpenAI client (Fallback)
 let openai: OpenAI;
 try {
   if (!process.env.OPENAI_API_KEY) {
@@ -102,6 +126,9 @@ ${language === 'fil'
 ✅ Career paths for COS programs
 ✅ Course recommendations based on career goals
 ✅ Academic guidance within COS scope
+✅ **University policies, procedures, and regulations (from FAQs)**
+✅ **Grading system, admission requirements, student rights (from FAQs)**
+✅ **Academic rules, attendance, examinations (from FAQs)**
 
 ## WHAT YOU CANNOT HELP WITH:
 ❌ General knowledge questions (geography, history, science facts)
@@ -118,16 +145,18 @@ ${language === 'fil'
 ## RESPONSE GUIDELINES:
 1. Always check if the question relates to BSU COS
 2. Only provide information that exists in the DATABASE KNOWLEDGE BASE
-3. If recommending a course, use ONLY programs from the database
-4. For faculty questions, use ONLY names from the database
-5. For curriculum, use ONLY subjects from the database
-6. Be helpful but honest when you don't have information
-7. **CRITICAL FOR FACULTY QUERIES**: When asked about a person (e.g., "who is [name]"), you MUST:
+3. **PRIORITY: Check FAQs FIRST** - If the question is about university policies, procedures, grading, admission, student rights, or academic rules, use the FAQ section as your PRIMARY reference
+4. If recommending a course, use ONLY programs from the database
+5. For faculty questions, use ONLY names from the database
+6. For curriculum, use ONLY subjects from the database
+7. Be helpful but honest when you don't have information
+8. **CRITICAL FOR FACULTY QUERIES**: When asked about a person (e.g., "who is [name]"), you MUST:
    - Check the FACULTY MEMBERS section in the database
    - If ONE person is found, provide their full details
    - If MULTIPLE people are found with similar names, list ALL of them with distinguishing details and ask which one they meant
    - If NO ONE is found, say you don't have information about that person in the database
    - NEVER say there's a service interruption if faculty data exists in the database
+9. **When using FAQ data**: Cite the FAQ by mentioning it's from official university policies (e.g., "According to BulSU policies..." or "Based on university regulations...")
 
 ## COURSE RECOMMENDATION FORMAT:
 When recommending courses for career goals, structure your response as:
@@ -144,6 +173,14 @@ ${lastInteraction ? `
 **Your Previous Response**: ${lastInteraction.aiResponse}
 Use this to understand follow-up questions, but still only answer from database.
 ` : ''}
+
+## RESPONSE LENGTH & CONTINUATION:
+- **MAXIMIZE your response** — provide ALL relevant information from the database in each response
+- **Be thorough and complete** — list ALL matching subjects, programs, faculty, etc. Do NOT summarize or skip entries
+- **If the response would be extremely long** (e.g., listing subjects for ALL programs across multiple years), provide as much as you can and end with:
+  ${language === 'fil' ? '"\\n\\n---\\n\\n**Gusto mo bang ipagpatuloy ko?** Marami pa akong impormasyon na maibabahagi. 📚"' : '"\\n\\n---\\n\\n**Would you like me to continue?** I have more information to share. 📚"'}
+- **NEVER cut off mid-sentence or mid-list** — always finish the current section before offering to continue
+- **When the user says "continue" or "yes"**, pick up exactly where you left off and provide the remaining information
 
 ## FINAL REMINDER:
 You are a RETRIEVAL-AUGMENTED GENERATION system. Your responses must be GROUNDED in the database context above.
@@ -183,6 +220,10 @@ If the information isn't in the database, say so politely. Never hallucinate or 
     messages.push({ role: 'user', content: userMessage });
 
     // Detect faculty name inquiries (e.g., "who is [name]?")
+    // IMPORTANT: Exclude program-related queries to avoid false positives
+    const programKeywords = ['program', 'course', 'degree', 'curriculum', 'bs ', 'bsm ', 'bachelor', 'major', 'specialization'];
+    const isProgramQuery = programKeywords.some(keyword => lowerMsg.includes(keyword));
+    
     const nameQueryPatterns = [
       /who\s+is\s+([a-z\s\.]+)/i,
       /sino\s+si\s+([a-z\s\.]+)/i,
@@ -190,10 +231,12 @@ If the information isn't in the database, say so politely. Never hallucinate or 
       /tungkol\s+kay\s+([a-z\s\.]+)/i
     ];
 
-    for (const pattern of nameQueryPatterns) {
-      const match = userMessage.match(pattern);
-      if (match && match[1]) {
-        const searchName = match[1].trim();
+    // Only search for faculty if this is NOT a program query
+    if (!isProgramQuery) {
+      for (const pattern of nameQueryPatterns) {
+        const match = userMessage.match(pattern);
+        if (match && match[1]) {
+          const searchName = match[1].trim();
         
         // Split name into parts for multi-word names (e.g., "arcel galvez" -> ["arcel", "galvez"])
         const nameParts = searchName.split(/\s+/).filter(part => part.length > 0);
@@ -289,6 +332,7 @@ If the information isn't in the database, say so politely. Never hallucinate or 
             : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\nPlease contact the COS office for more accurate information.`;
         }
       }
+    }
     }
 
     // Detect faculty inquiries by role
@@ -529,11 +573,47 @@ Each program offers unique opportunities and career paths!
 ✓ Faculty and facilities`;
     }
 
-    // Call OpenAI with enhanced system prompt and last conversation context
+    // Log FAQ context for debugging
+    console.log(`[AI Context] FAQs in context: ${ragContext.faqs.length}`);
+    if (ragContext.faqs.length > 0) {
+      console.log(`[AI Context] First FAQ: ${ragContext.faqs[0].question.substring(0, 50)}...`);
+    }
+
+    // Try Gemini first (FREE), fallback to OpenAI if needed
+    if (geminiModel) {
+      try {
+        // Convert messages to Gemini format (combine system + conversation)
+        let geminiPrompt = TISA_SYSTEM_PROMPT + '\n\n';
+        
+        // Add conversation history
+        if (lastInteraction) {
+          geminiPrompt += `Previous conversation:\nUser: ${lastInteraction.userMessage}\nAssistant: ${lastInteraction.aiResponse}\n\n`;
+        }
+        
+        // Add current user message
+        geminiPrompt += `User: ${userMessage}\nAssistant:`;
+        
+        console.log('[Gemini] Generating response...');
+        const result = await geminiModel.generateContent(geminiPrompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        console.log('✓ Gemini AI response generated successfully');
+        return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+      } catch (geminiError: any) {
+        console.error('❌ Gemini API Error:', geminiError.message);
+        console.error('Gemini Error Details:', JSON.stringify(geminiError, null, 2));
+        // Fall through to OpenAI fallback
+      }
+    } else {
+      console.log('[AI] Gemini not configured, using OpenAI');
+    }
+
+    // Fallback to OpenAI if Gemini fails or is not configured
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: messages as any,
-      max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS || '800'),
+      max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS || '4096'),
       temperature: 0.7,
     });
 
@@ -541,39 +621,9 @@ Each program offers unique opportunities and career paths!
       'I apologize, but I had trouble generating a response. Could you rephrase your question? I\'m here to help!';
 
   } catch (error: any) {
-    console.error('OpenAI API Error:', error);
-
-    // Comprehensive fallback responses
-    const lowerMsg = userMessage.toLowerCase();
+    console.error('AI API Error:', error);
     
-    if (lowerMsg.includes('college of science') || 
-        lowerMsg.includes('cos') || 
-        lowerMsg.includes('programs') ||
-        lowerMsg.includes('courses')) {
-      return `**BSU College of Science – Official Programs (2025)**
-
-**Mathematics:**
-• BS Mathematics with Specialization in Applied Statistics
-• BS Mathematics with Specialization in Business Applications
-• BS Mathematics with Specialization in Computer Science
-
-**Sciences:**
-• BS Biology
-• BS Environmental Science
-• BS Food Technology
-• BS Medical Technology / Medical Laboratory Science
-
-For more information, please visit the COS office or contact the registrar.`;
-    }
-
-    return `I'm experiencing a temporary service interruption, but I'm still here to help! 
-
-For urgent inquiries, please:
-• Visit the COS office directly
-• Email the department
-• Check the official BSU website
-
-I'll be back to full functionality soon. Thank you for your patience! 🙏`;
+    return `I'm currently experiencing technical difficulties with my AI service. Please try again in a moment, or contact support if the issue persists.`;
   }
 };
 
@@ -605,21 +655,388 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
                          (/quiz|test|exam|practice|assessment/i.test(message));
     
     if (isQuizRequest) {
-      // Return special response indicating quiz generation
-      return res.json({
-        response: `I'll create a practice exam for you! 📝\n\nGenerating questions based on our conversation...`,
-        generateQuiz: true,
-        quizParams: {
-          topic: message.replace(/create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|on|about/gi, '').trim(),
-          questionCount: 10,
-          chatSessionId: chatSessionId || null
-        },
-        suggestions: [
-          'Show me my quiz history',
-          'Explain this topic in detail',
-          'Give me study tips'
-        ]
-      });
+      // Extract topic from message
+      let topic = message.replace(/create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|on|about/gi, '').trim();
+      // Remove common prefixes
+      topic = topic.replace(/^(for|on|about|in)\s+/i, '').trim();
+      
+      // Validate that a topic was provided
+      if (!topic || topic.length < 2) {
+        return res.json({
+          response: `I'd be happy to create a quiz for you! 📝\n\n**Please specify which subject or topic you'd like to be quizzed on.**\n\nFor example:\n• "Create quiz for Microbiology"\n• "Generate quiz for Calculus"\n• "Make a quiz on Biology"\n• "Quiz me on Computer Science"\n\nYou can also ask me:\n• "Show me available courses"\n• "What subjects can I study?"`,
+          suggestions: [
+            'Show me available courses',
+            'Create quiz for Microbiology',
+            'Generate quiz for Calculus',
+            'What subjects can I study?'
+          ],
+          intent: 'quiz_generation_missing_topic'
+        });
+      }
+      
+      // Check if quiz generator is available
+      if (!quizGeneratorService.isAvailable()) {
+        return res.json({
+          response: `I'd love to create a quiz for you, but the quiz generation service is currently unavailable. Please try again later or contact support.`,
+          suggestions: [
+            'Show me course curriculum instead',
+            'Explain this topic in detail',
+            'What are the key concepts?'
+          ]
+        });
+      }
+
+      try {
+        // For quiz generation, fetch minimal lesson data instead of full RAG context
+        // This reduces token usage and avoids rate limits
+        let quiz = null;
+        let quizGenerationMethod = 'none';
+        let lessonData = null;
+        let courseData = null;
+        
+        // Fetch lessons and course data for the topic
+        if (topic) {
+          // First, check if there are any courses for this topic
+          courseData = await prisma.course.findMany({
+            where: {
+              OR: [
+                { title: { contains: topic, mode: 'insensitive' } },
+                { description: { contains: topic, mode: 'insensitive' } }
+              ],
+              status: 'PUBLISHED'
+            },
+            select: {
+              id: true,
+              title: true,
+              description: true
+            },
+            take: 1
+          });
+
+          // Then fetch lessons for the topic
+          lessonData = await prisma.lesson.findMany({
+            where: {
+              OR: [
+                { title: { contains: topic, mode: 'insensitive' } },
+                { description: { contains: topic, mode: 'insensitive' } }
+              ],
+              isPublished: true
+            },
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              content: true,
+              type: true,
+              module: {
+                select: {
+                  title: true,
+                  course: {
+                    select: {
+                      title: true
+                    }
+                  }
+                }
+              }
+            },
+            take: 5 // Limit to 5 lessons to reduce context
+          });
+        }
+
+        // Check if lessons exist for this topic
+        if (!lessonData || lessonData.length === 0) {
+          console.log(`[Quiz] No lessons found for "${topic}", checking courses and curriculum...`);
+          
+          // Check if topic exists in courses table (more flexible search)
+          if (!courseData || courseData.length === 0) {
+            courseData = await prisma.course.findMany({
+              where: {
+                OR: [
+                  { title: { contains: topic, mode: 'insensitive' } },
+                  { description: { contains: topic, mode: 'insensitive' } }
+                ],
+                status: 'PUBLISHED'
+              },
+              select: {
+                id: true,
+                title: true,
+                description: true
+              },
+              take: 5
+            });
+          }
+          
+          // Check if topic exists in curriculum as additional fallback
+          const curriculumData = await prisma.curriculumEntry.findMany({
+            where: {
+              subjectName: { contains: topic, mode: 'insensitive' }
+            },
+            take: 1
+          });
+
+          // If neither courses nor curriculum exist, return error
+          if ((!courseData || courseData.length === 0) && (!curriculumData || curriculumData.length === 0)) {
+            return res.json({
+              response: `I couldn't find any courses or curriculum for "${topic}" in our database.\n\n**This topic hasn't been added yet.**\n\nPlease:\n• Check if the topic name is correct\n• Try a different subject\n• Contact your instructor to add this topic\n\nYou can ask me:\n• "Show me available courses"\n• "What subjects are in the curriculum?"\n• "Create quiz for [subject from curriculum]"`,
+              suggestions: [
+                'Show me available courses',
+                'What subjects are in the curriculum?',
+                'Help me find course materials'
+              ],
+              intent: 'quiz_generation',
+              metadata: {
+                topic: topic,
+                lessonsFound: 0,
+                coursesFound: 0,
+                curriculumFound: 0
+              }
+            });
+          }
+          
+          // Topic exists in courses or curriculum but no lessons yet - generate from database
+          console.log(`[Quiz] Found ${courseData?.length || 0} courses and ${curriculumData?.length || 0} curriculum entries for "${topic}", generating quiz from database`);
+        }
+        
+        // PRIORITY 1: Generate quiz from lessons (AI-powered)
+        if (quizGeneratorService.isAvailable() && lessonData && lessonData.length > 0) {
+          quiz = await quizGeneratorService.generateQuizFromLessons(
+            topic || 'General',
+            lessonData,
+            10,
+            'mixed'
+          );
+          quizGenerationMethod = quiz ? 'ai_lessons' : 'none';
+        }
+        
+        // PRIORITY 2: Fallback to database-based generation if AI fails
+        if (!quiz || quiz.questions.length === 0) {
+          // Use topic directly for database fallback
+          quiz = await quizGeneratorService.generateQuizFromDatabaseCurriculum(
+            topic || 'Computer Science',
+            undefined,
+            10
+          );
+          quizGenerationMethod = 'database';
+        }
+
+        if (!quiz || quiz.questions.length === 0) {
+          return res.json({
+            response: `I couldn't generate a quiz for "${topic}". Please specify a valid subject:\n\n• Calculus\n• Computer Science\n• Biology\n• Physics\n• Chemistry\n• Mathematics`,
+            suggestions: [
+              'Create a quiz on Calculus',
+              'Generate a Computer Science quiz',
+              'Make a Biology test'
+            ]
+          });
+        }
+
+        // Format response for interactive card UI
+        const quizSummary = `**${quiz.title}**\n\nThis quiz covers fundamental concepts in ${topic}, including key principles and their applications.\n\n📊 **${quiz.questions.length} Questions** | ⏱️ **${quiz.estimatedTime} minutes** | 🎯 **${quiz.totalPoints} points**\n\nGreat job on starting your ${topic} practice! Mastering these concepts will open doors to many areas in science and engineering. Good luck!`;
+
+        // Save interaction
+        await prisma.aIInteraction.create({
+          data: {
+            userId,
+            type: AIInteractionType.QUESTION,
+            context: `quiz_generated:${topic}:${quizGenerationMethod}`,
+            userMessage: message,
+            aiResponse: quizSummary,
+          },
+        });
+
+        // Return quiz in format for interactive UI
+        return res.json({
+          generateQuiz: true,
+          response: quizSummary,
+          quizParams: {
+            topic: topic,
+            questionCount: 10
+          },
+          quiz: {
+            id: 'quiz_' + Date.now(),
+            title: quiz.title,
+            description: quiz.description,
+            questions: quiz.questions,
+            totalQuestions: quiz.questions.length,
+            estimatedTime: quiz.estimatedTime,
+            totalPoints: quiz.totalPoints,
+            generatedBy: quizGenerationMethod,
+            createdAt: new Date().toISOString()
+          },
+          quizMetadata: {
+            showThinking: true,
+            allowRetry: true,
+            showHints: true,
+            passingScore: 70
+          },
+          interactionId: 'quiz_' + Date.now(),
+          timestamp: new Date().toISOString()
+        });
+      } catch (error: any) {
+        console.error('Quiz generation error:', error);
+        return res.json({
+          response: `I encountered an error while generating the quiz: ${error.message}\n\nPlease try again or specify a different topic.`,
+          suggestions: [
+            'Try creating a Calculus quiz',
+            'Generate a Computer Science quiz',
+            'Show me available courses'
+          ]
+        });
+      }
+    }
+
+    // STEP 0.5: Check if user is requesting a consultation/appointment with faculty
+    const consultationKeywords = /consult|consultation|appointment|book|schedule|meet|meeting|talk to|speak with|available|office hours|professor|faculty|instructor|teacher|advisor|advising/i;
+    const isConsultationRequest = consultationKeywords.test(message) && 
+      (/book|schedule|appointment|consult|meet|available|office hours|advising/i.test(message));
+
+    if (isConsultationRequest) {
+      try {
+        const lowerMessage = message.toLowerCase();
+        
+        // Extract potential faculty name from message
+        // Common patterns: "book with [name]", "meet [name]", "consult [name]", "[name]'s schedule"
+        const namePatterns = [
+          /(?:book|meet|consult|schedule|appointment)\s+(?:with\s+)?(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i,
+          /(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)\s*(?:'s)?\s*(?:schedule|availability|office hours)/i,
+          /(?:talk|speak)\s+(?:to|with)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i
+        ];
+        
+        let extractedName = '';
+        for (const pattern of namePatterns) {
+          const match = message.match(pattern);
+          if (match && match[1]) {
+            extractedName = match[1].trim().toLowerCase();
+            break;
+          }
+        }
+        
+        // Also check for any capitalized words that might be names
+        const words = message.split(/\s+/);
+        const potentialNames = words.filter((w: string) => /^[A-Z][a-z]+$/.test(w)).map((w: string) => w.toLowerCase());
+        
+        // Search for specific faculty by name if mentioned
+        let matchedFaculty = null;
+        
+        if (extractedName || potentialNames.length > 0) {
+          const searchTerms = extractedName ? extractedName.split(/\s+/) : potentialNames;
+          
+          // Build OR conditions for each search term
+          const orConditions = searchTerms.flatMap((term: string) => [
+            { firstName: { contains: term, mode: 'insensitive' as const } },
+            { lastName: { contains: term, mode: 'insensitive' as const } }
+          ]);
+          
+          const searchResults = await prisma.faculty.findMany({
+            where: {
+              OR: orConditions,
+              consultationDays: { isEmpty: false }
+            },
+            select: {
+              id: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              email: true,
+              position: true,
+              college: true,
+              consultationDays: true,
+              consultationStart: true,
+              consultationEnd: true,
+              officeHours: true
+            }
+          });
+          
+          // Find best match - prefer full name match, then last name
+          for (const faculty of searchResults) {
+            const fullName = `${faculty.firstName} ${faculty.lastName}`.toLowerCase();
+            const firstName = faculty.firstName.toLowerCase();
+            const lastName = faculty.lastName.toLowerCase();
+            
+            // Check if all search terms match
+            const allTermsMatch = searchTerms.every((term: string) => 
+              fullName.includes(term) || firstName.includes(term) || lastName.includes(term)
+            );
+            
+            if (allTermsMatch) {
+              matchedFaculty = faculty;
+              break;
+            }
+          }
+          
+          // If no exact match, take first result
+          if (!matchedFaculty && searchResults.length > 0) {
+            matchedFaculty = searchResults[0];
+          }
+        }
+        
+        // Fetch general available faculty list if no specific match
+        const availableFaculty = await prisma.faculty.findMany({
+          where: {
+            consultationDays: { isEmpty: false }
+          },
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            email: true,
+            position: true,
+            college: true,
+            consultationDays: true,
+            consultationStart: true,
+            consultationEnd: true,
+            officeHours: true
+          },
+          take: 10
+        });
+
+        // Build response with consultation booking UI
+        let consultationResponse: string;
+        
+        if (matchedFaculty) {
+          consultationResponse = userLanguage === 'fil'
+            ? `Nakita ko na gusto mong mag-book ng consultation kay **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Araw: ${matchedFaculty.consultationDays.join(', ')}\n• Oras: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}\n\nI-click ang button sa ibaba para mag-book ng appointment:`
+            : `I see you'd like to book a consultation with **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Days: ${matchedFaculty.consultationDays.join(', ')}\n• Time: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}\n\nClick the button below to book an appointment:`;
+        } else {
+          const facultyList = availableFaculty.slice(0, 5).map(f => 
+            `• **${f.firstName} ${f.lastName}** - ${f.position} (${f.consultationDays.join(', ')})`
+          ).join('\n');
+          
+          consultationResponse = userLanguage === 'fil'
+            ? `Maaari akong tumulong sa pag-book ng consultation sa aming faculty! 📅\n\n**Available Faculty para sa Consultation:**\n${facultyList}\n\nPumili ng faculty sa ibaba para mag-book ng appointment, o sabihin mo kung sino ang gusto mong kausapin:`
+            : `I can help you book a consultation with our faculty! 📅\n\n**Available Faculty for Consultation:**\n${facultyList}\n\nSelect a faculty below to book an appointment, or tell me who you'd like to meet with:`;
+        }
+
+        // Save interaction
+        const interaction = await prisma.aIInteraction.create({
+          data: {
+            userId,
+            type: AIInteractionType.QUESTION,
+            context: 'consultation_booking',
+            userMessage: message,
+            aiResponse: consultationResponse,
+          },
+        });
+
+        return res.json({
+          response: consultationResponse,
+          showConsultationBooking: true,
+          consultationData: {
+            faculty: matchedFaculty ? [matchedFaculty] : availableFaculty.slice(0, 5),
+            selectedFaculty: matchedFaculty || null
+          },
+          suggestions: userLanguage === 'fil' 
+            ? ['Tingnan lahat ng faculty', 'Kailan available si Prof?', 'Paano mag-cancel ng booking?']
+            : ['View all faculty', 'When is Prof available?', 'How to cancel a booking?'],
+          interactionId: interaction.id,
+          timestamp: interaction.createdAt,
+          intent: 'consultation_booking'
+        });
+      } catch (error) {
+        console.error('Consultation booking error:', error);
+        // Fall through to normal AI response
+      }
     }
 
     // STEP 1: Analyze query scope BEFORE processing

@@ -156,3 +156,5 @@ async function seedBSEnviSciPCCurriculum() {
 }
 
 seedBSEnviSciPCCurriculum();
+
+export { seedBSEnviSciPCCurriculum };

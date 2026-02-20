@@ -423,20 +423,57 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
 }
 
 /**
- * Fetch relevant FAQs
+ * Fetch relevant FAQs with improved keyword matching
  */
 async function fetchFAQs(msg: string): Promise<FAQContext[]> {
+  // Extract meaningful keywords from user message
+  const stopWords = ['what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 'tell', 'explain'];
+  const keywords = msg.toLowerCase()
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !stopWords.includes(word));
+
+  // Build search conditions
+  const searchConditions: any[] = [];
+  
+  // Search in question text
+  keywords.forEach(keyword => {
+    searchConditions.push({ question: { contains: keyword, mode: 'insensitive' } });
+    searchConditions.push({ answer: { contains: keyword, mode: 'insensitive' } });
+  });
+  
+  // Search in keywords array
+  if (keywords.length > 0) {
+    searchConditions.push({ keywords: { hasSome: keywords } });
+  }
+
+  // Search in category
+  searchConditions.push({ category: { contains: msg.substring(0, 30), mode: 'insensitive' } });
+
   const faqs = await prisma.fAQ.findMany({
     where: {
       isPublished: true,
-      OR: [
-        { question: { contains: msg.substring(0, 50), mode: 'insensitive' } },
-        { keywords: { hasSome: msg.split(' ').filter(w => w.length > 3) } }
-      ]
+      OR: searchConditions.length > 0 ? searchConditions : undefined
     },
-    take: 5,
-    orderBy: { viewCount: 'desc' }
+    take: 10, // Increased to get more relevant FAQs
+    orderBy: [
+      { helpful: 'desc' },
+      { viewCount: 'desc' }
+    ]
   });
+
+  console.log(`[FAQ Retrieval] Query: "${msg.substring(0, 50)}..." | Found: ${faqs.length} FAQs | Keywords: ${keywords.join(', ')}`);
+
+  // Update view count for retrieved FAQs
+  if (faqs.length > 0) {
+    await Promise.all(
+      faqs.map(faq => 
+        prisma.fAQ.update({
+          where: { id: faq.id },
+          data: { viewCount: { increment: 1 } }
+        }).catch(() => {}) // Ignore errors for view count updates
+      )
+    );
+  }
 
   return faqs.map(f => ({
     category: f.category,

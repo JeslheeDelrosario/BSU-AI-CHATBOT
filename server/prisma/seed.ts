@@ -2,6 +2,7 @@
 import { PrismaClient, UserRole, LearningStyle, CourseLevel, CourseStatus, LessonType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedHolidays } from './seeds/holidays.seed';
+import { seedFAQs } from './seed-faqs';
 
 const prisma = new PrismaClient();
 
@@ -318,6 +319,9 @@ async function main() {
 
   // Seed holidays
   await seedHolidays();
+
+  // Seed FAQs
+  await seedFAQs();
 
   console.log('Seeding completed!');
   console.log('\n=== Login Credentials ===');

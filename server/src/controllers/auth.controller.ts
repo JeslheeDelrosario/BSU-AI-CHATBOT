@@ -178,7 +178,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { firstName, lastName, phoneNumber, course, section } = req.body;
+    const { firstName, lastName, phoneNumber, course, section, gradeLevel, avatar } = req.body;
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -188,6 +188,8 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         phoneNumber: phoneNumber || null,
         course: course || null,
         section: section || null,
+        ...(gradeLevel !== undefined && { gradeLevel: gradeLevel || null }),
+        ...(avatar !== undefined && { avatar: avatar || null }),
       },
       select: {
         id: true,
@@ -199,6 +201,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         phoneNumber: true,
         course: true,
         section: true,
+        gradeLevel: true,
       },
     });
 

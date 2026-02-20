@@ -1,11 +1,13 @@
 // server/src/index.ts
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import path from 'path';
 
 // Route imports
@@ -37,9 +39,6 @@ import calendarRoutes from './routes/calendar.routes';
 
 // Initialize Redis connection
 import './config/redis.config';
-
-// Load environment variables
-dotenv.config();
 
 // Validate environment variables
 import { validateEnv, isGoogleCalendarConfigured } from './config/env.validation';
@@ -119,7 +118,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 100 requests per window
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || (isProduction ? '100' : '1000')), // 100 in prod, 1000 in dev
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

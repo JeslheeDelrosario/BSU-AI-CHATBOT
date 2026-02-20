@@ -10,10 +10,17 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "seed": "ts-node prisma/seed-all.ts",
+    "seed:all": "ts-node prisma/seed-all.ts",
+    "seed:faqs": "ts-node prisma/seed-faqs.ts",
+    "seed:faculty": "ts-node prisma/seed-faculty.ts",
+    "seed:curriculum": "ts-node prisma/seed-bsm-cs-curriculum.ts && ts-node prisma/seed-bsm-as-curriculum.ts && ts-node prisma/seed-bsm-ba-curriculum.ts && ts-node prisma/seed-bs-biology-curriculum.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@google/generative-ai": "^0.24.1",
+    "@huggingface/inference": "^4.13.12",
     "@prisma/client": "^5.22.0",
     "all": "^0.0.0",
     "axios": "^1.13.4",
