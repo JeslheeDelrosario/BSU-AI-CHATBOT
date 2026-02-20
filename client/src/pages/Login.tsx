@@ -30,43 +30,35 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center relative overflow-hidden">
-      {/* Responsive Back to Home button:
-          - Mobile (<640px): compact icon-only button with smaller padding
-          - Desktop (≥640px): full arrow + "Home" text with normal padding
-          - Keeps gradient, shine effect, hover scale/glow on all sizes
-      */}
       <Link
         to="/"
-        className={`
-          absolute top-5 sm:top-6 left-5 sm:left-6 z-30
-          group inline-flex items-center gap-2 sm:gap-3
-          px-4 sm:px-6 py-3 sm:py-3.5
-          bg-gradient-to-r from-cyan-500 to-purple-600
-          rounded-xl font-semibold text-sm sm:text-base tracking-wide
-          shadow-xl hover:shadow-cyan-500/40
-          transition-all duration-300 hover:scale-105
-          focus:outline-none focus:ring-2 focus:ring-cyan-400/50
+        className="
+          absolute top-6 left-6 z-30
+          group flex items-center
+          h-12
+          w-12 hover:w-32
           overflow-hidden
-        `}
-      >
-        {/* Shine overlay – behind content */}
-        <div className="
-          absolute inset-0
-          bg-white/20
-          translate-y-full
-          group-hover:translate-y-0
-          transition-transform duration-500
-        "></div>
-
-        {/* Content wrapper – stays on top */}
-        <div className="relative z-10 flex items-center gap-2 sm:gap-3">
-          <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:-translate-x-1" />
-          
-          {/* Text only visible on sm and larger screens */}
-          <span className="hidden sm:inline">Home</span>
+          rounded-full
+          bg-white/5 backdrop-blur-md
+          border border-white/10
+          transition-all duration-300 ease-in-out
+        ">
+        <div className="flex items-center justify-center w-12 h-12 shrink-0">
+          <ArrowLeft className="w-5 h-5 text-cyan-400 transition-transform group-hover:-translate-x-1" />
         </div>
+
+        <span
+          className="
+            ml-2 pr-4
+            text-sm font-medium text-cyan-300
+            opacity-0 group-hover:opacity-100
+            transition-opacity duration-200
+            whitespace-nowrap
+          ">
+          Home
+        </span>
       </Link>
-      
+
       {/* Animated gradient orbs */}
       <div className="absolute inset-0">
         <div className="absolute top-20 -left-40 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl animate-pulse"></div>
@@ -75,11 +67,11 @@ export default function Login() {
       </div>
 
       {/* Grid pattern overlay */}
-      <div 
+      <div
         className="absolute inset-0 opacity-10"
         style={{
           backgroundImage: `linear-gradient(cyan 1px, transparent 1px), linear-gradient(90deg, cyan 1px, transparent 1px)`,
-          backgroundSize: '50px 50px',
+          backgroundSize: "50px 50px",
         }}
       />
 
@@ -88,9 +80,9 @@ export default function Login() {
         <div className="text-center mb-12">
           <div className="flex justify-center mb-8">
             <div className="relative">
-              <img 
-                src="/icon-logo.png" 
-                alt="TISA Logo" 
+              <img
+                src="/icon-logo.png"
+                alt="TISA Logo"
                 className="w-24 h-24 object-contain filter drop-shadow-2xl"
               />
               <Zap className="absolute -top-2 -right-2 w-8 h-8 text-cyan-400 animate-ping" />
@@ -180,7 +172,9 @@ export default function Login() {
                 disabled={loading}
                 className="w-full py-5 mt-8 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-lg rounded-xl relative overflow-hidden group shadow-xl hover:shadow-cyan-500/25 transition-all duration-300 disabled:opacity-60"
               >
-                <span className="relative z-10">{loading ? 'Authenticating...' : 'Sign in'}</span>
+                <span className="relative z-10">
+                  {loading ? "Authenticating..." : "Sign in"}
+                </span>
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
               </button>
             </form>
@@ -188,9 +182,9 @@ export default function Login() {
             {/* Sign Up Link */}
             <div className="mt-10 text-center">
               <p className="text-gray-400">
-                New student?{' '}
-                <Link 
-                  to="/signup" 
+                New student?{" "}
+                <Link
+                  to="/signup"
                   className="text-cyan-400 font-semibold hover:text-cyan-300 transition"
                 >
                   Register for access →

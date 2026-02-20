@@ -826,3 +826,126 @@ select::-webkit-scrollbar-thumb:hover {
 .animate-pulse-text {
   animation: pulse-text 3s ease-in-out infinite;
 }
+
+/* ──────────────────────────────────────
+   Animations & Keyframes
+─────────────────────────────────────── */
+@keyframes word-appear {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-30px) translateX(15px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ripple {
+  to {
+    transform: translate(-50%, -50%) scale(50);
+    opacity: 0;
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ──────────────────────────────────────
+   Reusable utility classes
+─────────────────────────────────────── */
+.word-animate {
+  opacity: 0;
+}
+.word-animate.animate {
+  animation: word-appear 1s ease-out forwards;
+}
+
+.float-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #67e8f9;
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 12px #67e8f9;
+  animation: float 8s infinite ease-in-out;
+  animation-play-state: paused;
+}
+
+.float-particle.active {
+  opacity: 0.6;
+  animation-play-state: running;
+}
+
+.ripple-effect {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  background: rgba(103, 232, 249, 0.6);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: ripple 1.2s ease-out forwards;
+  z-index: 9999;
+}
+
+.scroll-indicator {
+  animation: bounce 2s infinite;
+}
+
+/* Common card / section styles used many times */
+.glass-card {
+  @apply bg-black/40 backdrop-blur-sm rounded-2xl border border-gray-700/50;
+  /* or specific borders like border-cyan-500/20 etc. */
+}
+
+.section-header-gradient {
+  @apply text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent;
+}
+
+/* Optional: root background setup (if you want it site-wide) */
+@layer base {
+  body {
+    @apply bg-black text-white;
+  }
+}
+
+/* Mouse gradient — usually better kept in component, but you can prepare base styles */
+.mouse-glow {
+  position: fixed;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: blur(64px);
+  transition: opacity 0.5s;
+  background: radial-gradient(
+    circle,
+    rgba(103, 232, 249, 0.3) 0%,
+    transparent 70%
+  );
+  z-index: 5;
+}

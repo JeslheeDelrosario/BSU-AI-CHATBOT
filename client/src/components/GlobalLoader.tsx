@@ -1,24 +1,14 @@
 // client/src/components/GlobalLoader.tsx
 
-/**
- * Global full-screen loader shown during initial app load, browser refresh,
- * or Suspense fallback.
- *
- * - Uses your real logo from /icon-logo.png (public folder)
- * - Perfectly circular spinning ring, centered around the logo
- * - Preserves original logo aspect ratio (~513:486)
- * - Gentle pulse animation on logo + subtle background glow
- */
 export default function GlobalLoader() {
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-black overflow-hidden">
-      {/* Subtle animated background glow */}
       <div className="absolute inset-0 bg-gradient-to-r from-cyan-950/30 via-purple-950/30 to-transparent opacity-60 animate-pulse-slow-bg" />
 
       <div className="relative z-10 flex flex-col items-center gap-10 md:gap-12">
-        {/* Logo + Perfect circular spinner container */}
+       
         <div className="relative flex items-center justify-center">
-          {/* Logo – preserves original aspect ratio, no forced square */}
+          
           <img
             src="/icon-logo.png"
             alt="TISA Logo"
@@ -29,7 +19,6 @@ export default function GlobalLoader() {
             "
           />
 
-          {/* Perfectly circular spinning ring – larger & centered */}
           <div className="absolute inset-[-40px] md:inset-[-50px] flex items-center justify-center pointer-events-none">
             <div
               className="
@@ -45,7 +34,6 @@ export default function GlobalLoader() {
           </div>
         </div>
 
-        {/* Loading text */}
         <div className="text-center">
           <h2 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 bg-clip-text text-transparent tracking-widest animate-pulse-text">
             INITIALIZING SYSTEM...
