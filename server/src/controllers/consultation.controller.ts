@@ -135,8 +135,12 @@ export const getMyBookings = async (req: AuthRequest, res: Response) => {
 export const getFacultyBookings = async (req: AuthRequest, res: Response) => {
   try {
     const { facultyId } = req.params;
+    const requestingUserRole = req.user!.role;
 
-    // TODO: Verify user has permission to view this faculty's bookings
+    // Only ADMIN or TEACHER roles can view faculty bookings
+    if (requestingUserRole !== 'ADMIN' && requestingUserRole !== 'TEACHER') {
+      return res.status(403).json({ error: 'Access denied. Only faculty or admins can view faculty bookings.' });
+    }
 
     const bookings = await prisma.consultationBooking.findMany({
       where: { facultyId },
@@ -178,7 +182,10 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    // TODO: Verify user has permission to update this booking
+    const requestingUserRole = req.user!.role;
+    if (requestingUserRole !== 'ADMIN' && requestingUserRole !== 'TEACHER') {
+      return res.status(403).json({ error: 'Access denied. Only faculty or admins can update booking status.' });
+    }
 
     const updated = await prisma.consultationBooking.update({
       where: { id },
@@ -252,6 +259,292 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Cancel booking error:', error);
     return res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+};
+
+// ─── Faculty: update own consultation schedule ────────────────────────────────
+export const updateMySchedule = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const role = req.user!.role;
+
+    if (role !== 'TEACHER' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only faculty can update their schedule' });
+    }
+
+    const { consultationDays, consultationStart, consultationEnd, officeHours } = req.body;
+
+    if (!consultationDays || !Array.isArray(consultationDays)) {
+      return res.status(400).json({ error: 'consultationDays must be an array' });
+    }
+
+    const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const invalidDays = consultationDays.filter((d: string) => !validDays.includes(d));
+    if (invalidDays.length > 0) {
+      return res.status(400).json({ error: `Invalid days: ${invalidDays.join(', ')}` });
+    }
+
+    // Find faculty record linked to this user's email
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, lastName: true }
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Match faculty by email or name
+    let faculty = await prisma.faculty.findFirst({
+      where: { email: { equals: user.email, mode: 'insensitive' } }
+    });
+
+    if (!faculty) {
+      faculty = await prisma.faculty.findFirst({
+        where: {
+          firstName: { equals: user.firstName, mode: 'insensitive' },
+          lastName: { equals: user.lastName, mode: 'insensitive' }
+        }
+      });
+    }
+
+    if (!faculty) {
+      return res.status(404).json({ error: 'Faculty record not found for this account' });
+    }
+
+    const updated = await prisma.faculty.update({
+      where: { id: faculty.id },
+      data: {
+        consultationDays,
+        consultationStart: consultationStart || null,
+        consultationEnd: consultationEnd || null,
+        officeHours: officeHours || null
+      }
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('Update schedule error:', error);
+    return res.status(500).json({ error: 'Failed to update schedule' });
+  }
+};
+
+// ─── Faculty: get own faculty profile + upcoming bookings ─────────────────────
+export const getMyFacultyProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const role = req.user!.role;
+
+    if (role !== 'TEACHER' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only faculty can access this endpoint' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, lastName: true }
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    let faculty = await prisma.faculty.findFirst({
+      where: { email: { equals: user.email, mode: 'insensitive' } }
+    });
+
+    if (!faculty) {
+      faculty = await prisma.faculty.findFirst({
+        where: {
+          firstName: { equals: user.firstName, mode: 'insensitive' },
+          lastName: { equals: user.lastName, mode: 'insensitive' }
+        }
+      });
+    }
+
+    if (!faculty) {
+      return res.status(404).json({ error: 'Faculty record not found for this account' });
+    }
+
+    // Get upcoming bookings for this faculty
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcomingBookings = await prisma.consultationBooking.findMany({
+      where: {
+        facultyId: faculty.id,
+        date: { gte: today },
+        status: { in: ['PENDING', 'CONFIRMED'] }
+      },
+      include: {
+        Student: {
+          select: { firstName: true, lastName: true, email: true, avatar: true }
+        }
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+    });
+
+    return res.json({ faculty, upcomingBookings });
+  } catch (error) {
+    console.error('Get faculty profile error:', error);
+    return res.status(500).json({ error: 'Failed to fetch faculty profile' });
+  }
+};
+
+// ─── Faculty: get weekly calendar view (bookings for a date range) ────────────
+export const getFacultyCalendar = async (req: AuthRequest, res: Response) => {
+  try {
+    const { facultyId, weekStart } = req.query;
+    const requestingRole = req.user!.role;
+
+    if (!facultyId || !weekStart) {
+      return res.status(400).json({ error: 'facultyId and weekStart are required' });
+    }
+
+    if (requestingRole !== 'ADMIN' && requestingRole !== 'TEACHER' && requestingRole !== 'STUDENT') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const faculty = await prisma.faculty.findUnique({
+      where: { id: facultyId as string }
+    });
+
+    if (!faculty) return res.status(404).json({ error: 'Faculty not found' });
+
+    const start = new Date(weekStart as string);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    const bookings = await prisma.consultationBooking.findMany({
+      where: {
+        facultyId: facultyId as string,
+        date: { gte: start, lte: end }
+      },
+      include: {
+        Student: {
+          select: { firstName: true, lastName: true, email: true }
+        }
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+    });
+
+    return res.json({ faculty, bookings, weekStart: start, weekEnd: end });
+  } catch (error) {
+    console.error('Get faculty calendar error:', error);
+    return res.status(500).json({ error: 'Failed to fetch calendar' });
+  }
+};
+
+// ─── Admin: get/update consultation configuration ─────────────────────────────
+// Config is stored as a special FAQ entry with key "CONSULTATION_CONFIG"
+// (avoids a new migration — uses existing flexible storage)
+const CONSULTATION_CONFIG_KEY = 'CONSULTATION_CONFIG';
+
+export const getConsultationConfig = async (req: AuthRequest, res: Response) => {
+  try {
+    const config = await prisma.fAQ.findFirst({
+      where: { question: CONSULTATION_CONFIG_KEY }
+    });
+
+    const defaults = {
+      maxDurationMinutes: 30,
+      minDurationMinutes: 15,
+      maxStudentsPerSlot: 1,
+      allowCancellation: true,
+      cancellationWindowHours: 24,
+      reminderHoursBefore: 24,
+      allowRescheduling: true
+    };
+
+    if (!config) return res.json(defaults);
+
+    try {
+      return res.json({ ...defaults, ...JSON.parse(config.answer) });
+    } catch {
+      return res.json(defaults);
+    }
+  } catch (error) {
+    console.error('Get config error:', error);
+    return res.status(500).json({ error: 'Failed to fetch config' });
+  }
+};
+
+export const updateConsultationConfig = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    const {
+      maxDurationMinutes,
+      minDurationMinutes,
+      maxStudentsPerSlot,
+      allowCancellation,
+      cancellationWindowHours,
+      reminderHoursBefore,
+      allowRescheduling
+    } = req.body;
+
+    const configData = JSON.stringify({
+      maxDurationMinutes: Number(maxDurationMinutes) || 30,
+      minDurationMinutes: Number(minDurationMinutes) || 15,
+      maxStudentsPerSlot: Number(maxStudentsPerSlot) || 1,
+      allowCancellation: Boolean(allowCancellation),
+      cancellationWindowHours: Number(cancellationWindowHours) || 24,
+      reminderHoursBefore: Number(reminderHoursBefore) || 24,
+      allowRescheduling: Boolean(allowRescheduling)
+    });
+
+    const existing = await prisma.fAQ.findFirst({
+      where: { question: CONSULTATION_CONFIG_KEY }
+    });
+
+    if (existing) {
+      await prisma.fAQ.update({
+        where: { id: existing.id },
+        data: { answer: configData }
+      });
+    } else {
+      await prisma.fAQ.create({
+        data: {
+          question: CONSULTATION_CONFIG_KEY,
+          answer: configData,
+          category: 'SYSTEM',
+          isPublished: false
+        }
+      });
+    }
+
+    return res.json({ success: true, config: JSON.parse(configData) });
+  } catch (error) {
+    console.error('Update config error:', error);
+    return res.status(500).json({ error: 'Failed to update config' });
+  }
+};
+
+// Get all faculty members with consultation schedules (public endpoint for calendar)
+export const getFacultyWithConsultation = async (req: AuthRequest, res: Response) => {
+  try {
+    const faculty = await prisma.faculty.findMany({
+      where: {
+        consultationDays: { isEmpty: false }
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        position: true,
+        college: true,
+        officeHours: true,
+        consultationDays: true,
+        consultationStart: true,
+        consultationEnd: true
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
+    });
+
+    return res.json(faculty);
+  } catch (error) {
+    console.error('Get faculty with consultation error:', error);
+    return res.status(500).json({ error: 'Failed to fetch faculty' });
   }
 };
 

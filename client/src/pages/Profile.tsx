@@ -366,7 +366,7 @@ export default function Profile() {
                         />
                       </div>
                       <span className="text-xs font-medium text-slate-500 dark:text-slate-400 w-10 text-right">
-                        {enrollment.progress || 0}%
+                        {Math.round(enrollment.progress || 0)}%
                       </span>
                     </div>
                   </div>

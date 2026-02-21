@@ -23,7 +23,10 @@ import {
   ChevronRight,
   Sun,
   Moon,
-  ChevronLeft
+  ChevronLeft,
+  Trophy,
+  Crown,
+  MessagesSquare
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -71,6 +74,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: accessibilitySettings.language === 'fil' ? 'Classroom' : 'Classroom', href: '/classrooms', icon: Users },
     { name: accessibilitySettings.language === 'fil' ? 'AI Tutor' : 'AI Tutor', href: '/ai-tutor', icon: MessageSquare },
     { name: accessibilitySettings.language === 'fil' ? 'Konsultasyon' : 'Consultations', href: '/consultations', icon: Calendar },
+    ...(user?.role === 'TEACHER' || user?.role === 'ADMIN' ? [{ name: accessibilitySettings.language === 'fil' ? 'Faculty Calendar' : 'Faculty Calendar', href: '/faculty-calendar', icon: BookMarked }] : []),
+    { name: accessibilitySettings.language === 'fil' ? 'Mga Nagawa' : 'Achievements', href: '/achievements', icon: Trophy },
+    { name: accessibilitySettings.language === 'fil' ? 'Leaderboard' : 'Leaderboard', href: '/leaderboard', icon: Crown },
+    { name: accessibilitySettings.language === 'fil' ? 'Forums' : 'Forums', href: '/forums', icon: MessagesSquare },
     { name: accessibilitySettings.language === 'fil' ? 'Mga Setting' : 'Settings', href: '/settings', icon: SettingsIcon },
   ];
 
@@ -78,6 +85,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: t.programs.title, href: '/AdminCOSPrograms', icon: GraduationCap },
     { name: t.faculty.title, href: '/AdminFaculty', icon: Users },
     { name: t.curriculum.title, href: '/AdminCurriculum', icon: BookMarked },
+    { name: accessibilitySettings.language === 'fil' ? 'Gamification' : 'Gamification', href: '/AdminGamification', icon: Trophy },
+    { name: accessibilitySettings.language === 'fil' ? 'Forums' : 'Forums', href: '/AdminForums', icon: MessagesSquare },
   ];
 
   const handleLogout = () => {
@@ -87,6 +96,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return location.pathname === href;
+    // /courses exact-only: detail pages (/courses/:id) and lessons (/lessons/:id)
+    // should not highlight Browse Courses when reached from My Courses
+    if (href === '/courses') return location.pathname === '/courses';
+    // Lesson viewer and course detail pages keep My Courses active
+    if (href === '/my-courses') {
+      return location.pathname.startsWith('/my-courses') ||
+        location.pathname.startsWith('/lessons/') ||
+        (location.pathname.startsWith('/courses/') && location.pathname !== '/courses');
+    }
     return location.pathname.startsWith(href);
   };
   const isAdminRoute = location.pathname.startsWith('/admin') || adminNavigation.some(item => location.pathname.startsWith(item.href));

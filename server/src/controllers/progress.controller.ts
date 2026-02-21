@@ -4,11 +4,19 @@ import { prisma } from '../lib/prisma';
 
 export const getUserProgress = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.params.userId || req.user?.userId;
+    const requestingUserId = req.user?.userId;
+    const targetUserId = req.params.userId || requestingUserId;
 
-    if (!userId) {
+    if (!targetUserId) {
       return res.status(400).json({ error: 'User ID required' });
     }
+
+    // Only allow users to view their own progress, admins can view any
+    if (targetUserId !== requestingUserId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied. You can only view your own progress.' });
+    }
+
+    const userId = targetUserId;
 
     const enrollments = await prisma.enrollment.findMany({
       where: { userId },

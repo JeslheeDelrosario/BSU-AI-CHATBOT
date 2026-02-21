@@ -20,7 +20,7 @@ try {
   if (geminiKey && geminiKey !== 'your-gemini-api-key-here') {
     const genAI = new GoogleGenerativeAI(geminiKey);
     geminiTitleModel = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       generationConfig: { maxOutputTokens: 30, temperature: 0.7 }
     });
   }

@@ -8,7 +8,7 @@ import { User, Bell, Accessibility, Save, Eye, Type, Volume2, Globe } from 'luci
 import { useTranslation } from '../lib/translations';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { settings: accessibilitySettings, updateSettings: updateAccessibility, saveSettings: saveAccessibilitySettings } = useAccessibility();
   const { showToast } = useToast();
   const t = useTranslation(accessibilitySettings.language);
@@ -77,6 +77,12 @@ export default function Settings() {
         lastName: profileSettings.lastName,
       });
 
+      // Update the user context with new profile data so UI reflects changes immediately
+      updateUser({
+        firstName: profileSettings.firstName,
+        lastName: profileSettings.lastName,
+      });
+
       // Persist notification settings to localStorage
       localStorage.setItem('tisaNotificationSettings', JSON.stringify(notificationSettings));
 
@@ -89,9 +95,13 @@ export default function Settings() {
           message: 'Profile saved, but some accessibility settings may not have persisted.',
         });
       }
+
+      // Hard refresh the page after a short delay to clear all cached data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       showToast({ type: 'error', title: t.settings.messages.updateFailed });
-    } finally {
       setSaving(false);
     }
   };

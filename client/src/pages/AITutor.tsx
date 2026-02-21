@@ -11,8 +11,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
-import QuizModal from '../components/QuizModal';
 import QuizCard from '../components/QuizCard';
+import QuizSidePanel from '../components/QuizSidePanel';
 import ConsultationBookingCard from '../components/ConsultationBookingCard';
 
 interface Message {
@@ -24,8 +24,38 @@ interface Message {
   consultationData?: {
     faculty: any[];
     selectedFaculty?: any;
+    existingBookings?: any[];
   };
   showConsultationBooking?: boolean;
+  showLeaderboard?: boolean;
+  leaderboardData?: Array<{
+    name: string;
+    metric: string;
+    icon: string;
+    topUsers: Array<{ rank: number; name: string; value: number; avatar: string | null }>;
+  }>;
+  showAchievements?: boolean;
+  achievementData?: {
+    earned: Array<{
+      id: string;
+      type: string;
+      title: string;
+      description: string;
+      icon: string;
+      points: number;
+      earnedAt: string;
+    }>;
+    totalPoints: number;
+    totalEarned: number;
+    totalAvailable: number;
+    nextToEarn: Array<{
+      type: string;
+      title: string;
+      description: string;
+      icon: string;
+      points: number;
+    }>;
+  };
 }
 
 interface Chat {
@@ -161,10 +191,17 @@ export default function AITutor() {
     });
   }, []);
 
-  // Toggle pin on a message
+  // Toggle pin on a message and persist to DB
   const togglePinMessage = useCallback((idx: number) => {
-    setMessages(prev => prev.map((m, i) => i === idx ? { ...m, isPinned: !m.isPinned } : m));
-  }, []);
+    setMessages(prev => {
+      const updated = prev.map((m, i) => i === idx ? { ...m, isPinned: !m.isPinned } : m);
+      // Persist updated messages to DB (fire-and-forget)
+      if (currentChatId) {
+        api.put(`/chat-sessions/${currentChatId}`, { messages: updated }).catch(console.error);
+      }
+      return updated;
+    });
+  }, [currentChatId]);
 
   // Get session status indicator
   const getSessionStatus = useCallback((chat: Chat): { label: string; color: string } => {
@@ -179,7 +216,7 @@ export default function AITutor() {
     return { label: accessibilitySettings.language === 'fil' ? 'Natapos' : 'Ended', color: 'text-slate-400' };
   }, [accessibilitySettings.language]);
 
-  // Load chats on mount
+  // Load chats on mount — runs only once, language change does NOT reload chats
   useEffect(() => {
     const load = async () => {
       setIsLoadingChats(true);
@@ -190,19 +227,37 @@ export default function AITutor() {
         setConnectionError(false);
 
         if (serverChats.length > 0) {
-          setCurrentChatId(serverChats[0].id);
-          setMessages(serverChats[0].messages ?? []);
+          const firstChat = serverChats[0];
+          setCurrentChatId(firstChat.id);
+          setMessages(firstChat.messages ?? []);
+          // If the first chat is empty, show greeting
+          if (!firstChat.messages || firstChat.messages.length === 0) {
+            setShowGreeting(true);
+            api.get('/ai-tutor/greeting').then(r => {
+              setGreeting(r.data.greeting);
+              setSuggestions(r.data.suggestions || []);
+            }).catch(console.error);
+          } else {
+            setShowGreeting(false);
+          }
+        } else {
+          // No chats at all — show greeting for new user
+          setShowGreeting(true);
+          api.get('/ai-tutor/greeting').then(r => {
+            setGreeting(r.data.greeting);
+            setSuggestions(r.data.suggestions || []);
+          }).catch(console.error);
         }
       } catch (err) {
         console.error('Failed to load chat sessions', err);
         setConnectionError(true);
-        setSystemBanner({ message: accessibilitySettings.language === 'fil' ? 'Hindi makakonekta sa server. Subukan muli.' : 'Unable to connect to server. Please try again.', type: 'warning' });
+        setSystemBanner({ message: 'Unable to connect to server. Please try again.', type: 'warning' });
       } finally {
         setIsLoadingChats(false);
       }
     };
     load();
-  }, [accessibilitySettings.language]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startNewChat = async () => {
     try {
@@ -244,10 +299,20 @@ export default function AITutor() {
 
   const selectChat = async (chat: Chat) => {
     setCurrentChatId(chat.id);
-    setMessages(chat.messages ?? []);
-    setShowGreeting(false);
-    setSuggestions([]);
+    const chatMessages = chat.messages ?? [];
+    setMessages(chatMessages);
     setChatHistoryOpen(false);
+    // Show greeting with fresh suggestions when switching to an empty chat
+    if (chatMessages.length === 0) {
+      setShowGreeting(true);
+      api.get('/ai-tutor/greeting').then(r => {
+        setGreeting(r.data.greeting);
+        setSuggestions(r.data.suggestions || []);
+      }).catch(console.error);
+    } else {
+      setShowGreeting(false);
+      setSuggestions([]);
+    }
   };
 
   const deleteChat = async (id: string, e?: React.MouseEvent) => {
@@ -297,13 +362,14 @@ export default function AITutor() {
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendMessage = async (overrideText?: string) => {
+    const messageText = overrideText !== undefined ? overrideText : input;
+    if (!messageText.trim() || loading) return;
 
-    const userMsg: Message = { role: 'user', content: input, timestamp: new Date().toISOString() };
+    const userMsg: Message = { role: 'user', content: messageText, timestamp: new Date().toISOString() };
     const tempMessages = [...messages, userMsg];
     setMessages(tempMessages);
-    setInput('');
+    if (overrideText === undefined) setInput('');
     setLoading(true);
 
     try {
@@ -395,6 +461,64 @@ export default function AITutor() {
           timestamp: new Date().toISOString(),
           showConsultationBooking: true,
           consultationData: res.data.consultationData
+        };
+        const finalMessages = [...tempMessages, aiMsg];
+        setMessages(finalMessages);
+        
+        if (res.data?.suggestions) {
+          setSuggestions(res.data.suggestions);
+        }
+        setShowGreeting(false);
+        
+        if (chatId) {
+          await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
+          setChats(prev => {
+            const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
+            return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+          });
+        }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Check if AI response includes leaderboard UI
+      if (res.data?.showLeaderboard && res.data?.leaderboardData) {
+        const aiMsg: Message = { 
+          role: 'ai', 
+          content: res.data.response,
+          timestamp: new Date().toISOString(),
+          showLeaderboard: true,
+          leaderboardData: res.data.leaderboardData
+        };
+        const finalMessages = [...tempMessages, aiMsg];
+        setMessages(finalMessages);
+        
+        if (res.data?.suggestions) {
+          setSuggestions(res.data.suggestions);
+        }
+        setShowGreeting(false);
+        
+        if (chatId) {
+          await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
+          setChats(prev => {
+            const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
+            return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+          });
+        }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Check if AI response includes achievements UI
+      if (res.data?.showAchievements && res.data?.achievementData) {
+        const aiMsg: Message = { 
+          role: 'ai', 
+          content: res.data.response,
+          timestamp: new Date().toISOString(),
+          showAchievements: true,
+          achievementData: res.data.achievementData
         };
         const finalMessages = [...tempMessages, aiMsg];
         setMessages(finalMessages);
@@ -542,6 +666,101 @@ export default function AITutor() {
   return (
     <div className="fixed inset-0 flex overflow-hidden">
       
+      {/* Quiz Side Panel - appears on RIGHTMOST position (after main chat area) */}
+      {showQuiz && currentExam && (
+        <div 
+          className="hidden lg:flex w-[320px] flex-shrink-0 border-l border-slate-700 bg-slate-900 z-30 order-last relative"
+        >
+          {/* Resize handle on LEFT edge */}
+          <div 
+            className="absolute left-0 top-0 bottom-0 w-2 bg-transparent hover:bg-cyan-500/30 cursor-col-resize transition-colors z-10 group"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const panel = e.currentTarget.parentElement;
+              if (!panel) return;
+              const startX = e.clientX;
+              const startWidth = panel.offsetWidth;
+              
+              const onMouseMove = (moveEvent: MouseEvent) => {
+                const diff = startX - moveEvent.clientX;
+                const newWidth = Math.min(Math.max(startWidth + diff, 280), 500);
+                panel.style.width = `${newWidth}px`;
+              };
+              
+              const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+              };
+              
+              document.addEventListener('mousemove', onMouseMove);
+              document.addEventListener('mouseup', onMouseUp);
+            }}
+          >
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-slate-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <QuizSidePanel
+            exam={currentExam}
+            onClose={() => {
+              setShowQuiz(false);
+              setCurrentExam(null);
+            }}
+            onComplete={(results) => {
+              setShowQuiz(false);
+              setCurrentExam(null);
+              const lang = accessibilitySettings.language;
+              const completionMsg: Message = {
+                role: 'ai',
+                content: lang === 'fil'
+                  ? `🎉 Natapos mo ang quiz! Nakakuha ka ng **${results.score}%** (${results.correctCount}/${results.totalQuestions} tama). ${results.score >= 70 ? 'Pumasa ka!' : 'Subukan muli para mas mapabuti!'}`
+                  : `🎉 Quiz completed! You scored **${results.score}%** (${results.correctCount}/${results.totalQuestions} correct). ${results.score >= 70 ? 'You passed!' : 'Try again to improve!'}`,
+                timestamp: new Date().toISOString()
+              };
+              // Use functional updater to avoid stale closure over messages
+              setMessages(prev => {
+                const updated = [...prev, completionMsg];
+                if (currentChatId) {
+                  api.put(`/chat-sessions/${currentChatId}`, { messages: updated }).catch(console.error);
+                }
+                return updated;
+              });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Mobile Quiz Modal - for smaller screens */}
+      {showQuiz && currentExam && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-slate-900">
+          <QuizSidePanel
+            exam={currentExam}
+            onClose={() => {
+              setShowQuiz(false);
+              setCurrentExam(null);
+            }}
+            onComplete={(results) => {
+              setShowQuiz(false);
+              setCurrentExam(null);
+              const lang = accessibilitySettings.language;
+              const completionMsg: Message = {
+                role: 'ai',
+                content: lang === 'fil'
+                  ? `🎉 Natapos mo ang quiz! Nakakuha ka ng **${results.score}%** (${results.correctCount}/${results.totalQuestions} tama). ${results.score >= 70 ? 'Pumasa ka!' : 'Subukan muli para mas mapabuti!'}`
+                  : `🎉 Quiz completed! You scored **${results.score}%** (${results.correctCount}/${results.totalQuestions} correct). ${results.score >= 70 ? 'You passed!' : 'Try again to improve!'}`,
+                timestamp: new Date().toISOString()
+              };
+              // Use functional updater to avoid stale closure over messages
+              setMessages(prev => {
+                const updated = [...prev, completionMsg];
+                if (currentChatId) {
+                  api.put(`/chat-sessions/${currentChatId}`, { messages: updated }).catch(console.error);
+                }
+                return updated;
+              });
+            }}
+          />
+        </div>
+      )}
+
       <style>{`
         .scrollbar-cyberpunk::-webkit-scrollbar { width: 6px; }
         .scrollbar-cyberpunk::-webkit-scrollbar-track { background: transparent; }
@@ -629,11 +848,11 @@ export default function AITutor() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" onClick={() => setChatHistoryOpen(false)} />
       )}
 
-      {/* ===== REDESIGNED SIDEBAR ===== */}
+      {/* ===== REDESIGNED SIDEBAR (LEFT SIDE) ===== */}
       <aside className={`
-        fixed lg:static inset-y-0 right-0 z-50 w-72 lg:w-72 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800
+        fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-slate-900 border-r border-slate-800
         shadow-2xl transform transition-transform duration-300 ease-out flex flex-col
-        ${chatHistoryOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+        ${chatHistoryOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* TISA Branding Header */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
@@ -890,8 +1109,8 @@ export default function AITutor() {
                         <button
                           key={idx}
                           onClick={() => {
-                            setInput(suggestion);
-                            sendMessage();
+                            setInput('');
+                            sendMessage(suggestion);
                           }}
                           className="px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-sm text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm hover:shadow-md"
                         >
@@ -993,6 +1212,111 @@ export default function AITutor() {
                                 language={accessibilitySettings.language}
                               />
                             </div>
+                          ) : msg.role === 'ai' && msg.showLeaderboard && msg.leaderboardData ? (
+                            <div className="space-y-3 max-w-xl">
+                              <div className="inline-block max-w-full px-4 py-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                </div>
+                              </div>
+                              {/* Leaderboard Cards */}
+                              <div className="grid gap-3">
+                                {msg.leaderboardData.map((board, idx) => (
+                                  <div key={idx} className="bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/30 rounded-xl p-4 shadow-lg">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <span className="text-2xl">{board.icon}</span>
+                                      <h4 className="font-bold text-slate-900 dark:text-white">{board.name}</h4>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {board.topUsers.slice(0, 5).map((user, uidx) => (
+                                        <div key={uidx} className="flex items-center gap-3 p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg">
+                                          <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
+                                            user.rank === 1 ? 'bg-amber-400 text-amber-900' :
+                                            user.rank === 2 ? 'bg-slate-300 text-slate-700' :
+                                            user.rank === 3 ? 'bg-orange-400 text-orange-900' :
+                                            'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                          }`}>
+                                            {user.rank}
+                                          </span>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-slate-900 dark:text-white truncate">{user.name}</p>
+                                          </div>
+                                          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{user.value} pts</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <a href="/leaderboard" className="mt-3 inline-flex items-center gap-1 text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+                                      View full leaderboard →
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : msg.role === 'ai' && msg.showAchievements && msg.achievementData ? (
+                            <div className="space-y-3 max-w-xl">
+                              <div className="inline-block max-w-full px-4 py-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                </div>
+                              </div>
+                              {/* Achievement Cards */}
+                              <div className="bg-gradient-to-br from-purple-500/10 to-pink-600/10 border border-purple-500/30 rounded-xl p-4 shadow-lg">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span className="text-2xl">🎖️</span> Your Achievements
+                                  </h4>
+                                  <div className="text-right">
+                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{msg.achievementData.totalPoints}</p>
+                                    <p className="text-xs text-slate-500">Total Points</p>
+                                  </div>
+                                </div>
+                                <div className="mb-3">
+                                  <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-slate-600 dark:text-slate-400">Progress</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">{msg.achievementData.totalEarned}/{msg.achievementData.totalAvailable}</span>
+                                  </div>
+                                  <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
+                                      style={{ width: `${(msg.achievementData.totalEarned / msg.achievementData.totalAvailable) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                                {msg.achievementData.earned.length > 0 && (
+                                  <div className="space-y-2 mb-3">
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recent Achievements</p>
+                                    {msg.achievementData.earned.slice(0, 3).map((ach, aidx) => (
+                                      <div key={aidx} className="flex items-center gap-3 p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg">
+                                        <span className="text-2xl">{ach.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium text-slate-900 dark:text-white">{ach.title}</p>
+                                          <p className="text-xs text-slate-500 truncate">{ach.description}</p>
+                                        </div>
+                                        <span className="text-sm font-bold text-purple-600 dark:text-purple-400">+{ach.points}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {msg.achievementData.nextToEarn.length > 0 && (
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Next to Earn</p>
+                                    {msg.achievementData.nextToEarn.slice(0, 2).map((ach, aidx) => (
+                                      <div key={aidx} className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg opacity-70">
+                                        <span className="text-2xl grayscale">{ach.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium text-slate-700 dark:text-slate-300">{ach.title}</p>
+                                          <p className="text-xs text-slate-500 truncate">{ach.description}</p>
+                                        </div>
+                                        <span className="text-sm text-slate-400">+{ach.points}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                <a href="/achievements" className="mt-3 inline-flex items-center gap-1 text-sm text-purple-600 dark:text-purple-400 hover:underline">
+                                  View all achievements →
+                                </a>
+                              </div>
+                            </div>
                           ) : (
                             <div className="relative inline-block max-w-full">
                               <div className={`px-4 py-3 rounded-2xl shadow-md ${msg.isPinned ? 'ring-2 ring-amber-400/50' : ''}
@@ -1070,8 +1394,8 @@ export default function AITutor() {
                         <button
                           key={idx}
                           onClick={() => {
-                            setInput(suggestion);
-                            setTimeout(() => sendMessage(), 100);
+                            setInput('');
+                            sendMessage(suggestion);
                           }}
                           className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-xs text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm"
                         >
@@ -1136,7 +1460,7 @@ export default function AITutor() {
                 rows={1}
               />
               <button
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={loading || !input.trim()}
                 className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
                 title={accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}
@@ -1149,36 +1473,6 @@ export default function AITutor() {
         </div>
       </div>
 
-      {/* Quiz Modal */}
-      {showQuiz && currentExam && (
-        <QuizModal
-          exam={currentExam}
-          onClose={() => {
-            setShowQuiz(false);
-            setCurrentExam(null);
-          }}
-          onComplete={(results) => {
-            console.log('Quiz completed:', results);
-            setShowQuiz(false);
-            setCurrentExam(null);
-            
-            // Add completion message to chat
-            const completionMsg: Message = {
-              role: 'ai',
-              content: accessibilitySettings.language === 'fil'
-                ? `🎉 Natapos mo ang quiz! Nakakuha ka ng **${results.score}%** (${results.correctAnswers}/${results.totalQuestions} tama). ${results.passed ? 'Pumasa ka!' : 'Subukan muli para mas mapabuti!'}`
-                : `🎉 Quiz completed! You scored **${results.score}%** (${results.correctAnswers}/${results.totalQuestions} correct). ${results.passed ? 'You passed!' : 'Try again to improve!'}`
-            };
-            setMessages(prev => [...prev, completionMsg]);
-            
-            // Update chat session with completion message
-            if (currentChatId) {
-              const updatedMessages = [...messages, completionMsg];
-              api.put(`/chat-sessions/${currentChatId}`, { messages: updatedMessages }).catch(console.error);
-            }
-          }}
-        />
-      )}
     </div>
   );
 }

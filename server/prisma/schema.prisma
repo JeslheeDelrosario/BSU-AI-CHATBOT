@@ -44,18 +44,47 @@ model AccessibilitySettings {
   User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model AchievementDefinition {
+  id               String          @id @default(cuid())
+  type             AchievementType @unique
+  title            String
+  description      String
+  icon             String
+  points           Int             @default(0)
+  requirementType  String          // e.g. "COURSE_COMPLETION", "CORRECT_ANSWERS", "QUIZ_SCORE", "STREAK"
+  requirementValue Int             // e.g. 5 (courses), 100 (answers), 90 (score %), 7 (days)
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  Achievements     Achievement[]
+}
+
 model Achievement {
-  id          String          @id @default(cuid())
-  userId      String
-  type        AchievementType
-  title       String
-  description String
-  icon        String
-  points      Int             @default(0)
-  earnedAt    DateTime        @default(now())
-  User        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String                @id @default(cuid())
+  userId       String
+  type         AchievementType
+  title        String
+  description  String
+  icon         String
+  points       Int                   @default(0)
+  earnedAt     DateTime              @default(now())
+  definitionId String?
+  Definition   AchievementDefinition? @relation(fields: [definitionId], references: [id], onDelete: SetNull)
+  User         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([definitionId])
+}
+
+model LeaderboardConfig {
+  id          String   @id @default(cuid())
+  name        String
+  metric      String   // "CORRECT_ANSWERS", "COMPLETION_TIME", "COURSE_COMPLETION", "QUIZ_SCORE"
+  courseId    String?
+  topN        Int      @default(10)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Assessment {
@@ -530,6 +559,21 @@ model User {
   CalendarVisibilities             CalendarVisibility[]
   Tasks                            Task[]
   SSOLinks                         UserSSOLink[]
+  // Forum relations
+  CreatedCommunities               Community[]            @relation("CommunityCreator")
+  CommunityMemberships             CommunityMember[]      @relation("CommunityMemberships")
+  CommunityJoinRequests            CommunityJoinRequest[] @relation("CommunityJoinRequests")
+  CommunityJoinReviews             CommunityJoinRequest[] @relation("CommunityJoinReviewer")
+  CommunityInvitesSent             CommunityInvitation[]  @relation("CommunityInviter")
+  CommunityInvitesReceived         CommunityInvitation[]  @relation("CommunityInvitee")
+  ForumPosts                       ForumPost[]            @relation("ForumPostAuthor")
+  ForumComments                    ForumComment[]         @relation("ForumCommentAuthor")
+  ForumPostReactions               ForumPostReaction[]    @relation("ForumPostReactions")
+  ForumCommentReactions            ForumCommentReaction[] @relation("ForumCommentReactions")
+  ForumBookmarks                   ForumBookmark[]        @relation("ForumBookmarks")
+  ForumPollVotes                   ForumPollVote[]        @relation("ForumPollVotes")
+  ForumReports                     ForumReport[]          @relation("ForumReporter")
+  ForumReportReviews               ForumReport[]          @relation("ForumReportReviewer")
 
   @@index([email])
   @@index([role])
@@ -559,6 +603,17 @@ enum AchievementType {
   NIGHT_OWL
   HELPFUL_PEER
   MILESTONE
+  FIRST_COURSE
+  FIVE_COURSES
+  TEN_COURSES
+  QUIZ_MASTER
+  SPEED_LEARNER
+  CORRECT_ANSWERS_100
+  CORRECT_ANSWERS_500
+  MODULE_COMPLETE
+  LEADERBOARD_TOP3
+  LEADERBOARD_TOP1
+  DEDICATED_LEARNER
 }
 
 enum AssignmentType {
@@ -1353,4 +1408,464 @@ model UserSSOLink {
   @@unique([provider, providerId])
   @@index([userId])
   @@index([provider])
+}
+
+// ============================================
+// FORUMS & COMMUNITY SYSTEM
+// ============================================
+
+model Community {
+  id              String              @id @default(cuid())
+  name            String
+  slug            String              @unique
+  description     String?
+  coverImage      String?
+  avatar          String?
+  visibility      CommunityVisibility @default(PUBLIC)
+  joinPolicy      CommunityJoinPolicy @default(OPEN)
+  creatorId       String
+  isVerified      Boolean             @default(false)
+  isArchived      Boolean             @default(false)
+  memberCount     Int                 @default(0)
+  postCount       Int                 @default(0)
+  tags            String[]            @default([])
+  guidelines      String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  Creator         User                @relation("CommunityCreator", fields: [creatorId], references: [id])
+  Members         CommunityMember[]
+  Posts           ForumPost[]
+  JoinRequests    CommunityJoinRequest[]
+  Permissions     CommunityPermission[]
+  Categories      ForumCategory[]
+  Invitations     CommunityInvitation[]
+
+  @@index([creatorId])
+  @@index([visibility])
+  @@index([slug])
+  @@index([isArchived])
+}
+
+enum CommunityVisibility {
+  PUBLIC          // Anyone can see posts
+  PRIVATE         // Only members can see posts
+  HIDDEN          // Community not discoverable, invite-only
+}
+
+enum CommunityJoinPolicy {
+  OPEN            // Anyone can join
+  APPROVAL        // Requires admin approval
+  INVITE_ONLY     // Only invited users can join
+}
+
+model CommunityMember {
+  id          String              @id @default(cuid())
+  communityId String
+  userId      String
+  role        CommunityMemberRole @default(MEMBER)
+  joinedAt    DateTime            @default(now())
+  mutedUntil  DateTime?
+  bannedAt    DateTime?
+  banReason   String?
+  Community   Community           @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  User        User                @relation("CommunityMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+  @@index([role])
+}
+
+enum CommunityMemberRole {
+  OWNER           // Full control, can delete community
+  ADMIN           // Can manage members, posts, settings
+  MODERATOR       // Can moderate posts and comments
+  MEMBER          // Can post and comment (based on permissions)
+}
+
+model CommunityJoinRequest {
+  id          String                    @id @default(cuid())
+  communityId String
+  userId      String
+  status      CommunityJoinRequestStatus @default(PENDING)
+  message     String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime                  @default(now())
+  Community   Community                 @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  User        User                      @relation("CommunityJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+  Reviewer    User?                     @relation("CommunityJoinReviewer", fields: [reviewedBy], references: [id])
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum CommunityJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CommunityInvitation {
+  id          String                    @id @default(cuid())
+  communityId String
+  inviterId   String
+  inviteeId   String?
+  email       String?
+  token       String                    @unique @default(cuid())
+  status      CommunityInvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime                  @default(now())
+  Community   Community                 @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  Inviter     User                      @relation("CommunityInviter", fields: [inviterId], references: [id])
+  Invitee     User?                     @relation("CommunityInvitee", fields: [inviteeId], references: [id])
+
+  @@index([communityId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([token])
+  @@index([status])
+}
+
+enum CommunityInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model CommunityPermission {
+  id              String    @id @default(cuid())
+  communityId     String
+  role            CommunityMemberRole
+  canPost         Boolean   @default(true)
+  canComment      Boolean   @default(true)
+  canReact        Boolean   @default(true)
+  canShare        Boolean   @default(true)
+  canUploadMedia  Boolean   @default(true)
+  canCreatePolls  Boolean   @default(false)
+  canPinPosts     Boolean   @default(false)
+  canModerate     Boolean   @default(false)
+  canInvite       Boolean   @default(false)
+  canManageMembers Boolean  @default(false)
+  canEditSettings Boolean   @default(false)
+  Community       Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, role])
+  @@index([communityId])
+}
+
+model ForumCategory {
+  id          String      @id @default(cuid())
+  communityId String?
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  color       String?
+  order       Int         @default(0)
+  isDefault   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  Community   Community?  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  Posts       ForumPost[]
+
+  @@unique([communityId, slug])
+  @@index([communityId])
+  @@index([order])
+}
+
+model ForumPost {
+  id              String              @id @default(cuid())
+  communityId     String?
+  categoryId      String?
+  authorId        String
+  title           String
+  content         String
+  contentHtml     String?
+  slug            String
+  type            ForumPostType       @default(DISCUSSION)
+  visibility      ForumPostVisibility @default(PUBLIC)
+  status          ForumPostStatus     @default(PUBLISHED)
+  isPinned        Boolean             @default(false)
+  isLocked        Boolean             @default(false)
+  isFeatured      Boolean             @default(false)
+  viewCount       Int                 @default(0)
+  likeCount       Int                 @default(0)
+  commentCount    Int                 @default(0)
+  shareCount      Int                 @default(0)
+  tags            String[]            @default([])
+  publishedAt     DateTime?
+  editedAt        DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  Community       Community?          @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  Category        ForumCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  Author          User                @relation("ForumPostAuthor", fields: [authorId], references: [id])
+  Media           ForumPostMedia[]
+  Comments        ForumComment[]
+  Reactions       ForumPostReaction[]
+  Bookmarks       ForumBookmark[]
+  Reports         ForumReport[]       @relation("ReportedPost")
+  Poll            ForumPoll?
+
+  @@unique([communityId, slug])
+  @@index([communityId])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([status])
+  @@index([visibility])
+  @@index([isPinned])
+  @@index([createdAt])
+  @@index([publishedAt])
+}
+
+enum ForumPostType {
+  DISCUSSION
+  QUESTION
+  ANNOUNCEMENT
+  POLL
+  MEDIA
+  LINK
+  EVENT
+}
+
+enum ForumPostVisibility {
+  PUBLIC          // Anyone can see
+  MEMBERS_ONLY    // Only community members
+  RESTRICTED      // Specific roles only
+}
+
+enum ForumPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  REMOVED
+  PENDING_REVIEW
+}
+
+model ForumPostMedia {
+  id          String        @id @default(cuid())
+  postId      String
+  type        MediaType
+  url         String
+  thumbnailUrl String?
+  filename    String?
+  mimeType    String?
+  size        Int?
+  width       Int?
+  height      Int?
+  duration    Int?
+  caption     String?
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  Post        ForumPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([type])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  EMBED
+}
+
+model ForumComment {
+  id          String              @id @default(cuid())
+  postId      String
+  authorId    String
+  parentId    String?
+  content     String
+  contentHtml String?
+  isEdited    Boolean             @default(false)
+  isPinned    Boolean             @default(false)
+  likeCount   Int                 @default(0)
+  replyCount  Int                 @default(0)
+  status      ForumCommentStatus  @default(VISIBLE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  Post        ForumPost           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  Author      User                @relation("ForumCommentAuthor", fields: [authorId], references: [id])
+  Parent      ForumComment?       @relation("CommentThread", fields: [parentId], references: [id])
+  Replies     ForumComment[]      @relation("CommentThread")
+  Reactions   ForumCommentReaction[]
+  Reports     ForumReport[]       @relation("ReportedComment")
+  Media       ForumCommentMedia[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+enum ForumCommentStatus {
+  VISIBLE
+  HIDDEN
+  REMOVED
+  PENDING_REVIEW
+}
+
+model ForumCommentMedia {
+  id          String        @id @default(cuid())
+  commentId   String
+  type        MediaType
+  url         String
+  thumbnailUrl String?
+  filename    String?
+  mimeType    String?
+  size        Int?
+  createdAt   DateTime      @default(now())
+  Comment     ForumComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+}
+
+model ForumPostReaction {
+  id        String      @id @default(cuid())
+  postId    String
+  userId    String
+  type      ReactionType
+  createdAt DateTime    @default(now())
+  Post      ForumPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  User      User        @relation("ForumPostReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumCommentReaction {
+  id        String        @id @default(cuid())
+  commentId String
+  userId    String
+  type      ReactionType
+  createdAt DateTime      @default(now())
+  Comment   ForumComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  User      User          @relation("ForumCommentReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, type])
+  @@index([commentId])
+  @@index([userId])
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  HAHA
+  WOW
+  SAD
+  ANGRY
+  HELPFUL
+  INSIGHTFUL
+}
+
+model ForumBookmark {
+  id        String      @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime    @default(now())
+  Post      ForumPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  User      User        @relation("ForumBookmarks", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model ForumPoll {
+  id          String          @id @default(cuid())
+  postId      String          @unique
+  question    String
+  allowMultiple Boolean       @default(false)
+  endsAt      DateTime?
+  createdAt   DateTime        @default(now())
+  Post        ForumPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  Options     ForumPollOption[]
+}
+
+model ForumPollOption {
+  id        String          @id @default(cuid())
+  pollId    String
+  text      String
+  voteCount Int             @default(0)
+  order     Int             @default(0)
+  Poll      ForumPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  Votes     ForumPollVote[]
+
+  @@index([pollId])
+}
+
+model ForumPollVote {
+  id        String          @id @default(cuid())
+  optionId  String
+  userId    String
+  createdAt DateTime        @default(now())
+  Option    ForumPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  User      User            @relation("ForumPollVotes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([userId])
+}
+
+model ForumReport {
+  id          String            @id @default(cuid())
+  reporterId  String
+  postId      String?
+  commentId   String?
+  reason      ForumReportReason
+  description String?
+  status      ForumReportStatus @default(PENDING)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime          @default(now())
+  Reporter    User              @relation("ForumReporter", fields: [reporterId], references: [id])
+  Post        ForumPost?        @relation("ReportedPost", fields: [postId], references: [id], onDelete: Cascade)
+  Comment     ForumComment?     @relation("ReportedComment", fields: [commentId], references: [id], onDelete: Cascade)
+  Reviewer    User?             @relation("ForumReportReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([reporterId])
+  @@index([postId])
+  @@index([commentId])
+  @@index([status])
+}
+
+enum ForumReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  MISINFORMATION
+  INAPPROPRIATE_CONTENT
+  COPYRIGHT_VIOLATION
+  OTHER
+}
+
+enum ForumReportStatus {
+  PENDING
+  REVIEWED
+  ACTION_TAKEN
+  DISMISSED
+}
+
+model ForumSettings {
+  id                    String   @id @default(cuid())
+  allowAnonymousPosts   Boolean  @default(false)
+  requirePostApproval   Boolean  @default(false)
+  allowMediaUploads     Boolean  @default(true)
+  maxMediaSize          Int      @default(10485760) // 10MB
+  allowedMediaTypes     String[] @default(["image/jpeg", "image/png", "image/gif", "video/mp4"])
+  minPostLength         Int      @default(10)
+  maxPostLength         Int      @default(50000)
+  minCommentLength      Int      @default(1)
+  maxCommentLength      Int      @default(10000)
+  autoModerateEnabled   Boolean  @default(false)
+  profanityFilterEnabled Boolean @default(true)
+  spamFilterEnabled     Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

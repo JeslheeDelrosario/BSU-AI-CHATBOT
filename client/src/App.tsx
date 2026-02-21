@@ -24,10 +24,15 @@ import AITutor from './pages/AITutor';
 import Settings from './pages/Settings';
 import Progress from './pages/Progress';
 import Consultations from './pages/Consultations';
+import FacultyConsultationCalendar from './pages/FacultyConsultationCalendar';
 import Profile from './pages/Profile';
 import Classrooms from './pages/Classrooms';
 import ClassroomDetail from './pages/ClassroomDetail';
 import Calendar from './pages/Calendar';
+import Achievements from './pages/Achievements';
+import Leaderboard from './pages/Leaderboard';
+import AdminGamification from './pages/AdminGamification';
+import Forums from './pages/Forums';
 
 // Admin Pages
 import AdminCOSPrograms from './pages/AdminCOSPrograms';
@@ -37,6 +42,7 @@ import AdminFAQs from './pages/AdminFAQs';
 import AdminStudents from './pages/AdminStudents';
 import AdminAnalytics from './pages/AdminAnalytics';
 import AdminRooms from './pages/AdminRooms';
+import AdminForums from './pages/AdminForums';
 
 // Public Pages
 import FAQs from './pages/FAQs';
@@ -73,10 +79,15 @@ function App() {
                   <Route path="/classrooms" element={<Classrooms />} />
                   <Route path="/classrooms/:id" element={<ClassroomDetail />} />
                   <Route path="/consultations" element={<Consultations />} />
+                  <Route path="/faculty-calendar" element={<FacultyConsultationCalendar />} />
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/progress" element={<Progress />} />
+                  <Route path="/achievements" element={<Achievements />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/forums" element={<Forums />} />
+                  <Route path="/forums/*" element={<Forums />} />
 
                   {/* Admin Pages */}
                   <Route path="/AdminCOSPrograms" element={<AdminCOSPrograms />} />
@@ -86,6 +97,8 @@ function App() {
                   <Route path="/AdminStudents" element={<AdminStudents />} />
                   <Route path="/AdminAnalytics" element={<AdminAnalytics />} />
                   <Route path="/AdminRooms" element={<AdminRooms />} />
+                  <Route path="/AdminGamification" element={<AdminGamification />} />
+                  <Route path="/AdminForums" element={<AdminForums />} />
 
                   {/* Catch-all: redirect to dashboard if unknown route */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

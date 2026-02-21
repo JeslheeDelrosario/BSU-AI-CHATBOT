@@ -186,7 +186,7 @@ Return ONLY JSON array:`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -210,16 +210,30 @@ Return ONLY JSON array:`;
       return [];
     }
 
-    const questions = JSON.parse(jsonMatch[0]) as QuizQuestion[];
-    
-    // Validate questions
-    return questions.filter(q => 
-      q.question &&
-      q.options &&
-      q.options.length === 4 &&
-      q.correctAnswer &&
-      q.explanation
-    );
+    const rawQuestions = JSON.parse(jsonMatch[0]) as Array<any>;
+
+    // Normalize correctAnswer: AI returns "A"/"B"/"C"/"D" strings, but QuizSidePanel expects number index (0/1/2/3)
+    const questions: QuizQuestion[] = rawQuestions
+      .filter(q =>
+        q.question &&
+        q.options &&
+        q.options.length === 4 &&
+        q.correctAnswer !== undefined &&
+        q.explanation
+      )
+      .map(q => {
+        let correctIndex: number;
+        if (typeof q.correctAnswer === 'string') {
+          const letter = q.correctAnswer.trim().toUpperCase().charAt(0);
+          correctIndex = ['A', 'B', 'C', 'D'].indexOf(letter);
+          if (correctIndex === -1) correctIndex = 0;
+        } else {
+          correctIndex = Number(q.correctAnswer);
+        }
+        return { ...q, correctAnswer: correctIndex } as QuizQuestion;
+      });
+
+    return questions;
   } catch (error) {
     console.error('Error generating questions with AI:', error);
     return [];

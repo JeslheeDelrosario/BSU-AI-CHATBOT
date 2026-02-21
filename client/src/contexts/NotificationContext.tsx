@@ -104,12 +104,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Poll for new notifications every 30 seconds
+  // Poll for new notifications every 30 seconds — only when authenticated
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     fetchNotifications();
-    
+
     const pollInterval = setInterval(() => {
-      fetchUnreadCount();
+      const currentToken = localStorage.getItem('token');
+      if (currentToken) {
+        fetchUnreadCount();
+      }
     }, 30000); // 30 seconds
 
     return () => clearInterval(pollInterval);

@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { generateQuiz, gradeQuiz, QuizSubmission } from '../services/quiz-generation.service';
+import { evaluateAndAwardAchievements } from './gamification.controller';
 
 /**
  * Generate a new practice exam based on topic, subject, or conversation
@@ -168,6 +169,11 @@ export const submitPracticeExam = async (req: AuthRequest, res: Response) => {
       where: { id: examId },
       data: { completedAt: new Date() }
     });
+
+    // Auto-trigger achievement evaluation after quiz completion (fire-and-forget)
+    evaluateAndAwardAchievements(userId).catch(err =>
+      console.error('Achievement evaluation error after quiz submit:', err)
+    );
 
     return res.json({
       success: true,

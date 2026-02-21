@@ -1,8 +1,8 @@
 // client/src/components/ConsultationBookingCard.tsx
 // Inline consultation booking card for AI chatbot responses with visual calendar
 
-import { useState, useMemo } from 'react';
-import { Calendar, Clock, X, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Calendar, Clock, X, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, CalendarDays, Ban } from 'lucide-react';
 import api from '../lib/api';
 
 interface Faculty {
@@ -17,6 +17,11 @@ interface Faculty {
   consultationStart?: string;
   consultationEnd?: string;
   officeHours?: string;
+}
+
+interface BookedSlot {
+  startTime: string;
+  endTime: string;
 }
 
 interface ConsultationBookingCardProps {
@@ -37,10 +42,16 @@ export default function ConsultationBookingCard({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  // Occupied slots state
+  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  // Track which dates have been fetched to avoid duplicate requests
+  const [fetchedDates, setFetchedDates] = useState<Set<string>>(new Set());
+
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  
+
   const [bookingForm, setBookingForm] = useState({
     date: '',
     startTime: '',
@@ -49,9 +60,37 @@ export default function ConsultationBookingCard({
     notes: ''
   });
 
+  // Fetch occupied slots for a given faculty + date
+  const fetchBookedSlots = useCallback(async (facultyId: string, date: string) => {
+    const key = `${facultyId}:${date}`;
+    if (fetchedDates.has(key)) return;
+    setLoadingSlots(true);
+    try {
+      const res = await api.get('/consultations/available-slots', {
+        params: { facultyId, date }
+      });
+      setBookedSlots(res.data.bookedSlots || []);
+      setFetchedDates(prev => new Set(prev).add(key));
+    } catch {
+      // Non-critical — silently fail, calendar still works
+      setBookedSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [fetchedDates]);
+
+  // Re-fetch when selected date changes
+  useEffect(() => {
+    if (selectedFaculty && bookingForm.date) {
+      fetchBookedSlots(selectedFaculty.id, bookingForm.date);
+    }
+  }, [selectedFaculty, bookingForm.date, fetchBookedSlots]);
+
   const handleSelectFaculty = (f: Faculty) => {
     setSelectedFaculty(f);
     setShowBookingForm(true);
+    setBookedSlots([]);
+    setFetchedDates(new Set());
     setBookingForm({
       date: '',
       startTime: f.consultationStart || '14:00',
@@ -61,6 +100,22 @@ export default function ConsultationBookingCard({
     });
     setError(null);
     setSuccess(false);
+  };
+
+  // Check if a specific time slot overlaps with any booked slot
+  const isTimeSlotBooked = useCallback((start: string, end: string): boolean => {
+    return bookedSlots.some(slot => {
+      // Overlap: start < slotEnd AND end > slotStart
+      return start < slot.endTime && end > slot.startTime;
+    });
+  }, [bookedSlots]);
+
+  // Format time for display (e.g. "14:00" → "2:00 PM")
+  const formatTime = (time: string): string => {
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   };
 
   const getDayName = (date: Date | string) => {
@@ -103,6 +158,7 @@ export default function ConsultationBookingCard({
   const handleDateSelect = (date: Date) => {
     if (date < today) return;
     const dateStr = date.toISOString().split('T')[0];
+    setBookedSlots([]);  // Clear previous slots while new ones load
     setBookingForm({ ...bookingForm, date: dateStr });
   };
 
@@ -143,6 +199,8 @@ export default function ConsultationBookingCard({
     setShowBookingForm(false);
     setSuccess(false);
     setError(null);
+    setBookedSlots([]);
+    setFetchedDates(new Set());
     setBookingForm({ date: '', startTime: '', endTime: '', topic: '', notes: '' });
   };
 
@@ -315,7 +373,7 @@ export default function ConsultationBookingCard({
             </div>
             
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-4 mt-3 pt-2 border-t border-slate-200 dark:border-slate-700 flex-wrap">
               <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
                 <span className="w-3 h-3 bg-cyan-100 dark:bg-cyan-500/20 rounded" />
                 {language === 'fil' ? 'Available' : 'Available'}
@@ -327,6 +385,47 @@ export default function ConsultationBookingCard({
             </div>
           </div>
         </div>
+
+        {/* Occupied Slots Display */}
+        {bookingForm.date && isDateAvailable(bookingForm.date) && (
+          <div className="mb-4">
+            {loadingSlots ? (
+              <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 py-2">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {language === 'fil' ? 'Kinukuha ang mga occupied na oras...' : 'Loading occupied slots...'}
+              </div>
+            ) : bookedSlots.length > 0 ? (
+              <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Ban className="w-4 h-4 text-red-500" />
+                  <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+                    {language === 'fil' ? 'Occupied na Oras' : 'Occupied Time Slots'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {bookedSlots.map((slot, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-md text-xs font-medium"
+                    >
+                      {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[10px] text-red-500 dark:text-red-400 mt-1.5">
+                  {language === 'fil'
+                    ? 'Huwag pumili ng oras na nakalagay sa itaas.'
+                    : 'Please choose a time outside the slots listed above.'}
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 py-1">
+                <CheckCircle className="w-3.5 h-3.5" />
+                {language === 'fil' ? 'Walang occupied na oras sa araw na ito.' : 'No occupied slots on this date.'}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Booking Preview */}
         {bookingForm.date && isDateAvailable(bookingForm.date) && (
@@ -403,7 +502,7 @@ export default function ConsultationBookingCard({
         {/* Submit Button */}
         <button
           onClick={handleSubmit}
-          disabled={loading || !bookingForm.date || !bookingForm.topic || !isDateAvailable(bookingForm.date)}
+          disabled={loading || !bookingForm.date || !bookingForm.topic || !isDateAvailable(bookingForm.date) || isTimeSlotBooked(bookingForm.startTime, bookingForm.endTime)}
           className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading && <Loader2 className="w-5 h-5 animate-spin" />}
