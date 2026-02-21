@@ -13,6 +13,7 @@ import { PrivateRoute } from './components/PrivateRoute';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AuthCallback from './pages/AuthCallback';
 
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -33,6 +34,7 @@ import Achievements from './pages/Achievements';
 import Leaderboard from './pages/Leaderboard';
 import AdminGamification from './pages/AdminGamification';
 import Forums from './pages/Forums';
+import RoomSchedules from './pages/RoomSchedules';
 
 // Admin Pages
 import AdminCOSPrograms from './pages/AdminCOSPrograms';
@@ -43,6 +45,7 @@ import AdminStudents from './pages/AdminStudents';
 import AdminAnalytics from './pages/AdminAnalytics';
 import AdminRooms from './pages/AdminRooms';
 import AdminForums from './pages/AdminForums';
+import AdminConsultations from './pages/AdminConsultations';
 
 // Public Pages
 import FAQs from './pages/FAQs';
@@ -58,6 +61,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/auth/google/callback" element={<AuthCallback />} />
         <Route path="/faqs" element={<FAQs />} />
 
         {/* PRIVATE ROUTES – Protected by PrivateRoute and wrapped in Layout */}
@@ -88,6 +92,7 @@ function App() {
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/forums" element={<Forums />} />
                   <Route path="/forums/*" element={<Forums />} />
+                  <Route path="/room-schedules" element={<RoomSchedules />} />
 
                   {/* Admin Pages */}
                   <Route path="/AdminCOSPrograms" element={<AdminCOSPrograms />} />
@@ -99,6 +104,7 @@ function App() {
                   <Route path="/AdminRooms" element={<AdminRooms />} />
                   <Route path="/AdminGamification" element={<AdminGamification />} />
                   <Route path="/AdminForums" element={<AdminForums />} />
+                  <Route path="/AdminConsultations" element={<AdminConsultations />} />
 
                   {/* Catch-all: redirect to dashboard if unknown route */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

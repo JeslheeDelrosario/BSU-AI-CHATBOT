@@ -129,14 +129,14 @@ export default function Dashboard() {
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {isStudent ? (
               stats?.recentProgress?.length ? (
-                stats.recentProgress.map((p: any, i: number) => (
+                stats.recentProgress.filter((p: any) => p?.lesson).map((p: any, i: number) => (
                   <div key={i} className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/10 hover:border-cyan-500/50 transition-all group">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="p-3 bg-cyan-500/20 rounded-xl group-hover:bg-cyan-500/40 transition">
                         <Play className="w-6 h-6 text-cyan-400" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-slate-900 dark:text-white truncate">{p.lesson.title}</p>
+                        <p className="font-medium text-slate-900 dark:text-white truncate">{p.lesson?.title || 'Untitled Lesson'}</p>
                         <p className="text-sm text-slate-600 dark:text-gray-400">{p.completed ? (accessibilitySettings.language === 'fil' ? 'Natapos' : 'Completed') : (accessibilitySettings.language === 'fil' ? 'Ginagawa' : 'In Progress')}</p>
                       </div>
                     </div>

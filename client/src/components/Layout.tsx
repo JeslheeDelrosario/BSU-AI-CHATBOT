@@ -26,7 +26,9 @@ import {
   ChevronLeft,
   Trophy,
   Crown,
-  MessagesSquare
+  MessagesSquare,
+  Building2,
+  CalendarDays
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -78,6 +80,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: accessibilitySettings.language === 'fil' ? 'Mga Nagawa' : 'Achievements', href: '/achievements', icon: Trophy },
     { name: accessibilitySettings.language === 'fil' ? 'Leaderboard' : 'Leaderboard', href: '/leaderboard', icon: Crown },
     { name: accessibilitySettings.language === 'fil' ? 'Forums' : 'Forums', href: '/forums', icon: MessagesSquare },
+    { name: accessibilitySettings.language === 'fil' ? 'Mga Silid' : 'Room Schedules', href: '/room-schedules', icon: Building2 },
     { name: accessibilitySettings.language === 'fil' ? 'Mga Setting' : 'Settings', href: '/settings', icon: SettingsIcon },
   ];
 
@@ -85,6 +88,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: t.programs.title, href: '/AdminCOSPrograms', icon: GraduationCap },
     { name: t.faculty.title, href: '/AdminFaculty', icon: Users },
     { name: t.curriculum.title, href: '/AdminCurriculum', icon: BookMarked },
+    { name: accessibilitySettings.language === 'fil' ? 'Mga Silid' : 'Rooms & Schedules', href: '/AdminRooms', icon: Building2 },
+    { name: accessibilitySettings.language === 'fil' ? 'Konsultasyon' : 'Consultations', href: '/AdminConsultations', icon: CalendarDays },
     { name: accessibilitySettings.language === 'fil' ? 'Gamification' : 'Gamification', href: '/AdminGamification', icon: Trophy },
     { name: accessibilitySettings.language === 'fil' ? 'Forums' : 'Forums', href: '/AdminForums', icon: MessagesSquare },
   ];

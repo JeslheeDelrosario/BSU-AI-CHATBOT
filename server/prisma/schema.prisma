@@ -461,7 +461,10 @@ model Subject {
   id             String           @id @default(cuid())
   code           String
   name           String
+  program        String?
   FacultySubject FacultySubject[]
+
+  @@index([program])
 }
 
 model Submission {
@@ -574,6 +577,7 @@ model User {
   ForumPollVotes                   ForumPollVote[]        @relation("ForumPollVotes")
   ForumReports                     ForumReport[]          @relation("ForumReporter")
   ForumReportReviews               ForumReport[]          @relation("ForumReportReviewer")
+  RoomChatMessages                 RoomChatMessage[]
 
   @@index([email])
   @@index([role])
@@ -1024,11 +1028,89 @@ model Room {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   Meetings    Meeting[]
+  Layout      RoomLayout?
+  ChatMessages RoomChatMessage[]
   
   @@unique([name, building])
   @@index([building])
   @@index([type])
   @@index([isActive])
+}
+
+// Room Layout Configuration for 3D Floor Plan
+model RoomLayout {
+  id              String   @id @default(cuid())
+  roomId          String   @unique
+  width           Int      @default(600)
+  height          Int      @default(400)
+  wallColor       String   @default("#1e293b")
+  floorColor      String   @default("#0f172a")
+  floorPattern    String   @default("grid")
+  backgroundSound String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  Furniture       RoomFurniture[]
+  
+  @@index([roomId])
+}
+
+// Furniture and Items in Room
+model RoomFurniture {
+  id          String   @id @default(cuid())
+  layoutId    String
+  type        FurnitureType
+  name        String
+  x           Float
+  y           Float
+  width       Float
+  height      Float
+  rotation    Float    @default(0)
+  color       String?
+  zIndex      Int      @default(1)
+  isLocked    Boolean  @default(false)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Layout      RoomLayout @relation(fields: [layoutId], references: [id], onDelete: Cascade)
+  
+  @@index([layoutId])
+  @@index([type])
+}
+
+enum FurnitureType {
+  CHAIR
+  TABLE
+  DESK
+  WHITEBOARD
+  PROJECTOR_SCREEN
+  COMPUTER
+  BOOKSHELF
+  DOOR
+  WINDOW
+  PODIUM
+  CABINET
+  PLANT
+  CLOCK
+  BOARD
+  CUSTOM
+}
+
+// Room Chat Messages for Persistence
+model RoomChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String?
+  sender    String
+  message   String
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  Room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  User      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([roomId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 enum RoomType {

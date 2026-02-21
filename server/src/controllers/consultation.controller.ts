@@ -523,9 +523,6 @@ export const updateConsultationConfig = async (req: AuthRequest, res: Response) 
 export const getFacultyWithConsultation = async (req: AuthRequest, res: Response) => {
   try {
     const faculty = await prisma.faculty.findMany({
-      where: {
-        consultationDays: { isEmpty: false }
-      },
       select: {
         id: true,
         firstName: true,

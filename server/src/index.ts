@@ -38,6 +38,10 @@ import taskRoutes from './routes/task.routes';
 import calendarRoutes from './routes/calendar.routes';
 import gamificationRoutes from './routes/gamification.routes';
 import forumRoutes from './routes/forum.routes';
+import roomScheduleRoutes from './routes/roomSchedule.routes';
+import adminConsultationRoutes from './routes/adminConsultation.routes';
+import roomLayoutRoutes from './routes/roomLayout.routes';
+import googleSsoRoutes from './routes/googleSso.routes';
 
 // Initialize Redis connection
 import './config/redis.config';
@@ -190,6 +194,10 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/forums', forumRoutes);
+app.use('/api/rooms', roomScheduleRoutes);
+app.use('/api/rooms', roomLayoutRoutes);
+app.use('/api/admin/consultations', adminConsultationRoutes);
+app.use('/api/auth/google', googleSsoRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

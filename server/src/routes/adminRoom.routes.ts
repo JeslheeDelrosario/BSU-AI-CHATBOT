@@ -7,6 +7,9 @@ import {
   deleteRoom,
   getRoomStatistics,
   getBuildingsList,
+  createMeeting,
+  updateMeeting,
+  deleteMeeting,
 } from '../controllers/adminRoom.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -16,6 +19,13 @@ router.use(authenticateToken);
 
 router.get('/statistics', getRoomStatistics);
 router.get('/buildings', getBuildingsList);
+
+// Meeting/Schedule CRUD
+router.post('/meetings', createMeeting);
+router.put('/meetings/:id', updateMeeting);
+router.delete('/meetings/:id', deleteMeeting);
+
+// Room CRUD
 router.get('/', getAllRooms);
 router.get('/:id', getRoomById);
 router.post('/', createRoom);

@@ -38,13 +38,112 @@ router.get("/faculty", isAdmin, async (_, res) => {
   }
 });
 
-// GET subjects
-router.get("/subjects", isAdmin, async (_, res) => {
+// GET subjects with optional program filter
+router.get("/subjects", isAdmin, async (req, res) => {
   try {
-    const subjects = await prisma.subject.findMany();
+    const { program } = req.query;
+    const where = program && program !== 'all' ? { program: program as string } : {};
+    const subjects = await prisma.subject.findMany({
+      where,
+      orderBy: [{ program: 'asc' }, { code: 'asc' }]
+    });
     res.json(subjects);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch subjects" });
+  }
+});
+
+// POST create subject
+router.post("/subjects", isAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { code, name, program } = req.body;
+    
+    if (!code || !name) {
+      return res.status(400).json({ error: "Code and name are required" });
+    }
+
+    // Check for duplicate code
+    const existing = await prisma.subject.findFirst({
+      where: { code: code.toUpperCase().trim() }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: `Subject with code "${code}" already exists` });
+    }
+
+    const subject = await prisma.subject.create({
+      data: {
+        code: code.toUpperCase().trim(),
+        name: name.trim(),
+        program: program?.trim() || null
+      }
+    });
+
+    return res.status(201).json(subject);
+  } catch (err) {
+    console.error("Error creating subject:", err);
+    return res.status(500).json({ error: "Failed to create subject" });
+  }
+});
+
+// PUT update subject
+router.put("/subjects/:id", isAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { code, name, program } = req.body;
+
+    const existing = await prisma.subject.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Subject not found" });
+    }
+
+    // Check for duplicate code if changing
+    if (code && code.toUpperCase().trim() !== existing.code) {
+      const duplicate = await prisma.subject.findFirst({
+        where: { code: code.toUpperCase().trim() }
+      });
+      if (duplicate) {
+        return res.status(400).json({ error: `Subject with code "${code}" already exists` });
+      }
+    }
+
+    const subject = await prisma.subject.update({
+      where: { id },
+      data: {
+        ...(code !== undefined && { code: code.toUpperCase().trim() }),
+        ...(name !== undefined && { name: name.trim() }),
+        ...(program !== undefined && { program: program?.trim() || null })
+      }
+    });
+
+    return res.json(subject);
+  } catch (err) {
+    console.error("Error updating subject:", err);
+    return res.status(500).json({ error: "Failed to update subject" });
+  }
+});
+
+// DELETE subject
+router.delete("/subjects/:id", isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if subject is assigned to faculty
+    const assignments = await prisma.facultySubject.count({
+      where: { subjectId: id }
+    });
+
+    if (assignments > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete subject. It is assigned to ${assignments} faculty member(s).` 
+      });
+    }
+
+    await prisma.subject.delete({ where: { id } });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting subject:", err);
+    return res.status(500).json({ error: "Failed to delete subject" });
   }
 });
 

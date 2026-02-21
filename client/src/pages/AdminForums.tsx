@@ -219,14 +219,14 @@ export default function AdminForums() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {isFilipino ? 'Hindi Pinapayagan' : 'Access Denied'}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            {isFilipino ? 'Kailangan mo ng admin access' : 'You need admin access to view this page'}
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-500/30">
+          <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-red-700 dark:text-red-400">
+            {isFilipino ? 'Walang Access' : 'Access Denied'}
+          </h2>
+          <p className="text-red-600 dark:text-red-300 mt-2">
+            {isFilipino ? 'Para lang sa Admin ang page na ito.' : 'This page is for Admins only.'}
           </p>
         </div>
       </div>
@@ -234,76 +234,84 @@ export default function AdminForums() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen py-8 px-4 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-cyan-500" />
-            {isFilipino ? 'Admin: Forums' : 'Admin: Forums Management'}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            {isFilipino
-              ? 'I-manage ang mga community, reports, at settings ng forum'
-              : 'Manage communities, reports, and forum settings'}
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+              {isFilipino ? 'Pamamahala ng Forums' : 'Forums Management'}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
+              {isFilipino
+                ? 'I-manage ang mga community, reports, at settings ng forum'
+                : 'Manage communities, reports, and forum settings'}
+            </p>
+          </div>
+          <button
+            onClick={() => fetchCommunities()}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {isFilipino ? 'I-refresh' : 'Refresh'}
+          </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
+              <div className="p-3 bg-cyan-100 dark:bg-cyan-500/20 rounded-xl">
                 <Users className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{communities.length}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{communities.length}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {isFilipino ? 'Mga Community' : 'Communities'}
                 </p>
               </div>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <div className="p-3 bg-purple-100 dark:bg-purple-500/20 rounded-xl">
                 <MessageSquare className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
                   {communities.reduce((sum, c) => sum + c.postCount, 0)}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {isFilipino ? 'Kabuuang Post' : 'Total Posts'}
                 </p>
               </div>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <div className="p-3 bg-amber-100 dark:bg-amber-500/20 rounded-xl">
                 <Flag className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
                   {reports.filter(r => r.status === 'PENDING').length}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {isFilipino ? 'Pending Reports' : 'Pending Reports'}
                 </p>
               </div>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <div className="p-3 bg-green-100 dark:bg-green-500/20 rounded-xl">
                 <Globe className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
                   {communities.filter(c => c.visibility === 'PUBLIC').length}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {isFilipino ? 'Public Communities' : 'Public Communities'}
                 </p>
               </div>
@@ -312,15 +320,15 @@ export default function AdminForums() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-          <div className="border-b border-gray-200 dark:border-slate-700">
-            <div className="flex">
+        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden">
+          <div className="border-b border-slate-200 dark:border-white/10">
+            <div className="flex gap-1 p-2">
               <button
                 onClick={() => setActiveTab('communities')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-5 py-2.5 text-sm font-medium rounded-xl transition-all ${
                   activeTab === 'communities'
-                    ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
                 <span className="flex items-center gap-2">
@@ -330,10 +338,10 @@ export default function AdminForums() {
               </button>
               <button
                 onClick={() => setActiveTab('reports')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-5 py-2.5 text-sm font-medium rounded-xl transition-all ${
                   activeTab === 'reports'
-                    ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
                 <span className="flex items-center gap-2">
@@ -348,10 +356,10 @@ export default function AdminForums() {
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-5 py-2.5 text-sm font-medium rounded-xl transition-all ${
                   activeTab === 'settings'
-                    ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
                 <span className="flex items-center gap-2">
@@ -370,115 +378,119 @@ export default function AdminForums() {
             ) : activeTab === 'communities' ? (
               <div>
                 {/* Search */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="text"
                       placeholder={isFilipino ? 'Maghanap ng community...' : 'Search communities...'}
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-slate-700 border-0 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500"
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
                     />
                   </div>
-                  <button
-                    onClick={() => fetchCommunities()}
-                    className="p-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
-                  >
-                    <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                  </button>
                 </div>
 
                 {/* Communities Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-slate-700">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <thead className="bg-slate-50 dark:bg-white/5">
+                      <tr>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">
                           {isFilipino ? 'Community' : 'Community'}
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">
                           {isFilipino ? 'Visibility' : 'Visibility'}
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">
                           {isFilipino ? 'Miyembro' : 'Members'}
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">
                           {isFilipino ? 'Post' : 'Posts'}
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">
                           {isFilipino ? 'Status' : 'Status'}
                         </th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">
                           {isFilipino ? 'Aksyon' : 'Actions'}
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {filteredCommunities.map(community => (
                         <tr
                           key={community.id}
-                          className="border-b border-gray-100 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                          className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                         >
-                          <td className="py-3 px-4">
+                          <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
                                 {community.name[0]}
                               </div>
                               <div>
-                                <p className="font-medium text-gray-900 dark:text-white">{community.name}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">/{community.slug}</p>
+                                <p className="font-semibold text-slate-900 dark:text-white">{community.name}</p>
+                                <p className="text-xs text-slate-400">/{community.slug}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-4 px-4">
                             <span
-                              className={`px-2 py-1 text-xs rounded-full ${
+                              className={`px-2.5 py-1 text-xs font-medium rounded-lg ${
                                 community.visibility === 'PUBLIC'
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                  ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
                                   : community.visibility === 'PRIVATE'
-                                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
-                                  : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                  ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                                  : 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
                               }`}
                             >
                               {community.visibility}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{community.memberCount}</td>
-                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{community.postCount}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-4 px-4">
+                            <span className="inline-flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
+                              <Users className="w-4 h-4 text-slate-400" />
+                              {community.memberCount}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className="inline-flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
+                              <MessageSquare className="w-4 h-4 text-slate-400" />
+                              {community.postCount}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
                             {community.isArchived ? (
-                              <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+                              <span className="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 rounded-lg">
                                 {isFilipino ? 'Archived' : 'Archived'}
                               </span>
                             ) : (
-                              <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full">
+                              <span className="px-2.5 py-1 text-xs font-medium bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 rounded-lg">
                                 {isFilipino ? 'Active' : 'Active'}
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-4 px-4">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
                                   setSelectedCommunity(community);
                                   setShowPermissionsModal(true);
                                 }}
-                                className="p-1.5 text-gray-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg transition-colors"
+                                className="p-2 rounded-lg bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 hover:bg-cyan-200 dark:hover:bg-cyan-500/30 transition-colors"
                                 title={isFilipino ? 'I-edit ang permissions' : 'Edit permissions'}
                               >
                                 <Shield className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleArchiveCommunity(community.id, !community.isArchived)}
-                                className="p-1.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                className="p-2 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-600 hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
                                 title={community.isArchived ? 'Restore' : 'Archive'}
                               >
                                 {community.isArchived ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                               </button>
                               <button
                                 onClick={() => handleDeleteCommunity(community.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                className="p-2 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
                                 title={isFilipino ? 'I-delete' : 'Delete'}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -490,8 +502,9 @@ export default function AdminForums() {
                     </tbody>
                   </table>
                   {filteredCommunities.length === 0 && (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      {isFilipino ? 'Walang community na nahanap' : 'No communities found'}
+                    <div className="text-center py-12">
+                      <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500">{isFilipino ? 'Walang community na nahanap' : 'No communities found'}</p>
                     </div>
                   )}
                 </div>
