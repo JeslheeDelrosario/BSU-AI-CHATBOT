@@ -12,6 +12,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AuthCallback from './pages/AuthCallback';
 
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -23,10 +24,16 @@ import AITutor from './pages/AITutor';
 import Settings from './pages/Settings';
 import Progress from './pages/Progress';
 import Consultations from './pages/Consultations';
+import FacultyConsultationCalendar from './pages/FacultyConsultationCalendar';
 import Profile from './pages/Profile';
 import Classrooms from './pages/Classrooms';
 import ClassroomDetail from './pages/ClassroomDetail';
 import Calendar from './pages/Calendar';
+import Achievements from './pages/Achievements';
+import Leaderboard from './pages/Leaderboard';
+import AdminGamification from './pages/AdminGamification';
+import Forums from './pages/Forums';
+import RoomSchedules from './pages/RoomSchedules';
 
 // Admin Pages
 import AdminCOSPrograms from './pages/AdminCOSPrograms';
@@ -36,6 +43,8 @@ import AdminFAQs from './pages/AdminFAQs';
 import AdminStudents from './pages/AdminStudents';
 import AdminAnalytics from './pages/AdminAnalytics';
 import AdminRooms from './pages/AdminRooms';
+import AdminForums from './pages/AdminForums';
+import AdminConsultations from './pages/AdminConsultations';
 
 // Public Pages
 import FAQs from './pages/FAQs';
@@ -48,11 +57,12 @@ function App() {
           <ToastProvider>
             <ScrollToTop />
             <Routes>
-              {/* PUBLIC ROUTES */}
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/faqs" element={<FAQs />} />
+        {/* PUBLIC ROUTES */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/auth/google/callback" element={<AuthCallback />} />
+        <Route path="/faqs" element={<FAQs />} />
 
               {/* PRIVATE ROUTES – Protected by PrivateRoute and wrapped in Layout */}
               <Route
@@ -64,49 +74,37 @@ function App() {
                         {/* Dashboard is default after login */}
                         <Route path="/dashboard" element={<Dashboard />} />
 
-                        {/* Main Pages */}
-                        <Route path="/courses" element={<Courses />} />
-                        <Route path="/courses/:id" element={<CourseDetail />} />
-                        <Route path="/my-courses" element={<MyCourses />} />
-                        <Route path="/lessons/:id" element={<LessonViewer />} />
-                        <Route path="/ai-tutor" element={<AITutor />} />
-                        <Route path="/classrooms" element={<Classrooms />} />
-                        <Route
-                          path="/classrooms/:id"
-                          element={<ClassroomDetail />}
-                        />
-                        <Route
-                          path="/consultations"
-                          element={<Consultations />}
-                        />
-                        <Route path="/calendar" element={<Calendar />} />
-                        <Route path="/profile" element={<Profile />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="/progress" element={<Progress />} />
+                  {/* Main Pages */}
+                  <Route path="/courses" element={<Courses />} />
+                  <Route path="/courses/:id" element={<CourseDetail />} />
+                  <Route path="/my-courses" element={<MyCourses />} />
+                  <Route path="/lessons/:id" element={<LessonViewer />} />
+                  <Route path="/ai-tutor" element={<AITutor />} />
+                  <Route path="/classrooms" element={<Classrooms />} />
+                  <Route path="/classrooms/:id" element={<ClassroomDetail />} />
+                  <Route path="/consultations" element={<Consultations />} />
+                  <Route path="/faculty-calendar" element={<FacultyConsultationCalendar />} />
+                  <Route path="/calendar" element={<Calendar />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/progress" element={<Progress />} />
+                  <Route path="/achievements" element={<Achievements />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/forums" element={<Forums />} />
+                  <Route path="/forums/*" element={<Forums />} />
+                  <Route path="/room-schedules" element={<RoomSchedules />} />
 
-                        {/* Admin Pages */}
-                        <Route
-                          path="/AdminCOSPrograms"
-                          element={<AdminCOSPrograms />}
-                        />
-                        <Route
-                          path="/AdminFaculty"
-                          element={<AdminFaculty />}
-                        />
-                        <Route
-                          path="/AdminCurriculum"
-                          element={<AdminCurriculum />}
-                        />
-                        <Route path="/AdminFAQs" element={<AdminFAQs />} />
-                        <Route
-                          path="/AdminStudents"
-                          element={<AdminStudents />}
-                        />
-                        <Route
-                          path="/AdminAnalytics"
-                          element={<AdminAnalytics />}
-                        />
-                        <Route path="/AdminRooms" element={<AdminRooms />} />
+                  {/* Admin Pages */}
+                  <Route path="/AdminCOSPrograms" element={<AdminCOSPrograms />} />
+                  <Route path="/AdminFaculty" element={<AdminFaculty />} />
+                  <Route path="/AdminCurriculum" element={<AdminCurriculum />} />
+                  <Route path="/AdminFAQs" element={<AdminFAQs />} />
+                  <Route path="/AdminStudents" element={<AdminStudents />} />
+                  <Route path="/AdminAnalytics" element={<AdminAnalytics />} />
+                  <Route path="/AdminRooms" element={<AdminRooms />} />
+                  <Route path="/AdminGamification" element={<AdminGamification />} />
+                  <Route path="/AdminForums" element={<AdminForums />} />
+                  <Route path="/AdminConsultations" element={<AdminConsultations />} />
 
                         {/* Catch-all: redirect to dashboard if unknown route */}
                         <Route

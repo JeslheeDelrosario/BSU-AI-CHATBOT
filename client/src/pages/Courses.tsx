@@ -478,21 +478,38 @@ export default function Courses() {
                     </span>
                   </div>
 
-                  {/* Level Badge */}
-                  <div className="flex justify-end">
-                    <span
-                      className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm
-                      ${
-                        course.level === "Beginner"
-                          ? "bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/60"
-                          : course.level === "Intermediate"
-                            ? "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/60"
-                            : "bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-500/20 dark:text-pink-300 dark:border-pink-500/60"
-                      }
-                    `}
-                    >
-                      {course.level}
+                  {/* Tags */}
+                  {course.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {course.tags.slice(0, 3).map((tag: string) => (
+                        <span key={tag} className="px-2 py-0.5 bg-white/10 border border-white/10 rounded-full text-xs text-slate-400 dark:text-gray-400">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Level Badge + Enrollment */}
+                  <div className="flex items-center justify-between">
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm ${
+                      course.level === 'BEGINNER' || course.level === 'Beginner'
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/60'
+                        : course.level === 'INTERMEDIATE' || course.level === 'Intermediate'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/60'
+                        : course.level === 'ADVANCED' || course.level === 'Advanced'
+                        ? 'bg-orange-500/20 text-orange-300 border-orange-500/60'
+                        : 'bg-pink-500/20 text-pink-300 border-pink-500/60'
+                    }`}>
+                      {course.level?.charAt(0) + course.level?.slice(1).toLowerCase()}
                     </span>
+                    {course.enrollment && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" style={{ width: `${Math.round(course.enrollment.progress || 0)}%` }} />
+                        </div>
+                        <span className="text-xs text-cyan-400 font-medium">{Math.round(course.enrollment.progress || 0)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

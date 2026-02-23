@@ -108,12 +108,6 @@ export const updateChatSession = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Chat session not found' });
     }
 
-    // Auto-delete empty chat
-    if (messages?.length === 0) {
-      await prisma.chatSession.delete({ where: { id } });
-      return res.json({ deleted: true });
-    }
-
     const updated = await prisma.chatSession.update({
       where: { id },
       data: {

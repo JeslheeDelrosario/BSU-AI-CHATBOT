@@ -5,11 +5,9 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { PrismaClient } from '@prisma/client';
 import { openAIQuizService } from './openai-quiz.service';
 import { huggingFaceQuizService } from './huggingface-quiz.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 interface QuizQuestion {
   question: string;
@@ -29,6 +27,69 @@ interface GeneratedQuiz {
   topic?: string;
 }
 
+// Pre-loaded list of common academic topics that can be used for quiz generation
+// This helps avoid "topic not found" errors and reduces database queries
+const SUPPORTED_QUIZ_TOPICS: Record<string, string[]> = {
+  // Biology topics
+  'microbiology': ['Bacteria', 'Viruses', 'Fungi', 'Protozoa', 'Microbial genetics', 'Immunology', 'Sterilization', 'Antibiotics'],
+  'biology': ['Cell biology', 'Genetics', 'Evolution', 'Ecology', 'Anatomy', 'Physiology', 'Molecular biology', 'Biochemistry'],
+  'genetics': ['DNA structure', 'RNA', 'Protein synthesis', 'Mendelian genetics', 'Mutations', 'Gene expression', 'Chromosomes'],
+  'ecology': ['Ecosystems', 'Food chains', 'Biodiversity', 'Conservation', 'Population dynamics', 'Biomes', 'Environmental factors'],
+  
+  // Chemistry topics
+  'chemistry': ['Atomic structure', 'Chemical bonding', 'Stoichiometry', 'Acids and bases', 'Organic chemistry', 'Thermodynamics'],
+  'organic chemistry': ['Hydrocarbons', 'Functional groups', 'Reactions', 'Isomers', 'Polymers', 'Biochemistry'],
+  'biochemistry': ['Proteins', 'Enzymes', 'Carbohydrates', 'Lipids', 'Metabolism', 'DNA/RNA'],
+  
+  // Mathematics topics
+  'calculus': ['Limits', 'Derivatives', 'Integrals', 'Differential equations', 'Series', 'Multivariable calculus'],
+  'statistics': ['Probability', 'Distributions', 'Hypothesis testing', 'Regression', 'ANOVA', 'Sampling'],
+  'algebra': ['Linear equations', 'Quadratic equations', 'Polynomials', 'Matrices', 'Functions', 'Inequalities'],
+  'mathematics': ['Algebra', 'Geometry', 'Trigonometry', 'Calculus', 'Statistics', 'Number theory'],
+  
+  // Computer Science topics
+  'computer science': ['Algorithms', 'Data structures', 'Programming', 'Databases', 'Networks', 'Operating systems'],
+  'programming': ['Variables', 'Control structures', 'Functions', 'OOP', 'Data types', 'Debugging'],
+  'data structures': ['Arrays', 'Linked lists', 'Trees', 'Graphs', 'Hash tables', 'Stacks', 'Queues'],
+  'algorithms': ['Sorting', 'Searching', 'Recursion', 'Dynamic programming', 'Graph algorithms', 'Complexity'],
+  
+  // Physics topics
+  'physics': ['Mechanics', 'Thermodynamics', 'Electromagnetism', 'Optics', 'Waves', 'Modern physics'],
+  'mechanics': ['Kinematics', 'Dynamics', 'Energy', 'Momentum', 'Rotation', 'Oscillations'],
+  
+  // Environmental Science topics
+  'environmental science': ['Climate change', 'Pollution', 'Conservation', 'Sustainability', 'Ecosystems', 'Renewable energy'],
+  
+  // Food Technology topics
+  'food technology': ['Food processing', 'Food safety', 'Preservation', 'Quality control', 'Nutrition', 'Food chemistry'],
+  
+  // Medical Technology topics
+  'medical technology': ['Clinical chemistry', 'Hematology', 'Microbiology', 'Immunology', 'Urinalysis', 'Blood banking']
+};
+
+// Function to find matching topic from user input
+function findMatchingTopic(userTopic: string): { topic: string; subtopics: string[] } | null {
+  const normalized = userTopic.toLowerCase().trim();
+  
+  // Direct match
+  if (SUPPORTED_QUIZ_TOPICS[normalized]) {
+    return { topic: normalized, subtopics: SUPPORTED_QUIZ_TOPICS[normalized] };
+  }
+  
+  // Partial match
+  for (const [topic, subtopics] of Object.entries(SUPPORTED_QUIZ_TOPICS)) {
+    if (topic.includes(normalized) || normalized.includes(topic)) {
+      return { topic, subtopics };
+    }
+    // Check if user input matches any subtopic
+    if (subtopics.some(sub => sub.toLowerCase().includes(normalized) || normalized.includes(sub.toLowerCase()))) {
+      return { topic, subtopics };
+    }
+  }
+  
+  return null;
+}
+
 export class QuizGeneratorService {
   private geminiAI: GoogleGenerativeAI | null = null;
   private geminiModel: any = null;
@@ -42,9 +103,10 @@ export class QuizGeneratorService {
     
     if (apiKey && apiKey !== 'your-gemini-api-key-here') {
       this.geminiAI = new GoogleGenerativeAI(apiKey);
-      this.geminiModel = this.geminiAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      this.geminiModel = this.geminiAI.getGenerativeModel({ model: modelName });
       this.isEnabled = true;
-      console.log('✓ Quiz Generator service enabled (Gemini AI - gemini-2.0-flash)');
+      console.log(`✓ Quiz Generator service enabled (Gemini AI - ${modelName})`);
     } else {
       console.warn('⚠ Quiz Generator service disabled (Gemini API key not configured)');
     }
@@ -497,13 +559,17 @@ Generate ${questionCount} real practice test questions now:`;
         }
       }
 
-      // Fallback: Generate subject-specific educational questions
+      // Fallback: Generate topic-specific educational questions using the user's requested topic
       if (questions.length < questionCount) {
+        const usedQuestions = new Set<string>(); // Track used questions to avoid duplicates
         for (let i = questions.length; i < questionCount; i++) {
-          const subject = curriculum[i % curriculum.length];
           const difficulty = difficulties[i % 3];
-          const question = this.createEducationalQuestion(subject, difficulty);
-          questions.push(question);
+          // Use the user's requested topic directly, not curriculum subjects
+          const question = this.createTopicBasedQuestion(topic, difficulty, usedQuestions);
+          if (question) {
+            usedQuestions.add(question.question);
+            questions.push(question);
+          }
         }
       }
 
@@ -714,6 +780,89 @@ Generate ${questionCount} real practice test questions now:`;
       { question: 'Which state of matter has a definite volume but no definite shape?', options: ['Solid', 'Liquid', 'Gas', 'Plasma'], correctAnswer: 1, explanation: 'Liquids have a definite volume but take the shape of their container, unlike solids (definite shape) or gases (no definite volume).' },
     ];
     return { ...generalQuestions[Math.floor(Math.random() * generalQuestions.length)], difficulty };
+  }
+
+  /**
+   * Create topic-based question using the user's requested topic directly
+   * Prevents duplicate questions by tracking used questions
+   */
+  private createTopicBasedQuestion(
+    topic: string,
+    difficulty: 'easy' | 'medium' | 'hard',
+    usedQuestions: Set<string>
+  ): QuizQuestion | null {
+    const normalizedTopic = topic.toLowerCase();
+    
+    // Computer Science / Programming questions
+    const csQuestions = [
+      { question: 'Which data structure operates on a Last-In-First-Out (LIFO) principle?', options: ['Queue', 'Array', 'Linked List', 'Stack'], correctAnswer: 3, explanation: 'A stack follows LIFO ordering — the last element added is the first one removed.' },
+      { question: 'What does OOP stand for?', options: ['Online Operating Platform', 'Object-Oriented Programming', 'Optimal Output Process', 'Organized Operation Protocol'], correctAnswer: 1, explanation: 'OOP stands for Object-Oriented Programming, a paradigm based on objects containing data and methods.' },
+      { question: 'What is the time complexity of binary search on a sorted array?', options: ['O(n)', 'O(n²)', 'O(log n)', 'O(1)'], correctAnswer: 2, explanation: 'Binary search halves the search space each step, giving O(log n) time complexity.' },
+      { question: 'In programming, what is a "variable"?', options: ['A fixed constant', 'A named storage location for data', 'A type of loop', 'A function definition'], correctAnswer: 1, explanation: 'A variable is a named storage location that holds a value which can be changed during execution.' },
+      { question: 'Which sorting algorithm has the best average-case time complexity?', options: ['Bubble Sort — O(n²)', 'Selection Sort — O(n²)', 'Merge Sort — O(n log n)', 'Insertion Sort — O(n²)'], correctAnswer: 2, explanation: 'Merge Sort has O(n log n) average and worst-case complexity, making it more efficient than quadratic algorithms.' },
+      { question: 'What is a "function" in programming?', options: ['A type of variable', 'A reusable block of code that performs a specific task', 'A database query', 'A hardware component'], correctAnswer: 1, explanation: 'A function is a reusable block of code designed to perform a particular task, promoting code reusability.' },
+      { question: 'What does SQL stand for?', options: ['Structured Query Language', 'Simple Question Logic', 'System Quality Level', 'Sequential Query List'], correctAnswer: 0, explanation: 'SQL stands for Structured Query Language, used for managing and querying relational databases.' },
+      { question: 'What is recursion in programming?', options: ['A loop that runs forever', 'A function that calls itself', 'A type of variable', 'A sorting algorithm'], correctAnswer: 1, explanation: 'Recursion is when a function calls itself to solve smaller instances of the same problem.' },
+      { question: 'What is the purpose of an "if" statement?', options: ['To repeat code', 'To make decisions based on conditions', 'To define variables', 'To import libraries'], correctAnswer: 1, explanation: 'An if statement allows conditional execution of code based on whether a condition is true or false.' },
+      { question: 'What is an algorithm?', options: ['A programming language', 'A step-by-step procedure to solve a problem', 'A type of computer', 'A database'], correctAnswer: 1, explanation: 'An algorithm is a finite sequence of well-defined instructions to solve a class of problems.' },
+      { question: 'What does API stand for?', options: ['Application Programming Interface', 'Automated Program Integration', 'Advanced Protocol Internet', 'Application Process Identifier'], correctAnswer: 0, explanation: 'API stands for Application Programming Interface, which allows different software systems to communicate.' },
+      { question: 'What is the difference between "==" and "===" in JavaScript?', options: ['No difference', '"==" checks value only, "===" checks value and type', '"===" is faster', '"==" is deprecated'], correctAnswer: 1, explanation: '"==" performs type coercion before comparison, while "===" checks both value and type without coercion.' },
+    ];
+
+    // Biology questions
+    const biologyQuestions = [
+      { question: 'What is the basic unit of life?', options: ['Atom', 'Molecule', 'Cell', 'Organ'], correctAnswer: 2, explanation: 'The cell is the smallest structural and functional unit of all living organisms.' },
+      { question: 'Which process converts glucose into ATP in the presence of oxygen?', options: ['Photosynthesis', 'Fermentation', 'Cellular respiration', 'Chemosynthesis'], correctAnswer: 2, explanation: 'Cellular respiration is the metabolic process that converts glucose and oxygen into ATP, CO₂, and water.' },
+      { question: 'What molecule carries amino acids to the ribosome during translation?', options: ['mRNA', 'rRNA', 'tRNA', 'DNA'], correctAnswer: 2, explanation: 'Transfer RNA (tRNA) carries specific amino acids to the ribosome, matching them to the mRNA codons during protein synthesis.' },
+      { question: 'What is the function of the cell membrane?', options: ['Store genetic information', 'Produce energy', 'Regulate what enters and exits the cell', 'Synthesize proteins'], correctAnswer: 2, explanation: 'The cell membrane is selectively permeable, controlling the movement of substances in and out of the cell.' },
+      { question: 'Which organelle is known as the "powerhouse of the cell"?', options: ['Nucleus', 'Ribosome', 'Mitochondria', 'Endoplasmic reticulum'], correctAnswer: 2, explanation: 'Mitochondria generate most of the cell\'s ATP through cellular respiration.' },
+    ];
+
+    // Calculus questions
+    const calculusQuestions = [
+      { question: 'What is the derivative of x²?', options: ['x', '2x', '2x²', 'x³'], correctAnswer: 1, explanation: 'The power rule states that d/dx(xⁿ) = n·xⁿ⁻¹. For x², the derivative is 2x.' },
+      { question: 'What does the definite integral of a function represent geometrically?', options: ['The slope of the tangent line', 'The maximum value of the function', 'The area under the curve between two points', 'The rate of change'], correctAnswer: 2, explanation: 'A definite integral calculates the signed area between the function and the x-axis over an interval.' },
+      { question: 'What is the limit of sin(x)/x as x approaches 0?', options: ['0', '∞', 'undefined', '1'], correctAnswer: 3, explanation: 'This is a fundamental limit in calculus. Using L\'Hôpital\'s rule or the squeeze theorem, lim(x→0) sin(x)/x = 1.' },
+      { question: 'Which rule is used to differentiate a product of two functions?', options: ['Chain rule', 'Quotient rule', 'Product rule', 'Power rule'], correctAnswer: 2, explanation: 'The product rule states: d/dx[f(x)·g(x)] = f\'(x)·g(x) + f(x)·g\'(x).' },
+      { question: 'What is the integral of 1/x dx?', options: ['x²/2 + C', '1/x² + C', 'ln|x| + C', '-1/x² + C'], correctAnswer: 2, explanation: 'The integral of 1/x is the natural logarithm of the absolute value of x, plus a constant.' },
+    ];
+
+    // Microbiology questions
+    const microbiologyQuestions = [
+      { question: 'Which type of microorganism is responsible for causing malaria?', options: ['Bacteria', 'Virus', 'Protozoan (Plasmodium)', 'Fungus'], correctAnswer: 2, explanation: 'Malaria is caused by Plasmodium species, which are protozoan parasites transmitted by Anopheles mosquitoes.' },
+      { question: 'What is the Gram stain used for in microbiology?', options: ['Measuring bacterial growth rate', 'Classifying bacteria by cell wall structure', 'Identifying viruses', 'Testing antibiotic resistance'], correctAnswer: 1, explanation: 'Gram staining differentiates bacteria into Gram-positive and Gram-negative based on cell wall composition.' },
+      { question: 'Which structure allows bacteria to survive harsh environmental conditions?', options: ['Flagellum', 'Pilus', 'Endospore', 'Capsule'], correctAnswer: 2, explanation: 'Endospores are highly resistant dormant structures that allow bacteria to survive extreme conditions like heat and desiccation.' },
+      { question: 'What is the primary function of antibiotics?', options: ['Kill viruses', 'Kill or inhibit bacteria', 'Boost immune system', 'Treat fungal infections'], correctAnswer: 1, explanation: 'Antibiotics are designed to kill or inhibit the growth of bacteria, not viruses.' },
+      { question: 'Which microorganism is used in bread making?', options: ['Bacteria', 'Yeast', 'Virus', 'Protozoa'], correctAnswer: 1, explanation: 'Yeast (Saccharomyces cerevisiae) ferments sugars and produces CO₂, which makes bread rise.' },
+    ];
+
+    // Select questions based on topic
+    let questionPool: QuizQuestion[] = [];
+    
+    if (normalizedTopic.includes('computer') || normalizedTopic.includes('programming') || 
+        normalizedTopic.includes('software') || normalizedTopic.includes('coding') ||
+        normalizedTopic.includes('data structure') || normalizedTopic.includes('algorithm')) {
+      questionPool = csQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('biology') || normalizedTopic.includes('bio')) {
+      questionPool = biologyQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('calculus') || normalizedTopic.includes('derivative') || normalizedTopic.includes('integral')) {
+      questionPool = calculusQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('microbiology') || normalizedTopic.includes('micro') || normalizedTopic.includes('bacteria')) {
+      questionPool = microbiologyQuestions.map(q => ({ ...q, difficulty }));
+    } else {
+      // Default to CS questions for general/unknown topics
+      questionPool = csQuestions.map(q => ({ ...q, difficulty }));
+    }
+
+    // Filter out already used questions
+    const availableQuestions = questionPool.filter(q => !usedQuestions.has(q.question));
+    
+    if (availableQuestions.length === 0) {
+      return null;
+    }
+
+    // Return a random question from available pool
+    return availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
   }
 
   /**

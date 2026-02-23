@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../lib/translations';
 import api from '../lib/api';
-import { BookOpen, Trophy, Clock, TrendingUp, Play, Award, Zap, Target, Brain } from 'lucide-react';
+import { BookOpen, Trophy, Clock, TrendingUp, Play, Award, Zap, Target, Brain, Crown, Star, ChevronRight } from 'lucide-react';
 
 interface DashboardStats {
   overview: {
@@ -23,11 +23,18 @@ interface DashboardStats {
   courseStats?: any[];
 }
 
+interface GamificationPreview {
+  earned: any[];
+  totalPoints: number;
+  topLeaderboard: { name: string; value: number; rank: number } | null;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { settings: accessibilitySettings } = useAccessibility();
   const t = useTranslation(accessibilitySettings.language);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [gamification, setGamification] = useState<GamificationPreview | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,8 +43,24 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await api.get('/dashboard/stats');
-      setStats(response.data);
+      const [dashRes, achRes, lbRes] = await Promise.allSettled([
+        api.get('/dashboard/stats'),
+        api.get('/gamification/achievements/me'),
+        api.get('/gamification/leaderboards'),
+      ]);
+
+      if (dashRes.status === 'fulfilled') setStats(dashRes.value.data);
+
+      if (achRes.status === 'fulfilled') {
+        const data = achRes.value.data;
+        const leaderboards = lbRes.status === 'fulfilled' ? lbRes.value.data.leaderboards : [];
+        let topLeaderboard = null;
+        for (const lb of leaderboards) {
+          const myEntry = lb.entries?.find((e: any) => e.userId === user?.id);
+          if (myEntry) { topLeaderboard = { name: lb.config.name, value: myEntry.value, rank: myEntry.rank }; break; }
+        }
+        setGamification({ earned: data.earned ?? [], totalPoints: data.totalPoints ?? 0, topLeaderboard });
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
     } finally {
@@ -167,12 +190,12 @@ export default function Dashboard() {
                 ? "Kamakailang Enrollment"
                 : "Recent Enrollments"}
           </h2>
-          
+
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {isStudent ? (
               stats?.recentProgress?.length ? (
                 stats.recentProgress
-                  ?.filter((p) => p?.Lesson)
+                  .filter((p: any) => p?.lesson)
                   .map((p: any, i: number) => (
                     <div
                       key={i}
@@ -184,7 +207,7 @@ export default function Dashboard() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-slate-900 dark:text-white truncate">
-                            {p.Lesson?.title || "Untitled Lesson"}
+                            {p.lesson?.title || "Untitled Lesson"}
                           </p>
                           <p className="text-sm text-slate-600 dark:text-gray-400">
                             {p.completed
@@ -196,12 +219,12 @@ export default function Dashboard() {
                                 : "In Progress"}
                           </p>
                         </div>
+                        {p.score && (
+                          <span className="text-cyan-400 font-bold text-lg ml-4">
+                            {Math.round(p.score)}%
+                          </span>
+                        )}
                       </div>
-                      {p.score && (
-                        <span className="text-cyan-400 font-bold text-lg ml-4">
-                          {Math.round(p.score)}%
-                        </span>
-                      )}
                     </div>
                   ))
               ) : (
@@ -315,9 +338,165 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Gamification Preview - Students Only */}
+      {isStudent && gamification && (
+        <div className="mt-8 max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Badges Preview */}
+            <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent flex items-center gap-2">
+                  <Trophy className="w-6 h-6 text-yellow-400" />
+                  {accessibilitySettings.language === "fil"
+                    ? "Aking mga Badge"
+                    : "My Badges"}
+                </h2>
+                <Link
+                  to="/achievements"
+                  className="flex items-center gap-1 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                >
+                  {accessibilitySettings.language === "fil"
+                    ? "Tingnan lahat"
+                    : "View all"}{" "}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              {/* Points Banner */}
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/10 border border-yellow-500/30 rounded-2xl mb-4">
+                <Star className="w-6 h-6 text-yellow-400" />
+                <div>
+                  <p className="text-yellow-400 font-black text-2xl">
+                    {gamification.totalPoints}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-gray-500">
+                    {accessibilitySettings.language === "fil"
+                      ? "Kabuuang Puntos"
+                      : "Total Points"}
+                  </p>
+                </div>
+                <div className="ml-auto text-right">
+                  <p className="text-slate-900 dark:text-white font-bold text-lg">
+                    {gamification.earned.length}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-gray-500">
+                    {accessibilitySettings.language === "fil"
+                      ? "Badge"
+                      : "Badges"}
+                  </p>
+                </div>
+              </div>
+
+              {gamification.earned.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {gamification.earned.slice(0, 6).map((a: any, i: number) => (
+                    <div
+                      key={i}
+                      title={a.title}
+                      className="flex flex-col items-center gap-1 p-3 bg-gradient-to-br from-yellow-900/20 to-orange-900/10 border border-yellow-500/20 rounded-2xl hover:border-yellow-400/40 transition-all cursor-default"
+                    >
+                      <span className="text-3xl">{a.icon}</span>
+                      <span className="text-xs text-slate-600 dark:text-gray-400 max-w-[60px] text-center truncate">
+                        {a.title}
+                      </span>
+                    </div>
+                  ))}
+                  {gamification.earned.length > 6 && (
+                    <Link
+                      to="/achievements"
+                      className="flex flex-col items-center justify-center gap-1 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all w-[76px]"
+                    >
+                      <span className="text-slate-400 font-bold">
+                        +{gamification.earned.length - 6}
+                      </span>
+                      <span className="text-xs text-slate-500">more</span>
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Trophy className="w-12 h-12 mx-auto text-slate-600 mb-2" />
+                  <p className="text-slate-500 dark:text-gray-500 text-sm">
+                    {accessibilitySettings.language === "fil"
+                      ? "Kumpletuhin ang mga kurso para makakuha ng badge!"
+                      : "Complete courses to earn badges!"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Leaderboard Preview */}
+            <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent flex items-center gap-2">
+                  <Crown className="w-6 h-6 text-cyan-400" />
+                  {accessibilitySettings.language === "fil"
+                    ? "Leaderboard"
+                    : "Leaderboard"}
+                </h2>
+                <Link
+                  to="/leaderboard"
+                  className="flex items-center gap-1 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                >
+                  {accessibilitySettings.language === "fil"
+                    ? "Tingnan lahat"
+                    : "View all"}{" "}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              {gamification.topLeaderboard ? (
+                <div className="p-5 bg-gradient-to-r from-cyan-500/20 to-purple-500/10 border border-cyan-500/30 rounded-2xl">
+                  <p className="text-sm text-slate-600 dark:text-gray-400 mb-1">
+                    {gamification.topLeaderboard.name}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-4xl font-black text-cyan-400">
+                      #{gamification.topLeaderboard.rank}
+                    </div>
+                    <div>
+                      <p className="text-slate-900 dark:text-white font-bold">
+                        {accessibilitySettings.language === "fil"
+                          ? "Iyong Ranggo"
+                          : "Your Rank"}
+                      </p>
+                      <p className="text-sm text-slate-500 dark:text-gray-500">
+                        {gamification.topLeaderboard.value}{" "}
+                        {accessibilitySettings.language === "fil"
+                          ? "puntos"
+                          : "points"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Crown className="w-12 h-12 mx-auto text-slate-600 mb-2" />
+                  <p className="text-slate-500 dark:text-gray-500 text-sm">
+                    {accessibilitySettings.language === "fil"
+                      ? "Kumpletuhin ang mga gawain para lumabas sa leaderboard!"
+                      : "Complete activities to appear on the leaderboard!"}
+                  </p>
+                </div>
+              )}
+
+              <Link
+                to="/leaderboard"
+                className="mt-4 flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-cyan-500/20 to-purple-500/10 border border-cyan-500/30 rounded-2xl text-cyan-400 font-semibold hover:from-cyan-500/30 hover:to-purple-500/20 transition-all"
+              >
+                <Crown className="w-5 h-5" />
+                {accessibilitySettings.language === "fil"
+                  ? "Tingnan ang Buong Leaderboard"
+                  : "View Full Leaderboard"}
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Actions - Students Only */}
       {isStudent && (
-        <div className="mt-12 max-w-7xl mx-auto px-6">
+        <div className="mt-8 max-w-7xl mx-auto px-6">
           <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
             <h2 className="text-2xl font-bold mb-8 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
               Quick Actions

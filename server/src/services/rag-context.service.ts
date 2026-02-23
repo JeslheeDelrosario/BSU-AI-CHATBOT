@@ -156,7 +156,9 @@ function detectQueryType(msg: string): string {
   }
   if (msg.includes('program') || msg.includes('degree') || msg.includes('offering') ||
       msg.includes('career') || msg.includes('job') || msg.includes('recommend') ||
-      msg.includes('software developer') || msg.includes('best course')) {
+      msg.includes('software developer') || msg.includes('best course') ||
+      msg.includes('graduate') || msg.includes('work') || msg.includes('employment') ||
+      msg.includes('after finishing') || msg.includes('opportunities')) {
     return 'programs';
   }
   if (msg.includes('admission') || msg.includes('enroll') || msg.includes('requirement') ||

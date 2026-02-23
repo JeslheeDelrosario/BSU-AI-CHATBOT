@@ -3,6 +3,7 @@
 import { PrismaClient } from '@prisma/client';
 import { seedFAQs } from './seed-faqs';
 import { seedFaculty } from './seed-faculty';
+import { seedFaculty as seedCollegeOfScienceFaculty, seedMedTechSubjects } from './seeds/college-of-science-faculty.seed';
 import { seedBSMCSCurriculum } from './seed-bsm-cs-curriculum';
 import { seedBSMASCurriculum } from './seed-bsm-as-curriculum';
 import { seedBSMBACurriculum } from './seed-bsm-ba-curriculum';
@@ -23,12 +24,18 @@ async function seedAll() {
     console.log('✅ FAQs seeded successfully\n');
 
     // Step 2: Seed Faculty
-    console.log('👨‍🏫 Step 2/3: Seeding Faculty...');
+    console.log('👨‍🏫 Step 2/4: Seeding Faculty (existing)...');
     await seedFaculty();
     console.log('✅ Faculty seeded successfully\n');
 
+    // Step 2b: Seed College of Science faculty from Excel
+    console.log('🔬 Step 2b/4: Seeding College of Science faculty (Medical Technology, Biology, Mathematics)...');
+    await seedCollegeOfScienceFaculty();
+    await seedMedTechSubjects();
+    console.log('✅ College of Science faculty and subjects seeded successfully\n');
+
     // Step 3: Seed Curriculum for all programs
-    console.log('📖 Step 3/3: Seeding Curriculum...');
+    console.log('📖 Step 3/4: Seeding Curriculum...');
     
     console.log('  → Seeding BS Mathematics with Specialization in Computer Science...');
     await seedBSMCSCurriculum();

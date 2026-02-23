@@ -18,6 +18,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithToken: (token: string, userData: User) => void;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   isAuthenticated: boolean;
@@ -56,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
   };
 
+  const loginWithToken = (token: string, userData: User) => {
+    localStorage.setItem('token', token);
+    setUser(userData);
+  };
+
   const logout = async () => {
     try {
       // Call server logout endpoint to clean up empty chats
@@ -79,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         login,
+        loginWithToken,
         logout,
         updateUser,
         isAuthenticated: !!user,

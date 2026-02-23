@@ -36,6 +36,12 @@ import ssoRoutes from './routes/sso.routes';
 import holidayRoutes from './routes/holiday.routes';
 import taskRoutes from './routes/task.routes';
 import calendarRoutes from './routes/calendar.routes';
+import gamificationRoutes from './routes/gamification.routes';
+import forumRoutes from './routes/forum.routes';
+import roomScheduleRoutes from './routes/roomSchedule.routes';
+import adminConsultationRoutes from './routes/adminConsultation.routes';
+import roomLayoutRoutes from './routes/roomLayout.routes';
+import googleSsoRoutes from './routes/googleSso.routes';
 
 // Initialize Redis connection
 import './config/redis.config';
@@ -106,7 +112,7 @@ app.use(compression());
 const allowedOrigins = isProduction
   ? [
       process.env.CORS_ORIGIN || 'https://bsu-ai-chatbot.netlify.app',
-      'https://bsu-ai-tutor.netlify.app','http://192.168.1.197:3000',
+      'https://bsu-ai-tutor.netlify.app',
     ].filter(Boolean)
   : true;
 
@@ -143,7 +149,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// app.use('/api', limiter);
+app.use('/api', limiter);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -186,6 +192,12 @@ app.use('/api/sso', ssoRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/forums', forumRoutes);
+app.use('/api/rooms', roomScheduleRoutes);
+app.use('/api/rooms', roomLayoutRoutes);
+app.use('/api/admin/consultations', adminConsultationRoutes);
+app.use('/api/auth/google', googleSsoRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

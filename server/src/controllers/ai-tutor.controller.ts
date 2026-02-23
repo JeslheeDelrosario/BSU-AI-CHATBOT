@@ -27,15 +27,16 @@ let geminiModel: any = null;
 try {
   if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') {
     geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Use gemini-2.5-flash (latest working model as of 2026)
+    // Use gemini-2.5-flash (latest stable model as of Feb 2026)
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     geminiModel = geminiAI.getGenerativeModel({ 
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      model: modelName,
       generationConfig: {
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         temperature: 0.7,
       }
     });
-    console.log('✓ Gemini AI enabled (FREE tier) - Model: gemini-2.0-flash');
+    console.log(`✓ Gemini AI enabled (FREE tier) - Model: ${modelName}`);
   } else {
     console.warn('⚠ Gemini API key not configured');
   }
@@ -62,8 +63,13 @@ const generateAIResponse = async (
   userMessage: string, 
   ragContext: RAGContext,
   lastInteraction?: {userMessage: string; aiResponse: string} | null,
-  language: string = 'en'
+  language: string = 'en',
+  conversationHistory: Array<{role: string; content: string}> = []
 ): Promise<string> => {
+  console.log('[generateAIResponse] Starting with message:', userMessage.substring(0, 100));
+  console.log('[generateAIResponse] RAG context programs:', ragContext?.programs?.length || 0);
+  console.log('[generateAIResponse] Language:', language);
+  
   try {
     // Language instruction based on user preference
     const languageInstruction = language === 'fil' 
@@ -150,13 +156,19 @@ ${language === 'fil'
 5. For faculty questions, use ONLY names from the database
 6. For curriculum, use ONLY subjects from the database
 7. Be helpful but honest when you don't have information
-8. **CRITICAL FOR FACULTY QUERIES**: When asked about a person (e.g., "who is [name]"), you MUST:
+8. **CRITICAL FOR CAREER QUERIES**: When asked about jobs, careers, or employment after graduation:
+   - Look at the "Career Paths" listed for each program in the AVAILABLE PROGRAMS section
+   - List ALL the career paths available for that specific program
+   - Be enthusiastic and helpful about career opportunities
+   - If the user mentions a specific program (e.g., "biology", "computer science"), find that program and list its career paths
+   - NEVER say you don't have career information if the program exists in the database with career paths
+9. **CRITICAL FOR FACULTY QUERIES**: When asked about a person (e.g., "who is [name]"), you MUST:
    - Check the FACULTY MEMBERS section in the database
    - If ONE person is found, provide their full details
    - If MULTIPLE people are found with similar names, list ALL of them with distinguishing details and ask which one they meant
    - If NO ONE is found, say you don't have information about that person in the database
    - NEVER say there's a service interruption if faculty data exists in the database
-9. **When using FAQ data**: Cite the FAQ by mentioning it's from official university policies (e.g., "According to BulSU policies..." or "Based on university regulations...")
+10. **When using FAQ data**: Cite the FAQ by mentioning it's from official university policies (e.g., "According to BulSU policies..." or "Based on university regulations...")
 
 ## COURSE RECOMMENDATION FORMAT:
 When recommending courses for career goals, structure your response as:
@@ -167,11 +179,11 @@ When recommending courses for career goals, structure your response as:
 
 ${databaseContext}
 
-${lastInteraction ? `
-## LAST CONVERSATION (for context continuity):
-**User's Previous Message**: ${lastInteraction.userMessage}
-**Your Previous Response**: ${lastInteraction.aiResponse}
-Use this to understand follow-up questions, but still only answer from database.
+${conversationHistory.length > 0 ? `
+## CONVERSATION HISTORY (for context continuity):
+${conversationHistory.slice(-6).map(m => `**${m.role === 'user' ? 'User' : 'Assistant'}**: ${m.content.substring(0, 500)}${m.content.length > 500 ? '...' : ''}`).join('\n\n')}
+
+Use this conversation history to understand follow-up questions and pronoun references (like "him", "her", "it", "that program"). Still only answer from database.
 ` : ''}
 
 ## RESPONSE LENGTH & CONTINUATION:
@@ -381,7 +393,12 @@ Would you like to know more about their office hours or how to contact them?`;
       }
     }
 
+    // Detect if user is asking about careers/jobs - these should NOT trigger program disambiguation
+    // Let the AI answer career questions directly using RAG context
+    const isCareerQuery = /career|job|work|employment|profession|occupation|salary|hire|industry|graduate|after finishing|after graduation|what can i (do|be|become)|where can i work/i.test(lowerMsg);
+    
     // Detect curriculum inquiries with context awareness, robust matching and disambiguation
+    // SKIP disambiguation for career queries - let AI answer directly
     const programs = await prisma.universityProgram.findMany({ 
       where: { college: 'College of Science', isActive: true } 
     });
@@ -454,7 +471,8 @@ Would you like to know more about their office hours or how to contact them?`;
     }
 
     // If multiple candidates, ask a clarifying question listing options
-    if (candidates.length > 1) {
+    // BUT skip this for career queries - let AI answer career questions directly
+    if (candidates.length > 1 && !isCareerQuery) {
       const options = candidates.map((c, i) => `${i+1}. ${c.title}${c.abbreviation ? ` (${c.abbreviation})` : ''}`).join('\n');
       return `I found a few programs that might match your question:\n${options}\n\nWhich one do you mean? Please reply with the number or program name (for example, "1" or "${candidates[0].title}").`;
     }
@@ -488,7 +506,8 @@ Would you like to know more about their office hours or how to contact them?`;
     else if (semWordMatch) targetSem = wordToNumber[semWordMatch[1].toLowerCase()];
 
     // If we found exactly one program but no year specified, ask a clarifying question
-    if (programMatch && !targetYear) {
+    // BUT skip this for career queries - let AI answer career questions directly
+    if (programMatch && !targetYear && !isCareerQuery) {
       return `Do you want curriculum details for **${programMatch.title}**? Which year level are you asking about — 1st, 2nd, 3rd, or 4th year? You can also specify a semester (e.g., "2nd semester").`;
     }
 
@@ -574,8 +593,8 @@ Each program offers unique opportunities and career paths!
     }
 
     // Log FAQ context for debugging
-    console.log(`[AI Context] FAQs in context: ${ragContext.faqs.length}`);
-    if (ragContext.faqs.length > 0) {
+    console.log(`[AI Context] FAQs in context: ${ragContext.faqs?.length || 0}`);
+    if (ragContext.faqs && ragContext.faqs.length > 0) {
       console.log(`[AI Context] First FAQ: ${ragContext.faqs[0].question.substring(0, 50)}...`);
     }
 
@@ -585,8 +604,16 @@ Each program offers unique opportunities and career paths!
         // Convert messages to Gemini format (combine system + conversation)
         let geminiPrompt = TISA_SYSTEM_PROMPT + '\n\n';
         
-        // Add conversation history
-        if (lastInteraction) {
+        // Add full conversation history (last 6 messages for context)
+        if (conversationHistory.length > 0) {
+          geminiPrompt += 'Previous conversation:\n';
+          for (const msg of conversationHistory.slice(-6)) {
+            const role = msg.role === 'user' ? 'User' : 'Assistant';
+            const content = msg.content.substring(0, 500) + (msg.content.length > 500 ? '...' : '');
+            geminiPrompt += `${role}: ${content}\n\n`;
+          }
+        } else if (lastInteraction) {
+          // Fallback to lastInteraction if no history
           geminiPrompt += `Previous conversation:\nUser: ${lastInteraction.userMessage}\nAssistant: ${lastInteraction.aiResponse}\n\n`;
         }
         
@@ -610,6 +637,11 @@ Each program offers unique opportunities and career paths!
     }
 
     // Fallback to OpenAI if Gemini fails or is not configured
+    if (!openai) {
+      console.error('OpenAI client not initialized');
+      return `I apologize, but the AI service is not properly configured. Please contact support.`;
+    }
+    
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: messages as any,
@@ -621,7 +653,19 @@ Each program offers unique opportunities and career paths!
       'I apologize, but I had trouble generating a response. Could you rephrase your question? I\'m here to help!';
 
   } catch (error: any) {
-    console.error('AI API Error:', error);
+    console.error('AI API Error:', error?.message || error);
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    
+    // Provide more specific error messages based on error type
+    if (error?.code === 'insufficient_quota') {
+      return `I apologize, but the AI service quota has been exceeded. Please try again later or contact support.`;
+    }
+    if (error?.code === 'rate_limit_exceeded') {
+      return `I'm receiving too many requests right now. Please wait a moment and try again.`;
+    }
+    if (error?.status === 401 || error?.code === 'invalid_api_key') {
+      return `I apologize, but there's an authentication issue with the AI service. Please contact support.`;
+    }
     
     return `I'm currently experiencing technical difficulties with my AI service. Please try again in a moment, or contact support if the issue persists.`;
   }
@@ -655,10 +699,13 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
                          (/quiz|test|exam|practice|assessment/i.test(message));
     
     if (isQuizRequest) {
-      // Extract topic from message
-      let topic = message.replace(/create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|on|about/gi, '').trim();
-      // Remove common prefixes
-      topic = topic.replace(/^(for|on|about|in)\s+/i, '').trim();
+      // Extract topic from message - handle typos and common variations
+      let topic = message
+        .replace(/crea[te]{1,3}|generat[e]?|mak[e]?|giv[e]?\s*me|start|take|quiz|test|exam|practice|assessment|questions?/gi, '')
+        .replace(/\b(on|about|for|in|a|an|the|me|my|i|want|need|please|can you|could you)\b/gi, '')
+        .trim();
+      // Clean up extra spaces
+      topic = topic.replace(/\s+/g, ' ').trim();
       
       // Validate that a topic was provided
       if (!topic || topic.length < 2) {
@@ -745,7 +792,7 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
 
         // Check if lessons exist for this topic
         if (!lessonData || lessonData.length === 0) {
-          console.log(`[Quiz] No lessons found for "${topic}", checking courses and curriculum...`);
+          console.log(`[Quiz] No lessons found for "${topic}", checking courses, curriculum, and pre-loaded topics...`);
           
           // Check if topic exists in courses table (more flexible search)
           if (!courseData || courseData.length === 0) {
@@ -774,27 +821,58 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
             take: 1
           });
 
-          // If neither courses nor curriculum exist, return error
+          // If neither courses nor curriculum exist, check pre-loaded topics
+          // This allows quiz generation for common academic topics without database entries
           if ((!courseData || courseData.length === 0) && (!curriculumData || curriculumData.length === 0)) {
-            return res.json({
-              response: `I couldn't find any courses or curriculum for "${topic}" in our database.\n\n**This topic hasn't been added yet.**\n\nPlease:\n• Check if the topic name is correct\n• Try a different subject\n• Contact your instructor to add this topic\n\nYou can ask me:\n• "Show me available courses"\n• "What subjects are in the curriculum?"\n• "Create quiz for [subject from curriculum]"`,
-              suggestions: [
-                'Show me available courses',
-                'What subjects are in the curriculum?',
-                'Help me find course materials'
-              ],
-              intent: 'quiz_generation',
-              metadata: {
-                topic: topic,
-                lessonsFound: 0,
-                coursesFound: 0,
-                curriculumFound: 0
-              }
-            });
+            // Check if it's a supported topic that we can generate quizzes for
+            const supportedTopics = [
+              'microbiology', 'biology', 'genetics', 'ecology', 'chemistry', 'organic chemistry',
+              'biochemistry', 'calculus', 'statistics', 'algebra', 'mathematics', 'computer science',
+              'programming', 'data structures', 'algorithms', 'physics', 'mechanics',
+              'environmental science', 'food technology', 'medical technology'
+            ];
+            
+            const normalizedTopic = topic.toLowerCase().trim();
+            const isSupported = supportedTopics.some(t => 
+              normalizedTopic.includes(t) || t.includes(normalizedTopic)
+            );
+            
+            if (!isSupported) {
+              return res.json({
+                response: `I couldn't find any courses or curriculum for "${topic}" in our database.
+
+**This topic hasn't been added yet.**
+
+Please:
+- Check if the topic name is correct
+- Try a different subject
+- Contact your instructor to add this topic
+
+You can ask me:
+- "Show me available courses"
+- "What subjects are in the curriculum?"
+- "Create quiz for [subject from curriculum]"`,
+                suggestions: [
+                  'Show me available courses',
+                  'What subjects are in the curriculum?',
+                  'Help me find course materials'
+                ],
+                intent: 'quiz_generation',
+                metadata: {
+                  topic: topic,
+                  lessonsFound: 0,
+                  coursesFound: 0,
+                  curriculumFound: 0
+                }
+              });
+            }
+            
+            // Topic is supported - proceed with quiz generation using AI
+            console.log(`[Quiz] Topic "${topic}" is a supported academic topic, generating quiz using AI`);
+          } else {
+            // Topic exists in courses or curriculum but no lessons yet - generate from database
+            console.log(`[Quiz] Found ${courseData?.length || 0} courses and ${curriculumData?.length || 0} curriculum entries for "${topic}", generating quiz from database`);
           }
-          
-          // Topic exists in courses or curriculum but no lessons yet - generate from database
-          console.log(`[Quiz] Found ${courseData?.length || 0} courses and ${curriculumData?.length || 0} curriculum entries for "${topic}", generating quiz from database`);
         }
         
         // PRIORITY 1: Generate quiz from lessons (AI-powered)
@@ -821,7 +899,14 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
 
         if (!quiz || quiz.questions.length === 0) {
           return res.json({
-            response: `I couldn't generate a quiz for "${topic}". Please specify a valid subject:\n\n• Calculus\n• Computer Science\n• Biology\n• Physics\n• Chemistry\n• Mathematics`,
+            response: `I couldn't generate a quiz for "${topic}". Please specify a valid subject:
+
+- Calculus
+- Computer Science
+- Biology
+- Physics
+- Chemistry
+- Mathematics`,
             suggestions: [
               'Create a quiz on Calculus',
               'Generate a Computer Science quiz',
@@ -833,12 +918,27 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         // Format response for interactive card UI
         const quizSummary = `**${quiz.title}**\n\nThis quiz covers fundamental concepts in ${topic}, including key principles and their applications.\n\n📊 **${quiz.questions.length} Questions** | ⏱️ **${quiz.estimatedTime} minutes** | 🎯 **${quiz.totalPoints} points**\n\nGreat job on starting your ${topic} practice! Mastering these concepts will open doors to many areas in science and engineering. Good luck!`;
 
+        // Save quiz to database for persistence
+        const savedExam = await prisma.practiceExam.create({
+          data: {
+            userId,
+            title: quiz.title,
+            description: quiz.description || `Practice exam on ${topic}`,
+            subject: topic || 'General',
+            difficulty: 'mixed',
+            totalQuestions: quiz.questions.length,
+            estimatedTime: quiz.estimatedTime,
+            questions: quiz.questions as any, // Prisma Json type
+            chatSessionId: chatSessionId || null
+          }
+        });
+
         // Save interaction
         await prisma.aIInteraction.create({
           data: {
             userId,
             type: AIInteractionType.QUESTION,
-            context: `quiz_generated:${topic}:${quizGenerationMethod}`,
+            context: `quiz_generated:${topic}:${quizGenerationMethod}:${savedExam.id}`,
             userMessage: message,
             aiResponse: quizSummary,
           },
@@ -853,15 +953,17 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
             questionCount: 10
           },
           quiz: {
-            id: 'quiz_' + Date.now(),
+            id: savedExam.id, // Use database ID
             title: quiz.title,
             description: quiz.description,
+            subject: topic || 'General',
+            difficulty: 'mixed',
             questions: quiz.questions,
             totalQuestions: quiz.questions.length,
             estimatedTime: quiz.estimatedTime,
             totalPoints: quiz.totalPoints,
             generatedBy: quizGenerationMethod,
-            createdAt: new Date().toISOString()
+            createdAt: savedExam.createdAt.toISOString()
           },
           quizMetadata: {
             showThinking: true,
@@ -869,7 +971,7 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
             showHints: true,
             passingScore: 70
           },
-          interactionId: 'quiz_' + Date.now(),
+          interactionId: savedExam.id,
           timestamp: new Date().toISOString()
         });
       } catch (error: any) {
@@ -895,9 +997,10 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         const lowerMessage = message.toLowerCase();
         
         // Extract potential faculty name from message
-        // Common patterns: "book with [name]", "meet [name]", "consult [name]", "[name]'s schedule"
+        // Common patterns: "book me with [name]", "book with [name]", "meet [name]", "[name]'s schedule"
         const namePatterns = [
-          /(?:book|meet|consult|schedule|appointment)\s+(?:with\s+)?(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i,
+          /(?:book|meet|consult|schedule|appointment)\s+(?:me\s+)?with\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i,
+          /(?:book|meet|consult|schedule|appointment)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i,
           /(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)\s*(?:'s)?\s*(?:schedule|availability|office hours)/i,
           /(?:talk|speak)\s+(?:to|with)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i
         ];
@@ -906,14 +1009,20 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         for (const pattern of namePatterns) {
           const match = message.match(pattern);
           if (match && match[1]) {
-            extractedName = match[1].trim().toLowerCase();
-            break;
+            // Filter out common words that aren't names
+            const candidate = match[1].trim().toLowerCase();
+            const nonNameWords = ['me', 'a', 'an', 'the', 'my', 'for', 'with', 'to', 'professor', 'prof', 'faculty', 'teacher', 'instructor'];
+            if (!nonNameWords.includes(candidate) && !nonNameWords.includes(candidate.split(/\s+/)[0])) {
+              extractedName = candidate;
+              break;
+            }
           }
         }
         
-        // Also check for any capitalized words that might be names
+        // Also check for any capitalized words that might be names (excluding common words)
         const words = message.split(/\s+/);
-        const potentialNames = words.filter((w: string) => /^[A-Z][a-z]+$/.test(w)).map((w: string) => w.toLowerCase());
+        const commonWords = ['I', 'Me', 'My', 'The', 'A', 'An', 'With', 'To', 'For', 'Book', 'Meet', 'Consult', 'Schedule', 'Appointment', 'Professor', 'Prof', 'Faculty'];
+        const potentialNames = words.filter((w: string) => /^[A-Z][a-z]+$/.test(w) && !commonWords.includes(w)).map((w: string) => w.toLowerCase());
         
         // Search for specific faculty by name if mentioned
         let matchedFaculty = null;
@@ -947,26 +1056,45 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
             }
           });
           
-          // Find best match - prefer full name match, then last name
+          // Score-based matching: prefer exact matches over partial
+          let bestScore = 0;
           for (const faculty of searchResults) {
-            const fullName = `${faculty.firstName} ${faculty.lastName}`.toLowerCase();
             const firstName = faculty.firstName.toLowerCase();
             const lastName = faculty.lastName.toLowerCase();
+            let score = 0;
             
-            // Check if all search terms match
-            const allTermsMatch = searchTerms.every((term: string) => 
-              fullName.includes(term) || firstName.includes(term) || lastName.includes(term)
-            );
+            for (const term of searchTerms) {
+              // Exact match on firstName or lastName = 10 points
+              if (firstName === term || lastName === term) {
+                score += 10;
+              }
+              // Starts with = 5 points
+              else if (firstName.startsWith(term) || lastName.startsWith(term)) {
+                score += 5;
+              }
+              // Contains = 1 point
+              else if (firstName.includes(term) || lastName.includes(term)) {
+                score += 1;
+              }
+            }
             
-            if (allTermsMatch) {
+            // Bonus for matching both first and last name
+            const hasFirstMatch = searchTerms.some((t: string) => firstName === t || firstName.startsWith(t));
+            const hasLastMatch = searchTerms.some((t: string) => lastName === t || lastName.startsWith(t));
+            if (hasFirstMatch && hasLastMatch) {
+              score += 20;
+            }
+            
+            if (score > bestScore) {
+              bestScore = score;
               matchedFaculty = faculty;
-              break;
             }
           }
           
-          // If no exact match, take first result
-          if (!matchedFaculty && searchResults.length > 0) {
-            matchedFaculty = searchResults[0];
+          // Only accept match if score is meaningful (at least one exact match)
+          if (bestScore < 10 && searchResults.length > 0) {
+            // No good match found, don't default to first result
+            matchedFaculty = null;
           }
         }
         
@@ -1039,6 +1167,320 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // STEP 0.6: Check if user is asking about leaderboards
+    const leaderboardKeywords = /leaderboard|ranking|top\s*(student|learner|performer|scorer)|who('s| is) (first|top|leading|number one|#1)|sino.*una|sino.*top|pinaka.*mataas/i;
+    const isLeaderboardQuery = leaderboardKeywords.test(message);
+
+    if (isLeaderboardQuery) {
+      try {
+        // Fetch leaderboard data
+        const leaderboardConfigs = await prisma.leaderboardConfig.findMany({
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          take: 5
+        });
+
+        // Get top performers for each leaderboard
+        const leaderboardData: Array<{
+          name: string;
+          metric: string;
+          icon: string;
+          topUsers: Array<{ rank: number; name: string; value: number; avatar: string | null }>;
+        }> = [];
+
+        for (const config of leaderboardConfigs) {
+          // Simplified leaderboard fetch - get top 5 by points
+          const topAchievers = await prisma.achievement.groupBy({
+            by: ['userId'],
+            _sum: { points: true },
+            orderBy: { _sum: { points: 'desc' } },
+            take: 5
+          });
+
+          const userIds = topAchievers.map(a => a.userId);
+          const users = await prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, firstName: true, lastName: true, avatar: true }
+          });
+
+          const topUsers = topAchievers.map((a, idx) => {
+            const user = users.find(u => u.id === a.userId);
+            return {
+              rank: idx + 1,
+              name: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+              value: a._sum.points || 0,
+              avatar: user?.avatar || null
+            };
+          });
+
+          leaderboardData.push({
+            name: config.name,
+            metric: config.metric,
+            icon: '🏆',
+            topUsers
+          });
+        }
+
+        // Build response
+        const leaderboardResponse = userLanguage === 'fil'
+          ? `Narito ang kasalukuyang mga leaderboard! 🏆\n\nMaaari mong tingnan ang buong leaderboard sa **Leaderboard** page para sa mas detalyadong impormasyon at rankings.`
+          : `Here are the current leaderboards! 🏆\n\nYou can view the full leaderboard on the **Leaderboard** page for more detailed information and rankings.`;
+
+        const interaction = await prisma.aIInteraction.create({
+          data: {
+            userId,
+            type: AIInteractionType.QUESTION,
+            context: 'leaderboard_query',
+            userMessage: message,
+            aiResponse: leaderboardResponse,
+          },
+        });
+
+        return res.json({
+          response: leaderboardResponse,
+          showLeaderboard: true,
+          leaderboardData: leaderboardData.slice(0, 3), // Show top 3 leaderboards
+          suggestions: userLanguage === 'fil'
+            ? ['Tingnan ang aking achievements', 'Paano makakuha ng points?', 'Ano ang mga badges?']
+            : ['View my achievements', 'How do I earn points?', 'What are the badges?'],
+          interactionId: interaction.id,
+          timestamp: interaction.createdAt,
+          intent: 'leaderboard_query'
+        });
+      } catch (error) {
+        console.error('Leaderboard query error:', error);
+        // Fall through to normal AI response
+      }
+    }
+
+    // STEP 0.7: Check if user is asking about their achievements
+    const achievementKeywords = /my achievement|my badge|aking achievement|aking badge|what.*earned|ano.*nakuha|show.*achievement|ipakita.*achievement|how many points|ilan.*points/i;
+    const isAchievementQuery = achievementKeywords.test(message);
+
+    if (isAchievementQuery) {
+      try {
+        // Fetch user's achievements
+        const userAchievements = await prisma.achievement.findMany({
+          where: { userId },
+          include: {
+            Definition: true
+          },
+          orderBy: { earnedAt: 'desc' },
+          take: 10
+        });
+
+        const totalPoints = userAchievements.reduce((sum, a) => sum + (a.points || 0), 0);
+        const achievementCount = userAchievements.length;
+
+        // Get all available achievements for progress
+        const allDefinitions = await prisma.achievementDefinition.findMany({
+          where: { isActive: true }
+        });
+
+        const earnedTypes = new Set(userAchievements.map(a => a.type));
+        const unearned = allDefinitions.filter(d => !earnedTypes.has(d.type));
+
+        const achievementResponse = userLanguage === 'fil'
+          ? `Narito ang iyong mga achievement! 🎖️\n\n**Total Points:** ${totalPoints} pts\n**Achievements Earned:** ${achievementCount}/${allDefinitions.length}\n\nMaaari mong tingnan ang lahat ng iyong achievements sa **Achievements** page.`
+          : `Here are your achievements! 🎖️\n\n**Total Points:** ${totalPoints} pts\n**Achievements Earned:** ${achievementCount}/${allDefinitions.length}\n\nYou can view all your achievements on the **Achievements** page.`;
+
+        const interaction = await prisma.aIInteraction.create({
+          data: {
+            userId,
+            type: AIInteractionType.QUESTION,
+            context: 'achievement_query',
+            userMessage: message,
+            aiResponse: achievementResponse,
+          },
+        });
+
+        return res.json({
+          response: achievementResponse,
+          showAchievements: true,
+          achievementData: {
+            earned: userAchievements.map(a => ({
+              id: a.id,
+              type: a.type,
+              title: a.Definition?.title || a.title || a.type,
+              description: a.Definition?.description || a.description || '',
+              icon: a.Definition?.icon || a.icon || '🏅',
+              points: a.points,
+              earnedAt: a.earnedAt
+            })),
+            totalPoints,
+            totalEarned: achievementCount,
+            totalAvailable: allDefinitions.length,
+            nextToEarn: unearned.slice(0, 3).map(d => ({
+              type: d.type,
+              title: d.title,
+              description: d.description,
+              icon: d.icon || '🎯',
+              points: d.points
+            }))
+          },
+          suggestions: userLanguage === 'fil'
+            ? ['Paano makakuha ng mas maraming points?', 'Ano ang leaderboard?', 'Tingnan ang aking progress']
+            : ['How do I earn more points?', 'What is the leaderboard?', 'View my progress'],
+          interactionId: interaction.id,
+          timestamp: interaction.createdAt,
+          intent: 'achievement_query'
+        });
+      } catch (error) {
+        console.error('Achievement query error:', error);
+        // Fall through to normal AI response
+      }
+    }
+
+    // STEP 0.8: Check if user is asking about faculty consultation schedules/bookings
+    const facultyScheduleKeywords = /schedule.*faculty|faculty.*schedule|booking.*faculty|faculty.*booking|available.*slot|slot.*available|when.*available|kailan.*available/i;
+    const isFacultyScheduleQuery = facultyScheduleKeywords.test(message) && !isConsultationRequest;
+
+    if (isFacultyScheduleQuery) {
+      try {
+        // Extract faculty name from message
+        const nameMatch = message.match(/(?:schedule|booking|available).*(?:of|for|ni|kay)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i);
+        let facultyName = nameMatch ? nameMatch[1].trim() : '';
+
+        // Note: extractedEntities will be populated later in the flow
+        // For now, we'll just use the name from the message
+
+        if (facultyName) {
+          const nameParts = facultyName.split(/\s+/);
+          const faculty = await prisma.faculty.findFirst({
+            where: {
+              OR: nameParts.flatMap((part: string) => [
+                { firstName: { contains: part, mode: 'insensitive' as const } },
+                { lastName: { contains: part, mode: 'insensitive' as const } }
+              ])
+            }
+          });
+
+          if (faculty) {
+            // Get existing bookings for this faculty
+            const existingBookings = await prisma.consultationBooking.findMany({
+              where: {
+                facultyId: faculty.id,
+                status: { in: ['PENDING', 'CONFIRMED'] },
+                date: { gte: new Date() }
+              },
+              orderBy: { date: 'asc' },
+              take: 10,
+              include: {
+                Student: {
+                  select: { firstName: true, lastName: true }
+                }
+              }
+            });
+
+            const bookingsList = existingBookings.length > 0
+              ? existingBookings.map(b => 
+                  `• ${new Date(b.date).toLocaleDateString()} ${b.startTime}-${b.endTime} (${b.status})`
+                ).join('\n')
+              : userLanguage === 'fil' ? 'Walang existing bookings.' : 'No existing bookings.';
+
+            const scheduleResponse = userLanguage === 'fil'
+              ? `**${faculty.firstName} ${faculty.lastName}** - ${faculty.position}\n\n📅 **Consultation Schedule:**\n• Araw: ${faculty.consultationDays?.join(', ') || 'TBA'}\n• Oras: ${faculty.consultationStart || 'TBA'} - ${faculty.consultationEnd || 'TBA'}\n\n📋 **Existing Bookings:**\n${bookingsList}\n\nGusto mo bang mag-book ng consultation?`
+              : `**${faculty.firstName} ${faculty.lastName}** - ${faculty.position}\n\n📅 **Consultation Schedule:**\n• Days: ${faculty.consultationDays?.join(', ') || 'TBA'}\n• Time: ${faculty.consultationStart || 'TBA'} - ${faculty.consultationEnd || 'TBA'}\n\n📋 **Existing Bookings:**\n${bookingsList}\n\nWould you like to book a consultation?`;
+
+            const interaction = await prisma.aIInteraction.create({
+              data: {
+                userId,
+                type: AIInteractionType.QUESTION,
+                context: 'faculty_schedule_query',
+                userMessage: message,
+                aiResponse: scheduleResponse,
+              },
+            });
+
+            return res.json({
+              response: scheduleResponse,
+              showConsultationBooking: true,
+              consultationData: {
+                faculty: [faculty],
+                selectedFaculty: faculty,
+                existingBookings: existingBookings.map(b => ({
+                  date: b.date,
+                  startTime: b.startTime,
+                  endTime: b.endTime,
+                  status: b.status
+                }))
+              },
+              suggestions: userLanguage === 'fil'
+                ? ['Book consultation', 'Tingnan ibang faculty', 'Ano ang office hours?']
+                : ['Book consultation', 'View other faculty', 'What are the office hours?'],
+              interactionId: interaction.id,
+              timestamp: interaction.createdAt,
+              intent: 'faculty_schedule_query'
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Faculty schedule query error:', error);
+        // Fall through to normal AI response
+      }
+    }
+
+    // STEP 0.9: Detect gibberish/unclear input and ask for clarification
+    const isGibberish = (text: string): boolean => {
+      const cleaned = text.trim().toLowerCase();
+      // Too short to be meaningful
+      if (cleaned.length < 2) return true;
+      
+      // Allow known acronyms and abbreviations (BSU, COS, IT, CS, etc.)
+      const knownAcronyms = ['bsu', 'cos', 'it', 'cs', 'bs', 'ms', 'phd', 'mt', 'ft', 'envi', 'sci', 'math', 'bio'];
+      const hasKnownAcronym = knownAcronyms.some(acr => cleaned.includes(acr));
+      if (hasKnownAcronym) return false;
+      
+      // No vowels AND longer than 3 chars (likely keyboard mashing, but allow short acronyms)
+      if (!/[aeiou]/i.test(cleaned) && cleaned.length > 3) return true;
+      
+      // Repeated characters (e.g., "asdasdasd", "aaaaa")
+      if (/(.)\1{3,}/.test(cleaned)) return true;
+      
+      // Random character sequences without real words
+      const words = cleaned.split(/\s+/);
+      const meaningfulWords = words.filter(w => {
+        // Check if word has vowel-consonant pattern typical of real words OR is a known acronym
+        return (/[aeiou]/i.test(w) && w.length >= 2 && w.length <= 20) || knownAcronyms.includes(w);
+      });
+      // If less than 50% of words seem meaningful and it's not a single short word
+      if (words.length > 1 && meaningfulWords.length / words.length < 0.5) return true;
+      
+      // Check for keyboard mashing patterns (only for longer strings)
+      const keyboardPatterns = /^[asdfghjklqwertyuiopzxcvbnm]{6,}$/i;
+      if (keyboardPatterns.test(cleaned.replace(/\s/g, ''))) {
+        // Additional check: does it contain any common English/Filipino words?
+        const commonWords = ['the', 'is', 'are', 'what', 'who', 'how', 'can', 'help', 'ano', 'sino', 'paano', 'hi', 'hello', 'bsu', 'cos'];
+        const hasCommonWord = commonWords.some(w => cleaned.includes(w));
+        if (!hasCommonWord) return true;
+      }
+      return false;
+    };
+
+    if (isGibberish(message)) {
+      const clarificationResponse = userLanguage === 'fil'
+        ? `Hindi ko lubos na naintindihan ang iyong mensahe. 🤔\n\nMaaari mo bang i-rephrase ang iyong tanong? Halimbawa:\n• "Ano ang mga programa sa College of Science?"\n• "Sino ang Dean ng COS?"\n• "Paano mag-enroll sa BSU?"\n\n**Paano kita matutulungan?**`
+        : `I didn't quite understand your message. 🤔\n\nCould you please rephrase your question? For example:\n• "What programs are offered in College of Science?"\n• "Who is the Dean of COS?"\n• "How do I enroll at BSU?"\n\n**How can I help you today?**`;
+
+      const interaction = await prisma.aIInteraction.create({
+        data: {
+          userId,
+          type: AIInteractionType.QUESTION,
+          context: 'unclear_input',
+          userMessage: message,
+          aiResponse: clarificationResponse,
+        },
+      });
+
+      return res.json({
+        response: clarificationResponse,
+        suggestions: getDefaultSuggestions(userLanguage),
+        interactionId: interaction.id,
+        timestamp: interaction.createdAt,
+        intent: 'clarification_needed'
+      });
+    }
+
     // STEP 1: Analyze query scope BEFORE processing
     const scopeAnalysis = analyzeQueryScope(message);
     
@@ -1076,11 +1518,13 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         timestamp: interaction.createdAt,
         scopeAnalysis: { inScope: false, category: scopeAnalysis.category }
       });
-      return;
     }
 
-    // STEP 3: Fetch last interaction for conversation continuity
+    // STEP 3: Fetch conversation history for context continuity (last 5 exchanges)
     let lastInteraction = null;
+    let conversationHistory: Array<{role: string; content: string}> = [];
+    let extractedEntities: string[] = []; // Names, topics mentioned in conversation
+    
     if (chatSessionId) {
       const chatSession = await prisma.chatSession.findUnique({
         where: { id: chatSessionId },
@@ -1089,6 +1533,33 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
       
       if (chatSession && Array.isArray(chatSession.messages)) {
         const msgs = chatSession.messages as Array<{role: string; content: string}>;
+        
+        // Get last 10 messages (5 exchanges) for better context
+        conversationHistory = msgs.slice(-10);
+        
+        // Extract entity references (names, topics) from conversation history
+        // This helps resolve pronouns like "him", "her", "it", "that program"
+        const entityPatterns = [
+          /(?:who is|sino si|about|tungkol kay)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/gi,
+          /\*\*([A-Z][a-z]+(?:\s+[A-Z]?\.?\s*[a-z]+)*)\*\*/g, // Bold names in AI responses
+          /([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:is a|ay)/gi, // "Name Name is a..."
+        ];
+        
+        for (const msg of msgs) {
+          for (const pattern of entityPatterns) {
+            const matches = msg.content.matchAll(pattern);
+            for (const match of matches) {
+              if (match[1] && match[1].length > 3) {
+                extractedEntities.push(match[1].trim());
+              }
+            }
+          }
+        }
+        
+        // Deduplicate entities
+        extractedEntities = [...new Set(extractedEntities)];
+        
+        // Get the last exchange for backward compatibility
         if (msgs.length >= 2) {
           const lastUserMsg = msgs.filter(m => m.role === 'user').pop();
           const lastAiMsg = msgs.filter(m => m.role === 'ai').pop();
@@ -1102,10 +1573,26 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         }
       }
     }
+    
+    // STEP 3.5: Resolve pronoun references in current message
+    // If user says "tell me more about him" or "provide full background", find the entity
+    const pronounPatterns = /\b(him|her|them|it|that person|that faculty|this person|about them|more about|full background|tell me more)\b/i;
+    const hasPronounReference = pronounPatterns.test(message);
+    
+    let resolvedMessage = message;
+    if (hasPronounReference && extractedEntities.length > 0) {
+      // Use the most recently mentioned entity
+      const lastEntity = extractedEntities[extractedEntities.length - 1];
+      console.log(`[AI Context] Resolving pronoun reference to: ${lastEntity}`);
+      
+      // Append context to the message for RAG retrieval
+      resolvedMessage = `${message} (referring to ${lastEntity})`;
+    }
 
     // STEP 4: Retrieve comprehensive RAG context from database
     // This is the ONLY source of truth for AI responses
-    const ragContext = await retrieveRAGContext(message);
+    // Use resolvedMessage which includes entity context for follow-up questions
+    const ragContext = await retrieveRAGContext(resolvedMessage);
 
     // STEP 5: Check for course recommendation queries
     const isRecommendationQuery = /recommend|best course|what course|which program|should i take|want to become|career/i.test(message);
@@ -1124,7 +1611,8 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
       message, 
       ragContext,
       lastInteraction,
-      userLanguage
+      userLanguage,
+      conversationHistory
     );
 
     // STEP 7: Generate smart follow-up suggestions
@@ -1291,7 +1779,7 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
     }
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are a quiz generator for educational purposes. Generate clear, educational multiple choice questions.' },
         { role: 'user', content: quizPrompt }
@@ -1302,11 +1790,22 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
 
     const responseText = completion.choices[0]?.message?.content || '[]';
     
-    // Parse the JSON response
-    let quiz;
+    // Parse the JSON response and normalize correctAnswer to number index (0-3)
+    let quiz: any[];
     try {
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      quiz = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      const raw: any[] = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      quiz = raw.map(q => {
+        let correctIndex: number;
+        if (typeof q.correctAnswer === 'string') {
+          const letter = q.correctAnswer.trim().toUpperCase().charAt(0);
+          correctIndex = ['A', 'B', 'C', 'D'].indexOf(letter);
+          if (correctIndex === -1) correctIndex = 0;
+        } else {
+          correctIndex = Number(q.correctAnswer);
+        }
+        return { ...q, correctAnswer: correctIndex };
+      });
     } catch {
       quiz = [];
     }

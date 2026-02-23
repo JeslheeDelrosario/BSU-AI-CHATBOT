@@ -512,6 +512,8 @@ export default function ClassroomDetail() {
     try {
       await api.put(`/classrooms/join-requests/${requestId}/review`, { status, role: 'STUDENT' });
       await fetchJoinRequests();
+      // Reload page to clear cache and show updated member list
+      window.location.reload();
     } catch (error) {
       console.error('Failed to review join request:', error);
     }
