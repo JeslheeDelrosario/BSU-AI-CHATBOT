@@ -1569,160 +1569,160 @@ const handleCreateLesson = async () => {
                   quillRef={editQuillRef}
                 />
               </div>
-            {/* Quiz */}
-            {editingLesson.type === 'QUIZ' && (
-  <div className="mt-8 space-y-6 border-t border-gray-300 dark:border-gray-700 pt-6">
-    <h4 className="text-xl font-bold text-gray-800 dark:text-purple-300">
-      Quiz Questions
-    </h4>
+              {/* Quiz */}
+              {editingLesson.type === 'QUIZ' && (
+                <div className="mt-8 space-y-6 border-t border-gray-300 dark:border-gray-700 pt-6">
+                  <h4 className="text-xl font-bold text-gray-800 dark:text-purple-300">
+                    Quiz Questions
+                  </h4>
 
-    {quizQuestions.length === 0 && (
-      <p className="text-gray-500 dark:text-gray-400 italic">
-        No questions added yet. Add at least one below.
-      </p>
-    )}
+                  {quizQuestions.length === 0 && (
+                    <p className="text-gray-500 dark:text-gray-400 italic">
+                      No questions added yet. Add at least one below.
+                    </p>
+                  )}
 
-    {quizQuestions.map((q, qIdx) => (
-      <div
-        key={qIdx}
-        className={`
-          p-5 rounded-xl border relative
-          bg-white dark:bg-black/40
-          border-gray-300 dark:border-purple-500/30
-          shadow-sm dark:shadow-none
-        `}
-      >
-        {/* Remove button – red in both modes, but softer in light */}
-        <button
-          onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
-          className={`
-            absolute top-3 right-3 text-sm font-medium
-            text-red-600 hover:text-red-700
-            dark:text-red-400 dark:hover:text-red-300
-            transition-colors
-          `}
-        >
-          Remove
-        </button>
+                  {quizQuestions.map((q, qIdx) => (
+                    <div
+                      key={qIdx}
+                      className={`
+                        p-5 rounded-xl border relative
+                        bg-white dark:bg-black/40
+                        border-gray-300 dark:border-purple-500/30
+                        shadow-sm dark:shadow-none
+                      `}
+                    >
+                      {/* Remove button – red in both modes, but softer in light */}
+                      <button
+                        onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIdx))}
+                        className={`
+                          absolute top-3 right-3 text-sm font-medium
+                          text-red-600 hover:text-red-700
+                          dark:text-red-400 dark:hover:text-red-300
+                          transition-colors
+                        `}
+                      >
+                        Remove
+                      </button>
 
-        <div className="mb-4">
-          <label className="block mb-1 font-medium text-gray-700 dark:text-purple-200">
-            Question {qIdx + 1}
-          </label>
-          <input
-            type="text"
-            value={q.text}
-            onChange={(e) => {
-              const updated = [...quizQuestions];
-              updated[qIdx].text = e.target.value;
-              setQuizQuestions(updated);
-            }}
-            className={`
-              w-full p-3 rounded-xl border
-              bg-gray-50 dark:bg-gray-800
-              border-gray-300 dark:border-gray-700
-              text-gray-900 dark:text-white
-              placeholder-gray-400 dark:placeholder-gray-500
-              focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
-              transition-all
-            `}
-            placeholder="Enter question text here..."
-          />
-        </div>
+                      <div className="mb-4">
+                        <label className="block mb-1 font-medium text-gray-700 dark:text-purple-200">
+                          Question {qIdx + 1}
+                        </label>
+                        <input
+                          type="text"
+                          value={q.text}
+                          onChange={(e) => {
+                            const updated = [...quizQuestions];
+                            updated[qIdx].text = e.target.value;
+                            setQuizQuestions(updated);
+                          }}
+                          className={`
+                            w-full p-3 rounded-xl border
+                            bg-gray-50 dark:bg-gray-800
+                            border-gray-300 dark:border-gray-700
+                            text-gray-900 dark:text-white
+                            placeholder-gray-400 dark:placeholder-gray-500
+                            focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                            transition-all
+                          `}
+                          placeholder="Enter question text here..."
+                        />
+                      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
-            <div key={optIdx} className="flex items-center gap-3">
-              <span className="text-gray-500 dark:text-gray-400 w-6 font-medium">
-                {letter}.
-              </span>
-              <input
-                type="text"
-                value={q.options[optIdx] || ''}
-                onChange={(e) => {
-                  const updated = [...quizQuestions];
-                  updated[qIdx].options[optIdx] = e.target.value;
-                  setQuizQuestions(updated);
-                }}
-                className={`
-                  flex-1 p-2.5 rounded-lg border
-                  bg-gray-50 dark:bg-gray-800
-                  border-gray-300 dark:border-gray-700
-                  text-gray-900 dark:text-white
-                  placeholder-gray-400 dark:placeholder-gray-500
-                  focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
-                  transition-all
-                `}
-                placeholder={`Option ${letter}`}
-              />
-              <input
-                type="radio"
-                name={`correct-${qIdx}`}
-                checked={q.correctIndex === optIdx}
-                onChange={() => {
-                  const updated = [...quizQuestions];
-                  updated[qIdx].correctIndex = optIdx;
-                  setQuizQuestions(updated);
-                }}
-                className={`
-                  w-5 h-5
-                  text-purple-600 dark:text-purple-500
-                  border-gray-300 dark:border-gray-600
-                  focus:ring-purple-500
-                  cursor-pointer
-                `}
-              />
-            </div>
-          ))}
-        </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        {['A', 'B', 'C', 'D'].map((letter, optIdx) => (
+                          <div key={optIdx} className="flex items-center gap-3">
+                            <span className="text-gray-500 dark:text-gray-400 w-6 font-medium">
+                              {letter}.
+                            </span>
+                            <input
+                              type="text"
+                              value={q.options[optIdx] || ''}
+                              onChange={(e) => {
+                                const updated = [...quizQuestions];
+                                updated[qIdx].options[optIdx] = e.target.value;
+                                setQuizQuestions(updated);
+                              }}
+                              className={`
+                                flex-1 p-2.5 rounded-lg border
+                                bg-gray-50 dark:bg-gray-800
+                                border-gray-300 dark:border-gray-700
+                                text-gray-900 dark:text-white
+                                placeholder-gray-400 dark:placeholder-gray-500
+                                focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
+                                transition-all
+                              `}
+                              placeholder={`Option ${letter}`}
+                            />
+                            <input
+                              type="radio"
+                              name={`correct-${qIdx}`}
+                              checked={q.correctIndex === optIdx}
+                              onChange={() => {
+                                const updated = [...quizQuestions];
+                                updated[qIdx].correctIndex = optIdx;
+                                setQuizQuestions(updated);
+                              }}
+                              className={`
+                                w-5 h-5
+                                text-purple-600 dark:text-purple-500
+                                border-gray-300 dark:border-gray-600
+                                focus:ring-purple-500
+                                cursor-pointer
+                              `}
+                            />
+                          </div>
+                        ))}
+                      </div>
 
-        <textarea
-          placeholder="Explanation / feedback (optional)"
-          value={q.explanation || ''}
-          onChange={(e) => {
-            const updated = [...quizQuestions];
-            updated[qIdx].explanation = e.target.value;
-            setQuizQuestions(updated);
-          }}
-          className={`
-            w-full p-3 rounded-xl border resize-none h-20
-            bg-gray-50 dark:bg-gray-800
-            border-gray-300 dark:border-gray-700
-            text-gray-900 dark:text-white
-            placeholder-gray-400 dark:placeholder-gray-500
-            focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
-            transition-all
-          `}
-        />
-      </div>
-    ))}
+                      <textarea
+                        placeholder="Explanation / feedback (optional)"
+                        value={q.explanation || ''}
+                        onChange={(e) => {
+                          const updated = [...quizQuestions];
+                          updated[qIdx].explanation = e.target.value;
+                          setQuizQuestions(updated);
+                        }}
+                        className={`
+                          w-full p-3 rounded-xl border resize-none h-20
+                          bg-gray-50 dark:bg-gray-800
+                          border-gray-300 dark:border-gray-700
+                          text-gray-900 dark:text-white
+                          placeholder-gray-400 dark:placeholder-gray-500
+                          focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
+                          transition-all
+                        `}
+                      />
+                    </div>
+                  ))}
 
-    <button
-      type="button"
-      onClick={() => {
-        setQuizQuestions([
-          ...quizQuestions,
-          {
-            text: '',
-            options: ['', '', '', ''],
-            correctIndex: 0,
-            explanation: '',
-          },
-        ]);
-      }}
-      className={`
-        w-full py-3 rounded-xl font-medium text-white
-        bg-gradient-to-r from-purple-600 to-pink-600
-        hover:from-purple-700 hover:to-pink-700
-        dark:from-purple-700 dark:to-pink-700
-        dark:hover:from-purple-600 dark:hover:to-pink-600
-        transition-all duration-200 shadow-sm hover:shadow
-      `}
-    >
-      + Add New Question
-    </button>
-  </div>
-)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuizQuestions([
+                        ...quizQuestions,
+                        {
+                          text: '',
+                          options: ['', '', '', ''],
+                          correctIndex: 0,
+                          explanation: '',
+                        },
+                      ]);
+                    }}
+                    className={`
+                      w-full py-3 rounded-xl font-medium text-white
+                      bg-gradient-to-r from-purple-600 to-pink-600
+                      hover:from-purple-700 hover:to-pink-700
+                      dark:from-purple-700 dark:to-pink-700
+                      dark:hover:from-purple-600 dark:hover:to-pink-600
+                      transition-all duration-200 shadow-sm hover:shadow
+                    `}
+                  >
+                    + Add New Question
+                  </button>
+                </div>
+              )}
 
 
               {/* Grid picker */}

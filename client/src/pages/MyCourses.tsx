@@ -40,7 +40,7 @@ export default function MyCourses() {
 
       {/* Page Title */}
       <div className="text-center mb-12 lg:mb-14 px-6">
-        <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 leading-tight">
+        <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent pb-3 mb-4 leading-tight">
           {t.courses.myCourses}
         </h1>
         <p className="text-xl md:text-2xl text-slate-700 dark:text-gray-300 font-light tracking-wide">

@@ -19,15 +19,18 @@ export default function LessonViewer() {
   const MIN_TIME_TO_COMPLETE = 0; // 30 seconds – change to 0 for instant complete
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
-  const [submittedQuestions, setSubmittedQuestions] = useState<Set<number>>(new Set());
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<number, string>
+  >({});
+  const [submittedQuestions, setSubmittedQuestions] = useState<Set<number>>(
+    new Set(),
+  );
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
   const [showMissingWarning, setShowMissingWarning] = useState(false);
   const [courseLessons, setCourseLessons] = useState<any[]>([]);
 
-  
   const fetchLesson = async () => {
     try {
       const response = await api.get(`/lessons/${id}`);
@@ -36,13 +39,15 @@ export default function LessonViewer() {
       // Clean inline dark colors that break dark mode
       if (fetchedLesson.content) {
         // Type the callback parameters to satisfy TypeScript
-        const cleanedContent = fetchedLesson.content.replace(
-          /style\s*=\s*["']([^"']*)color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)[^"']*["']/gi,
-          (match: string, p1: string) => `style="${p1}"`  // Keep other styles, remove only the bad color part
-        ).replace(
-          /color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)/gi,
-          ''  // Remove any remaining color properties
-        );
+        const cleanedContent = fetchedLesson.content
+          .replace(
+            /style\s*=\s*["']([^"']*)color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)[^"']*["']/gi,
+            (match: string, p1: string) => `style="${p1}"`, // Keep other styles, remove only the bad color part
+          )
+          .replace(
+            /color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)/gi,
+            "", // Remove any remaining color properties
+          );
 
         fetchedLesson = {
           ...fetchedLesson,
@@ -55,25 +60,43 @@ export default function LessonViewer() {
 
       setCourseLessons(response.data.courseLessons || []);
 
-
       // Parse quiz data if needed
-      if (fetchedLesson.type === 'QUIZ' && fetchedLesson.content) {
+      if (fetchedLesson.type === "QUIZ" && fetchedLesson.content) {
         try {
           const parsed = JSON.parse(fetchedLesson.content);
           setQuizData({
-            instructions: parsed.instructions || 'Answer the following questions.',
+            instructions:
+              parsed.instructions || "Answer the following questions.",
             questions: parsed.questions || [],
           });
         } catch (parseError) {
-          console.error('Failed to parse quiz JSON:', parseError);
+          console.error("Failed to parse quiz JSON:", parseError);
         }
       }
+
+      const saved = localStorage.getItem(`quiz-state-${id}`);
+      if (saved) {
+        try {
+          const s = JSON.parse(saved);
+          setSelectedAnswers(s.selectedAnswers || {});
+          setCurrentQuestionIndex(s.currentQuestionIndex || 0);
+          setSubmittedQuestions(new Set(s.submittedQuestions || []));
+          setShowQuizResult(s.showQuizResult || false);
+          setQuizScore(s.quizScore || 0);
+          setTimeTaken(s.timeTaken || 0);
+        } catch (e) {
+          console.error("Failed to restore quiz state from localStorage:", e);
+        }
+      }
+      
     } catch (error) {
-      console.error('Failed to fetch lesson:', error);
+      console.error("Failed to fetch lesson:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const isQuiz = lesson?.type === "QUIZ";
 
   // Quiz states
   const [quizData, setQuizData] = useState<{
@@ -85,18 +108,19 @@ export default function LessonViewer() {
     }>;
   } | null>(null);
 
-  const isLastQuestion =currentQuestionIndex === (quizData?.questions.length || 0) - 1;
-  const allAnswered = Object.keys(selectedAnswers).length === (quizData?.questions.length || 0);
+  const isLastQuestion =
+    currentQuestionIndex === (quizData?.questions.length || 0) - 1;
+  const allAnswered =
+    Object.keys(selectedAnswers).length === (quizData?.questions.length || 0);
 
   const lessonTypeDisplay: Record<string, string> = {
-    TEXT: 'Reading',
-    READ: 'Reading',
-    VIDEO: 'Video',
-    AUDIO: 'Audio',
-    QUIZ: 'Quiz',
-    INTERACTIVE: 'Interactive',
-    ASSIGNMENT: 'Assignment',
-    
+    TEXT: "Reading",
+    READ: "Reading",
+    VIDEO: "Video",
+    AUDIO: "Audio",
+    QUIZ: "Quiz",
+    INTERACTIVE: "Interactive",
+    ASSIGNMENT: "Assignment",
   };
 
   useEffect(() => {
@@ -111,7 +135,7 @@ export default function LessonViewer() {
 
   // NEW: Timer for non-quiz lessons – enable complete button after min time
   useEffect(() => {
-    if (!lesson || lesson.type === 'QUIZ' || progress?.completed) return;
+    if (!lesson || lesson.type === "QUIZ" || progress?.completed) return;
 
     const timer = setTimeout(() => {
       setCanComplete(true);
@@ -120,15 +144,41 @@ export default function LessonViewer() {
     return () => clearTimeout(timer);
   }, [lesson, progress]);
 
+  
+  // Save quiz progress/answers/result to localStorage so it survives refresh
+  useEffect(() => {
+    if (!id || !isQuiz) return;
+
+    const state = {
+      selectedAnswers,
+      currentQuestionIndex,
+      submittedQuestions: Array.from(submittedQuestions),
+      showQuizResult,
+      quizScore,
+      timeTaken,
+    };
+
+    localStorage.setItem(`quiz-state-${id}`, JSON.stringify(state));
+  }, [
+    id,
+    isQuiz,
+    selectedAnswers,
+    currentQuestionIndex,
+    submittedQuestions,
+    showQuizResult,
+    quizScore,
+    timeTaken,
+  ]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins} min ${secs} sec` : `${secs} sec`;
   };
 
-  
-
-  const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+  const getYouTubeEmbedUrl = (
+    url: string | null | undefined,
+  ): string | null => {
     if (!url) return null;
 
     // Common YouTube URL patterns
@@ -175,9 +225,9 @@ export default function LessonViewer() {
       setProgress({ ...progress, completed: true });
 
       showToast({
-        type: 'success',
-        title: 'Lesson Completed!',
-        message: 'Great job! You can now proceed to the next lesson.'
+        type: "success",
+        title: "Lesson Completed!",
+        message: "Great job! You can now proceed to the next lesson.",
       });
 
       // Auto-redirect back to course after 1.5 seconds
@@ -185,11 +235,11 @@ export default function LessonViewer() {
       //   navigate(`/courses/${lesson.courseId}`);
       // }, 30000);
     } catch (err: any) {
-      console.error('Failed to mark complete:', err);
+      console.error("Failed to mark complete:", err);
       showToast({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to mark lesson as complete. Try again.'
+        type: "error",
+        title: "Error",
+        message: "Failed to mark lesson as complete. Try again.",
       });
     } finally {
       setCompleting(false);
@@ -197,6 +247,30 @@ export default function LessonViewer() {
   };
 
   const handleGoToNext = () => {
+  
+    setShowQuizResult(false);
+
+    // Also update saved state → so if user comes back with browser back button later,
+    // the result panel stays hidden
+    if (id) {
+      const saved = localStorage.getItem(`quiz-state-${id}`);
+      if (saved) {
+        try {
+          const s = JSON.parse(saved);
+          localStorage.setItem(
+            `quiz-state-${id}`,
+            JSON.stringify({
+              ...s,
+              showQuizResult: false,
+            }),
+          );
+        } catch (e) {
+          console.warn("Could not update saved quiz state", e);
+        }
+      }
+    }
+
+    // Proceed to navigation
     if (nextLesson) {
       navigate(`/lessons/${nextLesson.id}`);
     } else {
@@ -204,25 +278,23 @@ export default function LessonViewer() {
     }
   };
 
-
   const handleSelectAnswer = (qIndex: number, optionText: string) => {
-    setSelectedAnswers(prev => ({ ...prev, [qIndex]: optionText }));
+    setSelectedAnswers((prev) => ({ ...prev, [qIndex]: optionText }));
   };
 
   const handleNext = () => {
     if (currentQuestionIndex < (quizData?.questions.length || 0) - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex((prev) => prev + 1);
     }
   };
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      setCurrentQuestionIndex((prev) => prev - 1);
     }
   };
 
   const handleSubmitQuiz = async () => {
-
     if (!allAnswered) {
       setShowMissingWarning(true);
       showToast({
@@ -241,7 +313,7 @@ export default function LessonViewer() {
 
     let correctCount = 0;
     quizData.questions.forEach((q, idx) => {
-      if (selectedAnswers[idx] === q.answers.find(a => a.isCorrect)?.text) {
+      if (selectedAnswers[idx] === q.answers.find((a) => a.isCorrect)?.text) {
         correctCount++;
       }
     });
@@ -263,7 +335,7 @@ export default function LessonViewer() {
         //   navigate(`/courses/${lesson.courseId}`);
         // }, 30000);
       } catch (err) {
-        console.error('Failed to save progress:', err);
+        console.error("Failed to save progress:", err);
       }
     }
 
@@ -271,6 +343,11 @@ export default function LessonViewer() {
   };
 
   const handleRetryQuiz = () => {
+    // Clear any saved progress → so retry starts completely fresh
+    if (id) {
+      localStorage.removeItem(`quiz-state-${id}`);
+    }
+
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
     setSubmittedQuestions(new Set());
@@ -281,11 +358,22 @@ export default function LessonViewer() {
 
   const getLessonIcon = (type: string) => {
     switch (type) {
-      case 'VIDEO': return <Video className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
-      case 'AUDIO': return <Headphones className="w-10 h-10 text-purple-600 dark:text-purple-400" />;
-      case 'TEXT': return <FileText className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
-      case 'QUIZ': return <Brain className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
-      default: return <FileText className="w-10 h-10 text-gray-500 dark:text-gray-400" />;
+      case "VIDEO":
+        return <Video className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
+      case "AUDIO":
+        return (
+          <Headphones className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+        );
+      case "TEXT":
+        return (
+          <FileText className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />
+        );
+      case "QUIZ":
+        return <Brain className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />;
+      default:
+        return (
+          <FileText className="w-10 h-10 text-gray-500 dark:text-gray-400" />
+        );
     }
   };
 
@@ -304,20 +392,23 @@ export default function LessonViewer() {
       </div>
     );
   }
-
+  
+  
   const currentLessonIndex = courseLessons.findIndex(
-    (l) => l.id === lesson?.id
+    (l) => l.id === lesson?.id,
   );
 
-  const nextLesson = currentLessonIndex !== -1 && currentLessonIndex < courseLessons.length - 1 ? courseLessons[currentLessonIndex + 1] : null;
-  const isQuiz = lesson.type === 'QUIZ';
+  const nextLesson = currentLessonIndex !== -1 && currentLessonIndex < courseLessons.length - 1
+    ? courseLessons[currentLessonIndex + 1]
+    : null;
+  
   const currentQuestion = quizData?.questions[currentQuestionIndex];
   const selectedAnswer = selectedAnswers[currentQuestionIndex];
   const isSubmitted = submittedQuestions.has(currentQuestionIndex);
-  
+
   const isCompleted = progress?.completed;
   const showNextButton = isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
-  
+
   const showCompleteButton = !isQuiz && !progress?.completed && canComplete;
   const youtubeEmbedSrc = getYouTubeEmbedUrl(lesson.videoUrl);
 

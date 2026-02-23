@@ -348,60 +348,125 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 /* =====================================================
-   GLOBAL SCROLLBAR STYLING
+   GLOBAL SCROLLBAR STYLING – Always Cyan
    ===================================================== */
 
-/* Light mode scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
-/* Scrollbar size – thin and modern */
-::-webkit-scrollbar {
-  width: 8px; /* vertical scrollbar thickness – 8px is balanced */
-  height: 8px; /* horizontal scrollbar thickness */
-}
-
-/* Track (background behind thumb) */
 ::-webkit-scrollbar-track {
-  background: #0a0a0a; /* almost black – blends perfectly with #000 bg */
-  border-left: 1px solid rgba(103, 232, 249, 0.06); /* very subtle cyan edge */
+  background: #0a0a0a;
+  border-left: 1px solid rgba(103, 232, 249, 0.06);
 }
 
-/* Thumb (the part you drag) */
 ::-webkit-scrollbar-thumb {
-  background: rgba(103, 232, 249, 0.35); /* soft semi-transparent cyan */
+  background: rgba(0, 225, 255, 0.35);
   border-radius: 6px;
-  border: 2px solid #0a0a0a; /* prevents color bleed on edges */
-  transition: all 0.3s ease;
+  border: 2px solid #0a0a0a;
 }
 
-/* Hover: brighter + glow */
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(103, 232, 249, 0.65);
-  box-shadow: 0 0 12px rgba(103, 232, 249, 0.5); /* matches your mouse glow */
+  box-shadow: 0 0 12px rgba(103, 232, 249, 0.5);
 }
 
-/* Active / dragging: vivid cyan + stronger glow */
 ::-webkit-scrollbar-thumb:active {
-  background: #22d3ee; /* strong cyan (#22d3ee) */
+  background: #22d3ee;
   box-shadow: 0 0 18px rgba(34, 211, 238, 0.7);
 }
 
-/* Corner piece (where vertical + horizontal scrollbars meet) */
 ::-webkit-scrollbar-corner {
   background: #0a0a0a;
 }
 
-/* Firefox native scrollbar support (thin + colors) */
+/* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(103, 232, 249, 0.35) #0a0a0a;
 }
 
-.dark * {
-  scrollbar-color: #475569 #1e293b;
+/* =====================================================
+   SIDEBAR SCROLLBAR – Cyan Theme
+   ===================================================== */
+
+aside {
+  scrollbar-width: thin;
+  scrollbar-color: #06b6d4 rgba(30, 41, 59, 0.65);
+}
+
+aside::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+aside::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.65);
+  border-radius: 12px;
+  margin: 4px 3px;
+}
+
+aside::-webkit-scrollbar-thumb {
+  background: #06b6d4;
+  border-radius: 12px;
+  border: 2px solid rgba(30, 41, 59, 0.65);
+}
+
+aside::-webkit-scrollbar-thumb:hover {
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+}
+
+aside::-webkit-scrollbar-thumb:active {
+  background: #67e8f9;
+  box-shadow: 0 0 14px rgba(103, 232, 249, 0.8);
+}
+
+.dark aside::-webkit-scrollbar-thumb {
+  background: #22d3ee;
+}
+
+.dark aside::-webkit-scrollbar-thumb:hover {
+  background: #67e8f9;
+  box-shadow: 0 0 14px rgba(103, 232, 249, 0.8);
+}
+
+/* Hide scrollbar by default, show on hover/scroll */
+aside {
+  scrollbar-width: none; /* Firefox – hidden by default */
+}
+
+aside::-webkit-scrollbar-thumb {
+  background: transparent; /* hidden by default */
+}
+
+aside:hover {
+  scrollbar-width: thin; /* Firefox – show on hover */
+  scrollbar-color: #06b6d4 rgba(30, 41, 59, 0.65);
+}
+
+aside:hover::-webkit-scrollbar-thumb {
+  background: #06b6d4; /* show on hover */
+}
+
+aside:hover::-webkit-scrollbar-thumb:hover {
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+}
+
+aside:hover::-webkit-scrollbar-thumb:active {
+  background: #67e8f9;
+  box-shadow: 0 0 14px rgba(103, 232, 249, 0.8);
+}
+
+.dark aside:hover::-webkit-scrollbar-thumb {
+  background: #22d3ee;
+}
+
+.dark aside:hover::-webkit-scrollbar-thumb:hover {
+  background: #67e8f9;
+  box-shadow: 0 0 14px rgba(103, 232, 249, 0.8);
 }
 
 /* =====================================================

@@ -88,7 +88,7 @@ export default function Dashboard() {
     <div className="py-10 lg:py-16">
       {/* Welcome Header */}
       <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 mb-12 shadow-2xl">
-        <h1 className="text-4xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <h1 className="text-4xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent pb-3">
           {t.dashboard.welcome}, {user?.firstName}!
         </h1>
         <p className="text-xl lg:text-2xl text-slate-700 dark:text-gray-300 mt-4 font-light tracking-wide">

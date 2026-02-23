@@ -281,7 +281,7 @@ export default function Consultations() {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-10">
-        <h1 className="text-4xl lg:text-5xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-4">
+        <h1 className="text-4xl lg:text-5xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-4 pb-3">
           {settings.language === 'fil' ? 'Konsultasyon sa Faculty' : 'Faculty Consultations'}
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-400">
