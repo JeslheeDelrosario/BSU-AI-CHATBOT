@@ -38,6 +38,8 @@ import {
   Zap,
   ArrowUp,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface TrendingTopic {
@@ -159,6 +161,13 @@ export default function Forums() {
   // Pagination
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  // Comments state for inline commenting
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [commentsLoading, setCommentsLoading] = useState<Record<string, boolean>>({});
+  const [newComment, setNewComment] = useState<Record<string, string>>({});
+  const [submittingComment, setSubmittingComment] = useState<Record<string, boolean>>({});
 
   const isFilipino = settings.language === 'fil';
 
@@ -357,6 +366,67 @@ export default function Forums() {
       );
     } catch (error) {
       console.error('Failed to react:', error);
+    }
+  };
+
+  // Fetch comments for a post
+  const fetchComments = async (postId: string) => {
+    try {
+      setCommentsLoading(prev => ({ ...prev, [postId]: true }));
+      const response = await api.get(`/forums/posts/${postId}/comments`);
+      setComments(prev => ({ ...prev, [postId]: response.data.comments || [] }));
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+    } finally {
+      setCommentsLoading(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  // Toggle comments section
+  const toggleComments = (postId: string) => {
+    if (expandedPost === postId) {
+      setExpandedPost(null);
+    } else {
+      setExpandedPost(postId);
+      if (!comments[postId]) {
+        fetchComments(postId);
+      }
+    }
+  };
+
+  // Submit comment
+  const handleSubmitComment = async (postId: string) => {
+    const content = newComment[postId]?.trim();
+    if (!content) return;
+
+    try {
+      setSubmittingComment(prev => ({ ...prev, [postId]: true }));
+      const response = await api.post(`/forums/posts/${postId}/comments`, { content });
+      const newCommentData = response.data.comment || response.data;
+      
+      setComments(prev => ({
+        ...prev,
+        [postId]: [newCommentData, ...(prev[postId] || [])],
+      }));
+      setNewComment(prev => ({ ...prev, [postId]: '' }));
+      setPosts(prev => prev.map(p => 
+        p.id === postId ? { ...p, commentCount: p.commentCount + 1 } : p
+      ));
+
+      showToast({
+        type: 'success',
+        title: isFilipino ? 'Tagumpay' : 'Success',
+        message: isFilipino ? 'Naidagdag ang komento' : 'Comment added',
+      });
+    } catch (error: any) {
+      console.error('Failed to submit comment:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.error || (isFilipino ? 'Hindi maidagdag ang komento' : 'Failed to add comment'),
+      });
+    } finally {
+      setSubmittingComment(prev => ({ ...prev, [postId]: false }));
     }
   };
 
@@ -577,13 +647,22 @@ export default function Forums() {
             <Heart className={`w-4 h-4 ${post.userReaction ? 'fill-current' : ''}`} />
             <span>{post.likeCount}</span>
           </button>
-          <Link
-            to={`/forums/post/${post.id}`}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm font-medium text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/30 transition-all"
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleComments(post.id);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              expandedPost === post.id
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/30'
+            }`}
           >
             <MessageCircle className="w-4 h-4" />
             <span>{post.commentCount}</span>
-          </Link>
+            {expandedPost === post.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -619,14 +698,95 @@ export default function Forums() {
           </button>
         )}
       </div>
+
+      {/* Inline Comments Section */}
+      {expandedPost === post.id && (
+        <div className="border-t border-white/10 bg-white/[0.02] p-5 mt-4">
+          {/* Comment Input */}
+          {user && !post.isLocked && (
+            <div className="flex gap-3 mb-4">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                {user.firstName?.[0] || 'U'}
+              </div>
+              <div className="flex-1 flex gap-2">
+                <input
+                  type="text"
+                  value={newComment[post.id] || ''}
+                  onChange={e => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmitComment(post.id)}
+                  placeholder={isFilipino ? 'Mag-komento...' : 'Write a comment...'}
+                  className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-foreground placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                />
+                <button
+                  onClick={() => handleSubmitComment(post.id)}
+                  disabled={!newComment[post.id]?.trim() || submittingComment[post.id]}
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2"
+                >
+                  {submittingComment[post.id] ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {post.isLocked && (
+            <div className="flex items-center gap-2 text-amber-400 text-sm mb-4 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+              <Lock className="w-4 h-4" />
+              {isFilipino ? 'Naka-lock ang mga komento sa post na ito' : 'Comments are locked on this post'}
+            </div>
+          )}
+
+          {/* Comments List */}
+          {commentsLoading[post.id] ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+            </div>
+          ) : comments[post.id]?.length > 0 ? (
+            <div className="space-y-3">
+              {comments[post.id].map((comment: any) => (
+                <div key={comment.id} className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    {comment.Author?.avatar ? (
+                      <img src={comment.Author.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      comment.Author?.firstName?.[0] || '?'
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-sm text-slate-900 dark:text-white">
+                          {comment.Author?.firstName} {comment.Author?.lastName}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {new Date(comment.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-gray-300">{comment.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-slate-500 py-4">
+              {isFilipino ? 'Walang komento pa' : 'No comments yet'}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 
   // Render community card
   const renderCommunityCard = (community: Community) => (
-    <div
+    <Link
+      to={`/forums/c/${community.slug}`}
       key={community.id}
-      className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-cyan-500/30 transition-all duration-300 group"
+      className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-cyan-500/30 transition-all duration-300 group block cursor-pointer"
     >
       {/* Cover */}
       <div className="h-28 bg-gradient-to-br from-cyan-500 via-purple-500 to-pink-500 relative">
@@ -665,11 +825,9 @@ export default function Forums() {
 
       {/* Content */}
       <div className="p-5 pt-10">
-        <Link to={`/forums/c/${community.slug}`}>
-          <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-cyan-400 transition-colors">
-            {community.name}
-          </h3>
-        </Link>
+        <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-cyan-400 transition-colors">
+          {community.name}
+        </h3>
         {community.description && (
           <p className="text-sm text-slate-500 dark:text-gray-400 mt-2 line-clamp-2 leading-relaxed">
             {community.description}
@@ -697,7 +855,7 @@ export default function Forums() {
               </span>
               {community.userRole !== 'OWNER' && (
                 <button
-                  onClick={() => handleLeaveCommunity(community.id)}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLeaveCommunity(community.id); }}
                   className="p-2.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl transition-all"
                   title={isFilipino ? 'Umalis' : 'Leave'}
                 >
@@ -707,7 +865,7 @@ export default function Forums() {
             </div>
           ) : (
             <button
-              onClick={() => handleJoinCommunity(community.id)}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleJoinCommunity(community.id); }}
               className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:scale-[1.02]"
             >
               <UserPlus className="w-4 h-4" />
@@ -718,7 +876,7 @@ export default function Forums() {
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 
   return (

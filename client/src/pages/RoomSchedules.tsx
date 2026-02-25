@@ -8,7 +8,7 @@ import {
   Building2, Search, Calendar, Clock, Users, MapPin, 
   ChevronLeft, ChevronRight, CheckCircle, XCircle,
   Wifi, Monitor, Projector, Zap, Eye, Activity, RefreshCw,
-  Grid3X3, List, ChevronDown, User, X, Radio, Sparkles
+  Grid3X3, List, ChevronDown, User, X, Radio, Sparkles, Download
 } from 'lucide-react';
 import api from '../lib/api';
 import Room3DFloorPlan from '../components/Room3DFloorPlan';
@@ -45,8 +45,8 @@ interface Room {
   isActive: boolean;
   Meetings: Meeting[];
   currentStatus: 'AVAILABLE' | 'OCCUPIED';
-  currentMeeting: Meeting | null;
-  nextMeeting: Meeting | null;
+  currentMeeting?: Meeting;
+  nextMeeting?: Meeting;
   virtualUsers?: VirtualUser[];
   onlineCount?: number;
 }
@@ -94,11 +94,13 @@ export default function RoomSchedules() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [buildings, setBuildings] = useState<string[]>([]);
   const [roomTypes, setRoomTypes] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBuilding, setFilterBuilding] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterProgram, setFilterProgram] = useState('');
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [simulationRoom, setSimulationRoom] = useState<Room | null>(null);
@@ -145,8 +147,22 @@ export default function RoomSchedules() {
   const fetchFilters = useCallback(async () => {
     try {
       const [bRes, tRes] = await Promise.all([api.get('/rooms/buildings'), api.get('/rooms/types')]);
-      setBuildings(bRes.data || []);
+      const buildingList = bRes.data || [];
+      setBuildings(buildingList);
       setRoomTypes(tRes.data || []);
+      
+      // Extract programs/departments from building names
+      const programSet = new Set<string>();
+      buildingList.forEach((b: string) => {
+        if (b.includes('Computer Science')) programSet.add('Computer Science');
+        else if (b.includes('Biology')) programSet.add('Biology');
+        else if (b.includes('Chemistry')) programSet.add('Chemistry');
+        else if (b.includes('Physics')) programSet.add('Physics');
+        else if (b.includes('Mathematics')) programSet.add('Mathematics');
+        else if (b.includes('Science Complex')) programSet.add('Science Complex');
+        else programSet.add(b.replace(' Building', ''));
+      });
+      setPrograms(Array.from(programSet).sort());
     } catch (err) {
       console.error('Failed to fetch filters:', err);
     }
@@ -176,6 +192,14 @@ export default function RoomSchedules() {
   };
 
   const filteredRooms = rooms.filter(room => {
+    // Program filter
+    if (filterProgram) {
+      const buildingLower = room.building.toLowerCase();
+      const programLower = filterProgram.toLowerCase();
+      if (!buildingLower.includes(programLower)) return false;
+    }
+    
+    // Search filter
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     return room.name.toLowerCase().includes(q) || room.building.toLowerCase().includes(q) ||
@@ -185,6 +209,30 @@ export default function RoomSchedules() {
   const availableCount = filteredRooms.filter(r => r.currentStatus === 'AVAILABLE').length;
   const occupiedCount = filteredRooms.filter(r => r.currentStatus === 'OCCUPIED').length;
   const totalOnline = filteredRooms.reduce((sum, r) => sum + (r.onlineCount || 0), 0);
+
+  const exportSchedules = () => {
+    const headers = ['Room', 'Building', 'Floor', 'Capacity', 'Type', 'Status', 'Current Meeting', 'Start Time', 'End Time', 'Organizer'];
+    const rows = filteredRooms.map(room => [
+      room.name,
+      room.building,
+      room.floor?.toString() || '-',
+      room.capacity.toString(),
+      ROOM_TYPE_LABELS[room.type] || room.type,
+      room.currentStatus,
+      room.currentMeeting?.title || '-',
+      room.currentMeeting ? formatTime(room.currentMeeting.startTime) : '-',
+      room.currentMeeting ? formatTime(room.currentMeeting.endTime) : '-',
+      room.currentMeeting?.Organizer ? `${room.currentMeeting.Organizer.firstName} ${room.currentMeeting.Organizer.lastName}` : '-'
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `room-schedules-${formatDate(selectedDate)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   return (
     <div className="min-h-screen py-6 px-4 lg:px-8">
@@ -208,6 +256,13 @@ export default function RoomSchedules() {
               <Activity className="w-4 h-4 text-green-400" />
               <span className="text-sm text-slate-300">{totalOnline} students online</span>
             </div>
+            <button
+              onClick={exportSchedules}
+              className="p-2 rounded-xl bg-white/5 text-slate-400 hover:bg-purple-500/20 hover:text-purple-400 transition-colors"
+              title={fil ? 'I-export ang schedules' : 'Export Schedules (CSV)'}
+            >
+              <Download className="w-5 h-5" />
+            </button>
             <button
               onClick={() => { setIsAutoRefresh(!isAutoRefresh); if (!isAutoRefresh) fetchRooms(); }}
               className={`p-2 rounded-xl transition-colors ${isAutoRefresh ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/5 text-slate-400'}`}
@@ -275,10 +330,20 @@ export default function RoomSchedules() {
               )}
             </div>
 
+            {/* Program/Department */}
+            <div className="relative">
+              <select value={filterProgram} onChange={e => setFilterProgram(e.target.value)}
+                className="appearance-none px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[140px] [&::-ms-expand]:hidden">
+                <option value="">{fil ? 'Lahat ng Programa' : 'All Programs'}</option>
+                {programs.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+
             {/* Building */}
             <div className="relative">
               <select value={filterBuilding} onChange={e => setFilterBuilding(e.target.value)}
-                className="appearance-none px-4 py-3 pr-10 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[150px]">
+                className="appearance-none px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[150px] [&::-ms-expand]:hidden">
                 <option value="">{fil ? 'Lahat ng Building' : 'All Buildings'}</option>
                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
@@ -288,7 +353,7 @@ export default function RoomSchedules() {
             {/* Type */}
             <div className="relative">
               <select value={filterType} onChange={e => setFilterType(e.target.value)}
-                className="appearance-none px-4 py-3 pr-10 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[130px]">
+                className="appearance-none px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[130px] [&::-ms-expand]:hidden">
                 <option value="">{fil ? 'Lahat ng Uri' : 'All Types'}</option>
                 {roomTypes.map(t => <option key={t} value={t}>{ROOM_TYPE_LABELS[t] || t}</option>)}
               </select>
@@ -334,10 +399,10 @@ export default function RoomSchedules() {
             <Building2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-slate-300 mb-2">{fil ? 'Walang nahanap na silid' : 'No rooms found'}</h3>
             <p className="text-slate-500 mb-4">{searchQuery ? `No results for "${searchQuery}".` : 'No rooms match your filters.'}</p>
-            {(searchQuery || filterBuilding || filterType) && (
-              <button onClick={() => { setSearchQuery(''); setFilterBuilding(''); setFilterType(''); }}
+            {(searchQuery || filterBuilding || filterType || filterProgram) && (
+              <button onClick={() => { setSearchQuery(''); setFilterBuilding(''); setFilterType(''); setFilterProgram(''); }}
                 className="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-xl hover:bg-cyan-500/30 transition-colors">
-                Clear all filters
+                {fil ? 'I-clear lahat ng filter' : 'Clear all filters'}
               </button>
             )}
           </div>
@@ -444,8 +509,36 @@ export default function RoomSchedules() {
                     </div>
                   )}
 
-                  {!room.currentMeeting && !room.nextMeeting && (
+                  {!room.currentMeeting && !room.nextMeeting && room.Meetings.length === 0 && (
                     <p className="text-sm text-green-400 font-medium flex items-center gap-2"><CheckCircle className="w-4 h-4" />{fil ? 'Walang booking ngayon' : 'No bookings today'}</p>
+                  )}
+
+                  {/* Mini Schedule Timeline */}
+                  {room.Meetings.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-white/5">
+                      <p className="text-[10px] font-semibold text-slate-400 mb-2 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> {fil ? 'Iskedyul Ngayon' : "Today's Schedule"} ({room.Meetings.length})
+                      </p>
+                      <div className="space-y-1.5 max-h-24 overflow-y-auto">
+                        {room.Meetings.slice(0, 4).map(m => {
+                          const now = new Date();
+                          const start = new Date(m.startTime);
+                          const end = new Date(m.endTime);
+                          const isNow = start <= now && end >= now;
+                          const isPast = end < now;
+                          return (
+                            <div key={m.id} className={`flex items-center gap-2 p-1.5 rounded-lg text-[10px] ${isNow ? 'bg-red-500/20 border border-red-500/30' : isPast ? 'bg-white/5 opacity-50' : 'bg-white/5'}`}>
+                              <span className={`font-mono ${isNow ? 'text-red-400' : 'text-cyan-400'}`}>{formatTime(m.startTime)}</span>
+                              <span className="text-white truncate flex-1">{m.title}</span>
+                              {isNow && <span className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[8px] font-bold">LIVE</span>}
+                            </div>
+                          );
+                        })}
+                        {room.Meetings.length > 4 && (
+                          <p className="text-[10px] text-slate-500 text-center">+{room.Meetings.length - 4} more</p>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 

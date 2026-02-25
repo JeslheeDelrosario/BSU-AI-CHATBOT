@@ -33,6 +33,7 @@ import Achievements from './pages/Achievements';
 import Leaderboard from './pages/Leaderboard';
 import AdminGamification from './pages/AdminGamification';
 import Forums from './pages/Forums';
+import CommunityDetail from './pages/CommunityDetail';
 import RoomSchedules from './pages/RoomSchedules';
 
 // Admin Pages
@@ -91,7 +92,7 @@ function App() {
                   <Route path="/achievements" element={<Achievements />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/forums" element={<Forums />} />
-                  <Route path="/forums/*" element={<Forums />} />
+                  <Route path="/forums/c/:slug" element={<CommunityDetail />} />
                   <Route path="/room-schedules" element={<RoomSchedules />} />
 
                   {/* Admin Pages */}

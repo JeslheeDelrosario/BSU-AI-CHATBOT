@@ -29,12 +29,51 @@ interface GamificationPreview {
   topLeaderboard: { name: string; value: number; rank: number } | null;
 }
 
+interface RankProgress {
+  currentRank: {
+    type: string;
+    title: string;
+    icon: string;
+    color: string;
+    description: string;
+    earnedAt: string | null;
+  };
+  nextRank: {
+    type: string;
+    title: string;
+    icon: string;
+    color: string;
+    description: string;
+    requirementType: string;
+    currentValue: number;
+    targetValue: number;
+    percentage: number;
+  } | null;
+  stats: {
+    completedCourses: number;
+    completedLessons: number;
+    totalTimeSpentHours: number;
+    coursesEnrolled: number;
+  };
+}
+
+interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  name: string;
+  avatar: string | null;
+  value: number;
+  label: string;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { settings: accessibilitySettings } = useAccessibility();
   const t = useTranslation(accessibilitySettings.language);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [gamification, setGamification] = useState<GamificationPreview | null>(null);
+  const [rankProgress, setRankProgress] = useState<RankProgress | null>(null);
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,10 +82,11 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
-      const [dashRes, achRes, lbRes] = await Promise.allSettled([
+      const [dashRes, achRes, lbRes, rankRes] = await Promise.allSettled([
         api.get('/dashboard/stats'),
         api.get('/gamification/achievements/me'),
         api.get('/gamification/leaderboards'),
+        api.get('/gamification/rank/me'),
       ]);
 
       if (dashRes.status === 'fulfilled') setStats(dashRes.value.data);
@@ -55,11 +95,29 @@ export default function Dashboard() {
         const data = achRes.value.data;
         const leaderboards = lbRes.status === 'fulfilled' ? lbRes.value.data.leaderboards : [];
         let topLeaderboard = null;
+        let topEntries: LeaderboardEntry[] = [];
+        
         for (const lb of leaderboards) {
           const myEntry = lb.entries?.find((e: any) => e.userId === user?.id);
-          if (myEntry) { topLeaderboard = { name: lb.config.name, value: myEntry.value, rank: myEntry.rank }; break; }
+          if (myEntry) { topLeaderboard = { name: lb.config.name, value: myEntry.value, rank: myEntry.rank }; }
+          // Get top 5 entries from first leaderboard with entries
+          if (lb.entries?.length > 0 && topEntries.length === 0) {
+            topEntries = lb.entries.slice(0, 5).map((e: any) => ({
+              rank: e.rank,
+              userId: e.userId,
+              name: e.name,
+              avatar: e.avatar,
+              value: e.value,
+              label: lb.config.name
+            }));
+          }
         }
         setGamification({ earned: data.earned ?? [], totalPoints: data.totalPoints ?? 0, topLeaderboard });
+        setLeaderboardEntries(topEntries);
+      }
+
+      if (rankRes.status === 'fulfilled') {
+        setRankProgress(rankRes.value.data);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
@@ -101,6 +159,150 @@ export default function Dashboard() {
               : "Monitoring the future of learning — in real time."}
         </p>
       </div>
+
+      {/* Student Rank Card */}
+      {isStudent && rankProgress && (
+        <div className="max-w-7xl mx-auto px-6 mb-8">
+          <div className="backdrop-blur-2xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
+            <div className="flex flex-col lg:flex-row items-center gap-6">
+              {/* Current Rank */}
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <div className={`w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-gradient-to-br ${rankProgress.currentRank.color} flex items-center justify-center shadow-lg`}>
+                  <span className="text-4xl lg:text-5xl">{rankProgress.currentRank.icon}</span>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 dark:text-gray-400 uppercase tracking-wider font-medium">
+                    {accessibilitySettings.language === 'fil' ? 'Kasalukuyang Ranggo' : 'Current Rank'}
+                  </p>
+                  <h3 className="text-2xl lg:text-3xl font-black bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent">
+                    {rankProgress.currentRank.title}
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">{rankProgress.currentRank.description}</p>
+                </div>
+              </div>
+
+              {/* Progress to Next Rank */}
+              {rankProgress.nextRank && (
+                <div className="flex-1 w-full lg:w-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-slate-600 dark:text-gray-400">
+                      {accessibilitySettings.language === 'fil' ? 'Susunod na Ranggo' : 'Next Rank'}:
+                      <span className="ml-2 font-semibold text-slate-900 dark:text-white">{rankProgress.nextRank.icon} {rankProgress.nextRank.title}</span>
+                    </span>
+                    <span className="text-sm font-bold text-purple-400">{rankProgress.nextRank.percentage}%</span>
+                  </div>
+                  <div className="h-4 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full bg-gradient-to-r ${rankProgress.nextRank.color} rounded-full transition-all duration-500`}
+                      style={{ width: `${rankProgress.nextRank.percentage}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-gray-500 mt-2" title={rankProgress.nextRank.description}>
+                    {rankProgress.nextRank.requirementType === 'TIME_SPENT' && (
+                      <>{rankProgress.nextRank.currentValue}h / {rankProgress.nextRank.targetValue}h {accessibilitySettings.language === 'fil' ? 'oras ng pag-aaral' : 'learning time'}</>
+                    )}
+                    {rankProgress.nextRank.requirementType === 'COURSE_COMPLETION' && (
+                      <>{rankProgress.nextRank.currentValue} / {rankProgress.nextRank.targetValue} {accessibilitySettings.language === 'fil' ? 'kurso natapos' : 'courses completed'}</>
+                    )}
+                    {rankProgress.nextRank.requirementType === 'LESSON_COMPLETION' && (
+                      <>{rankProgress.nextRank.currentValue} / {rankProgress.nextRank.targetValue} {accessibilitySettings.language === 'fil' ? 'aralin natapos' : 'lessons completed'}</>
+                    )}
+                    {rankProgress.nextRank.requirementType === 'COMPOSITE' && (
+                      <>{accessibilitySettings.language === 'fil' ? 'Kumpletong kurso at oras ng pag-aaral' : 'Complete courses and learning time'}</>
+                    )}
+                    {rankProgress.nextRank.requirementType === 'ALL_COURSES' && (
+                      <>{rankProgress.nextRank.currentValue} / {rankProgress.nextRank.targetValue} {accessibilitySettings.language === 'fil' ? 'lahat ng kurso' : 'all courses'}</>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Max Rank Achieved */}
+              {!rankProgress.nextRank && (
+                <div className="flex-1 text-center lg:text-left">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500/20 rounded-full">
+                    <Crown className="w-5 h-5 text-yellow-400" />
+                    <span className="text-yellow-400 font-bold">
+                      {accessibilitySettings.language === 'fil' ? 'Pinakamataas na Ranggo!' : 'Maximum Rank Achieved!'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Completion Progress - Students Only */}
+      {isStudent && stats?.overview && (stats.overview.enrolledCourses || 0) > 0 && (
+        <div className="max-w-7xl mx-auto px-6 mb-8">
+          <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-cyan-400" />
+              {accessibilitySettings.language === 'fil' ? 'Progreso ng Kurso' : 'Course Progress'}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Enrolled vs Completed */}
+              <div className="p-4 bg-white/5 rounded-2xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-500">{accessibilitySettings.language === 'fil' ? 'Natapos' : 'Completed'}</span>
+                  <span className="text-sm font-bold text-cyan-400">
+                    {stats.overview.completedCourses || 0}/{stats.overview.enrolledCourses || 0}
+                  </span>
+                </div>
+                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500"
+                    style={{ width: `${stats.overview.enrolledCourses ? Math.round(((stats.overview.completedCourses || 0) / stats.overview.enrolledCourses) * 100) : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {stats.overview.enrolledCourses ? Math.round(((stats.overview.completedCourses || 0) / stats.overview.enrolledCourses) * 100) : 0}% {accessibilitySettings.language === 'fil' ? 'kumpleto' : 'complete'}
+                </p>
+              </div>
+
+              {/* Average Score */}
+              <div className="p-4 bg-white/5 rounded-2xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-500">{accessibilitySettings.language === 'fil' ? 'Avg na Marka' : 'Avg Score'}</span>
+                  <span className="text-sm font-bold text-purple-400">{Math.round(stats.overview.averageScore || 0)}%</span>
+                </div>
+                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      (stats.overview.averageScore || 0) >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                      (stats.overview.averageScore || 0) >= 60 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
+                      'bg-gradient-to-r from-red-500 to-orange-500'
+                    }`}
+                    style={{ width: `${stats.overview.averageScore || 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {(stats.overview.averageScore || 0) >= 80 ? (accessibilitySettings.language === 'fil' ? 'Mahusay!' : 'Excellent!') :
+                   (stats.overview.averageScore || 0) >= 60 ? (accessibilitySettings.language === 'fil' ? 'Magaling' : 'Good') :
+                   (accessibilitySettings.language === 'fil' ? 'Kailangan ng pagpapabuti' : 'Needs improvement')}
+                </p>
+              </div>
+
+              {/* Time Spent */}
+              <div className="p-4 bg-white/5 rounded-2xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-500">{accessibilitySettings.language === 'fil' ? 'Oras ng Pag-aaral' : 'Learning Time'}</span>
+                  <span className="text-sm font-bold text-green-400">{formatTime(stats.overview.totalTimeSpent || 0)}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Clock className="w-4 h-4 text-green-400" />
+                  <span className="text-xs text-slate-400">
+                    {rankProgress?.stats?.totalTimeSpentHours 
+                      ? `${Math.round(rankProgress.stats.totalTimeSpentHours * 10) / 10}h ${accessibilitySettings.language === 'fil' ? 'kabuuan' : 'total'}`
+                      : accessibilitySettings.language === 'fil' ? 'Patuloy na pag-aaral!' : 'Keep learning!'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12 max-w-7xl mx-auto px-6">
@@ -445,29 +647,57 @@ export default function Dashboard() {
                 </Link>
               </div>
 
-              {gamification.topLeaderboard ? (
-                <div className="p-5 bg-gradient-to-r from-cyan-500/20 to-purple-500/10 border border-cyan-500/30 rounded-2xl">
-                  <p className="text-sm text-slate-600 dark:text-gray-400 mb-1">
-                    {gamification.topLeaderboard.name}
-                  </p>
+              {/* Your Rank Banner */}
+              {gamification.topLeaderboard && (
+                <div className="p-4 bg-gradient-to-r from-cyan-500/20 to-purple-500/10 border border-cyan-500/30 rounded-2xl mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="text-4xl font-black text-cyan-400">
+                    <div className="text-3xl font-black text-cyan-400">
                       #{gamification.topLeaderboard.rank}
                     </div>
-                    <div>
-                      <p className="text-slate-900 dark:text-white font-bold">
-                        {accessibilitySettings.language === "fil"
-                          ? "Iyong Ranggo"
-                          : "Your Rank"}
+                    <div className="flex-1">
+                      <p className="text-slate-900 dark:text-white font-bold text-sm">
+                        {accessibilitySettings.language === "fil" ? "Iyong Ranggo" : "Your Rank"}
                       </p>
-                      <p className="text-sm text-slate-500 dark:text-gray-500">
-                        {gamification.topLeaderboard.value}{" "}
-                        {accessibilitySettings.language === "fil"
-                          ? "puntos"
-                          : "points"}
-                      </p>
+                      <p className="text-xs text-slate-500">{gamification.topLeaderboard.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-cyan-400 font-bold">{gamification.topLeaderboard.value}</p>
+                      <p className="text-xs text-slate-500">{accessibilitySettings.language === "fil" ? "puntos" : "points"}</p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Top Users List */}
+              {leaderboardEntries.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500 font-medium mb-3">
+                    {accessibilitySettings.language === "fil" ? "Nangungunang Mag-aaral" : "Top Students"}
+                  </p>
+                  {leaderboardEntries.map((entry, idx) => (
+                    <div key={entry.userId} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                      entry.userId === user?.id 
+                        ? 'bg-cyan-500/20 border border-cyan-500/30' 
+                        : 'bg-white/5 hover:bg-white/10'
+                    }`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        idx === 0 ? 'bg-yellow-500 text-black' :
+                        idx === 1 ? 'bg-slate-400 text-black' :
+                        idx === 2 ? 'bg-amber-600 text-white' :
+                        'bg-white/10 text-slate-400'
+                      }`}>
+                        {entry.rank}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium truncate ${entry.userId === user?.id ? 'text-cyan-400' : 'text-slate-900 dark:text-white'}`}>
+                          {entry.name} {entry.userId === user?.id && '(You)'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-slate-900 dark:text-white">{entry.value}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-6">

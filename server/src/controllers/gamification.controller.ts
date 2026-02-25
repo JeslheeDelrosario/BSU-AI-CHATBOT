@@ -95,15 +95,20 @@ export const getUserAchievements = async (req: AuthRequest, res: Response) => {
 
 export const evaluateAndAwardAchievements = async (userId: string): Promise<void> => {
   try {
-    const [definitions, alreadyEarned, enrollments, progress] = await Promise.all([
+    const [definitions, alreadyEarned, enrollments, progress, user] = await Promise.all([
       prisma.achievementDefinition.findMany({ where: { isActive: true } }),
       prisma.achievement.findMany({ where: { userId }, select: { type: true } }),
       prisma.enrollment.findMany({ where: { userId } }),
       prisma.progress.findMany({ where: { userId }, include: { Lesson: { select: { type: true } } } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
     ]);
 
     const earnedTypes = new Set(alreadyEarned.map(a => a.type));
     const completedCourses = enrollments.filter(e => e.status === 'COMPLETED').length;
+    const completedLessons = progress.filter(p => p.completed).length;
+    const totalTimeSpentMinutes = progress.reduce((sum, p) => sum + (p.timeSpent || 0), 0);
+    const totalTimeSpentHours = totalTimeSpentMinutes / 60;
+    
     // Quiz scores live in Progress for QUIZ-type lessons
     const quizProgress = progress.filter(p => p.completed && p.score !== null && (p as any).Lesson?.type === 'QUIZ');
     const correctAnswers = quizProgress.reduce((sum, p) => sum + Math.round(((p.score ?? 0) / 100) * 10), 0);
@@ -121,6 +126,13 @@ export const evaluateAndAwardAchievements = async (userId: string): Promise<void
       streak = temp;
     }
 
+    // Check if user has logged in (account exists)
+    const hasLoggedIn = !!user;
+    
+    // Get total courses in system for Master Scholar check
+    const totalCoursesInSystem = await prisma.course.count({ where: { status: 'PUBLISHED' } });
+    const hasCompletedAllCourses = completedCourses >= totalCoursesInSystem && totalCoursesInSystem > 0;
+
     const toAward: { type: AchievementType; title: string; description: string; icon: string; points: number; definitionId: string }[] = [];
 
     for (const def of definitions) {
@@ -128,11 +140,22 @@ export const evaluateAndAwardAchievements = async (userId: string): Promise<void
       let qualifies = false;
       switch (def.requirementType) {
         case 'COURSE_COMPLETION': qualifies = completedCourses >= def.requirementValue; break;
-        case 'LESSON_COMPLETION': qualifies = progress.filter(p => p.completed).length >= def.requirementValue; break;
+        case 'LESSON_COMPLETION': qualifies = completedLessons >= def.requirementValue; break;
         case 'CORRECT_ANSWERS': qualifies = correctAnswers >= def.requirementValue; break;
         case 'PERFECT_SCORE': qualifies = perfectScores >= def.requirementValue; break;
         case 'STREAK': qualifies = streak >= def.requirementValue; break;
         case 'ENROLLMENT': qualifies = enrollments.length >= def.requirementValue; break;
+        case 'TIME_SPENT': qualifies = totalTimeSpentHours >= def.requirementValue; break;
+        case 'FIRST_LOGIN': qualifies = hasLoggedIn; break;
+        case 'LESSONS_BROWSED': qualifies = progress.length >= def.requirementValue; break;
+        case 'ALL_COURSES': qualifies = hasCompletedAllCourses && totalTimeSpentHours >= def.requirementValue; break;
+        case 'RANK_COMPOSITE': {
+          // Composite requirement: courses completed AND time spent (value format: courses * 100 + hours)
+          const requiredCourses = Math.floor(def.requirementValue / 100);
+          const requiredHours = def.requirementValue % 100;
+          qualifies = completedCourses >= requiredCourses && totalTimeSpentHours >= requiredHours;
+          break;
+        }
       }
       if (qualifies) {
         toAward.push({ type: def.type, title: def.title, description: def.description, icon: def.icon, points: def.points, definitionId: def.id });
@@ -157,6 +180,147 @@ export const triggerAchievementCheck = async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error('triggerAchievementCheck error:', error);
     return res.status(500).json({ error: 'Server error checking achievements' });
+  }
+};
+
+// ─── RANK PROGRESSION SYSTEM ─────────────────────────────────────────────────
+
+const RANK_ORDER = [
+  'RANK_NEWCOMER',
+  'RANK_LEARNER', 
+  'RANK_EXPLORER',
+  'RANK_ACHIEVER',
+  'RANK_SCHOLAR',
+  'RANK_EXPERT',
+  'RANK_MASTER_SCHOLAR'
+] as const;
+
+const RANK_DETAILS: Record<string, { title: string; icon: string; color: string; description: string }> = {
+  RANK_NEWCOMER: { title: 'Newcomer', icon: '🌱', color: 'from-gray-400 to-gray-500', description: 'Welcome to the learning journey!' },
+  RANK_LEARNER: { title: 'Learner', icon: '📖', color: 'from-green-400 to-emerald-500', description: 'Building your foundation' },
+  RANK_EXPLORER: { title: 'Explorer', icon: '🔍', color: 'from-blue-400 to-cyan-500', description: 'Discovering new knowledge' },
+  RANK_ACHIEVER: { title: 'Achiever', icon: '🏅', color: 'from-yellow-400 to-amber-500', description: 'Making real progress' },
+  RANK_SCHOLAR: { title: 'Scholar', icon: '🎓', color: 'from-purple-400 to-violet-500', description: 'Dedicated to excellence' },
+  RANK_EXPERT: { title: 'Expert', icon: '⭐', color: 'from-orange-400 to-red-500', description: 'Mastering the curriculum' },
+  RANK_MASTER_SCHOLAR: { title: 'Master Scholar', icon: '👑', color: 'from-yellow-300 to-yellow-500', description: 'The pinnacle of achievement' },
+};
+
+export const getUserRankProgress = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.params.userId || req.user?.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const [earnedAchievements, enrollments, progress, rankDefinitions] = await Promise.all([
+      prisma.achievement.findMany({ where: { userId }, select: { type: true, earnedAt: true } }),
+      prisma.enrollment.findMany({ where: { userId } }),
+      prisma.progress.findMany({ where: { userId } }),
+      prisma.achievementDefinition.findMany({ 
+        where: { type: { in: RANK_ORDER as unknown as AchievementType[] }, isActive: true },
+        orderBy: { requirementValue: 'asc' }
+      }),
+    ]);
+
+    const earnedTypes = new Set(earnedAchievements.map(a => a.type));
+    const completedCourses = enrollments.filter(e => e.status === 'COMPLETED').length;
+    const completedLessons = progress.filter(p => p.completed).length;
+    const totalTimeSpentMinutes = progress.reduce((sum, p) => sum + (p.timeSpent || 0), 0);
+    const totalTimeSpentHours = totalTimeSpentMinutes / 60;
+    const coursesEnrolled = enrollments.length;
+
+    // Find current rank (highest earned rank)
+    let currentRankType = 'RANK_NEWCOMER';
+    for (const rankType of RANK_ORDER) {
+      if (earnedTypes.has(rankType as AchievementType)) {
+        currentRankType = rankType;
+      }
+    }
+
+    // Find next rank
+    const currentRankIndex = RANK_ORDER.indexOf(currentRankType as typeof RANK_ORDER[number]);
+    const nextRankType = currentRankIndex < RANK_ORDER.length - 1 ? RANK_ORDER[currentRankIndex + 1] : null;
+
+    // Get next rank requirements
+    let nextRankProgress = null;
+    if (nextRankType) {
+      const nextRankDef = rankDefinitions.find(d => d.type === nextRankType);
+      if (nextRankDef) {
+        let currentValue = 0;
+        let targetValue = nextRankDef.requirementValue;
+        let progressType = nextRankDef.requirementType;
+
+        switch (nextRankDef.requirementType) {
+          case 'TIME_SPENT':
+            currentValue = totalTimeSpentHours;
+            break;
+          case 'COURSE_COMPLETION':
+            currentValue = completedCourses;
+            break;
+          case 'LESSON_COMPLETION':
+            currentValue = completedLessons;
+            break;
+          case 'LESSONS_BROWSED':
+            currentValue = progress.length;
+            break;
+          case 'ENROLLMENT':
+            currentValue = coursesEnrolled;
+            break;
+          case 'RANK_COMPOSITE': {
+            const requiredCourses = Math.floor(targetValue / 100);
+            const requiredHours = targetValue % 100;
+            const courseProgress = Math.min(completedCourses / requiredCourses, 1);
+            const timeProgress = Math.min(totalTimeSpentHours / requiredHours, 1);
+            currentValue = Math.round((courseProgress + timeProgress) / 2 * 100);
+            targetValue = 100;
+            progressType = 'COMPOSITE';
+            break;
+          }
+          case 'ALL_COURSES': {
+            const totalCourses = await prisma.course.count({ where: { status: 'PUBLISHED' } });
+            currentValue = completedCourses;
+            targetValue = totalCourses;
+            break;
+          }
+        }
+
+        nextRankProgress = {
+          type: nextRankType,
+          ...RANK_DETAILS[nextRankType],
+          requirementType: progressType,
+          currentValue: Math.round(currentValue * 10) / 10,
+          targetValue,
+          percentage: Math.min(Math.round((currentValue / targetValue) * 100), 100),
+        };
+      }
+    }
+
+    const currentRank = {
+      type: currentRankType,
+      ...RANK_DETAILS[currentRankType],
+      earnedAt: earnedAchievements.find(a => a.type === currentRankType)?.earnedAt || null,
+    };
+
+    // Get all ranks with earned status
+    const allRanks = RANK_ORDER.map(rankType => ({
+      type: rankType,
+      ...RANK_DETAILS[rankType],
+      earned: earnedTypes.has(rankType as AchievementType),
+      earnedAt: earnedAchievements.find(a => a.type === rankType)?.earnedAt || null,
+    }));
+
+    return res.json({
+      currentRank,
+      nextRank: nextRankProgress,
+      allRanks,
+      stats: {
+        completedCourses,
+        completedLessons,
+        totalTimeSpentHours: Math.round(totalTimeSpentHours * 10) / 10,
+        coursesEnrolled,
+      },
+    });
+  } catch (error) {
+    console.error('getUserRankProgress error:', error);
+    return res.status(500).json({ error: 'Server error fetching rank progress' });
   }
 };
 
