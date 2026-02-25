@@ -308,7 +308,7 @@ export default function Courses() {
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white/80 dark:bg-white/5 border border-gray-400 dark:border-gray-600 rounded-xl text-gray-900 dark:text-whiteplaceholder-gray-500 dark:placeholder-gray-400focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/30 shadow-sm"
+              className="w-full pl-12 pr-4 py-3 bg-white/80 dark:bg-white/5 border border-gray-400 dark:border-gray-600 rounded-xl text-white-900 dark:text-whiteplaceholder-gray-500 dark:placeholder-gray-400focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/30 shadow-sm"
             />
           </div>
 

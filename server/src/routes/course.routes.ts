@@ -3,23 +3,24 @@ import { Router } from 'express';
 import {
   getCourses,
   getCourseById,
-  enrollInCourse,
   getMyEnrollments,
+
+  enrollInCourse,
+  unenrollFromCourse,
 
   createCourse,
   updateCourse,
   deleteCourse,
 
-  
   createModule,
-  createLesson,
   updateModule,
-  updateLesson,
   deleteModule,
-  deleteLesson,
   
+  createLesson,
+  updateLesson,
+  deleteLesson,
   getQuizForLesson,
-} from '../controllers/course.controller';
+} from "../controllers/course.controller";
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -44,37 +45,37 @@ router.put(
   '/:id',
   authenticateToken,
   authorizeRoles('ADMIN'),          // Restrict to ADMIN
-  updateCourse                      // Calls the new updateCourse function in controller
+  updateCourse                      
 );
-
+// para sa deleting ng course
 router.delete(
   '/:id',
   authenticateToken,
   authorizeRoles('ADMIN'),
   deleteCourse
 );
-
+// Create module within a course
 router.post(
   '/:courseId/modules',
   authenticateToken,
   authorizeRoles('ADMIN'),
   createModule
 );
-
+// Create lesson within a module
 router.post(
   '/:courseId/modules/:moduleId/lessons',
   authenticateToken,
   authorizeRoles('ADMIN'),
   createLesson
 );
-
+// Delete module
 router.delete(
   '/modules/:moduleId',
   authenticateToken,
   authorizeRoles('ADMIN'),
   deleteModule
 );
-
+// Delete lesson
 router.delete(
   '/lessons/:lessonId',
   authenticateToken,
@@ -96,6 +97,13 @@ router.put(
   authenticateToken,
   authorizeRoles('ADMIN'),
   updateLesson
+);
+
+// Unenroll from course
+router.delete(
+  "/unenroll/:courseId", // or POST /unenroll if you prefer
+  authenticateToken,
+  unenrollFromCourse,
 );
 
 export default router;

@@ -259,6 +259,8 @@ model Enrollment {
   enrolledAt     DateTime         @default(now())
   completedAt    DateTime?
   lastAccessedAt DateTime?
+  droppedAt      DateTime?
+
   Course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   User           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -527,6 +529,7 @@ model User {
   Achievement                      Achievement[]
   AssessmentResult                 AssessmentResult[]
   ChatSession                      ChatSession[]
+  enrolledCoursesCount Int         @default(0)
   Course_Course_creatorIdToUser    Course[]               @relation("Course_creatorIdToUser")
   Course_Course_teacherIdToUser    Course[]               @relation("Course_teacherIdToUser")
   CourseReview                     CourseReview[]

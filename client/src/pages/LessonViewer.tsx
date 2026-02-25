@@ -1,10 +1,20 @@
 // client/src/pages/LessonViewer.tsx
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import api from "../lib/api";
 import {
-  ArrowLeft, CheckCircle, Clock, FileText, Video, Headphones, XCircle, Brain, Check, AlertTriangle, } from "lucide-react";
-import { useToast } from '../components/Toast';
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  FileText,
+  Video,
+  Headphones,
+  XCircle,
+  Brain,
+  Check,
+  AlertTriangle,
+} from "lucide-react";
+import { useToast } from "../components/Toast";
 export default function LessonViewer() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -31,7 +41,7 @@ export default function LessonViewer() {
   const [showMissingWarning, setShowMissingWarning] = useState(false);
   const [courseLessons, setCourseLessons] = useState<any[]>([]);
 
-  const fetchLesson = async () => {
+  const fetchLesson = useCallback(async () => {
     try {
       const response = await api.get(`/lessons/${id}`);
       let fetchedLesson = response.data.lesson;
@@ -42,7 +52,7 @@ export default function LessonViewer() {
         const cleanedContent = fetchedLesson.content
           .replace(
             /style\s*=\s*["']([^"']*)color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)[^"']*["']/gi,
-            (match: string, p1: string) => `style="${p1}"`, // Keep other styles, remove only the bad color part
+            (_match: string, p1: string) => `style="${p1}"`, // Keep other styles, remove only the bad color part
           )
           .replace(
             /color\s*:\s*(black|#000000|rgb\(0,\s*0,\s*0\)|#000)/gi,
@@ -88,13 +98,12 @@ export default function LessonViewer() {
           console.error("Failed to restore quiz state from localStorage:", e);
         }
       }
-      
     } catch (error) {
       console.error("Failed to fetch lesson:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   const isQuiz = lesson?.type === "QUIZ";
 
@@ -125,7 +134,7 @@ export default function LessonViewer() {
 
   useEffect(() => {
     fetchLesson();
-  }, [id]);
+  }, [fetchLesson]);
 
   useEffect(() => {
     if (allAnswered) {
@@ -144,7 +153,6 @@ export default function LessonViewer() {
     return () => clearTimeout(timer);
   }, [lesson, progress]);
 
-  
   // Save quiz progress/answers/result to localStorage so it survives refresh
   useEffect(() => {
     if (!id || !isQuiz) return;
@@ -247,7 +255,6 @@ export default function LessonViewer() {
   };
 
   const handleGoToNext = () => {
-  
     setShowQuizResult(false);
 
     // Also update saved state → so if user comes back with browser back button later,
@@ -392,22 +399,23 @@ export default function LessonViewer() {
       </div>
     );
   }
-  
-  
+
   const currentLessonIndex = courseLessons.findIndex(
     (l) => l.id === lesson?.id,
   );
 
-  const nextLesson = currentLessonIndex !== -1 && currentLessonIndex < courseLessons.length - 1
-    ? courseLessons[currentLessonIndex + 1]
-    : null;
-  
+  const nextLesson =
+    currentLessonIndex !== -1 && currentLessonIndex < courseLessons.length - 1
+      ? courseLessons[currentLessonIndex + 1]
+      : null;
+
   const currentQuestion = quizData?.questions[currentQuestionIndex];
   const selectedAnswer = selectedAnswers[currentQuestionIndex];
   const isSubmitted = submittedQuestions.has(currentQuestionIndex);
 
   const isCompleted = progress?.completed;
-  const showNextButton = isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
+  const showNextButton =
+    isCompleted || (isQuiz && showQuizResult && quizScore >= 85);
 
   const showCompleteButton = !isQuiz && !progress?.completed && canComplete;
   const youtubeEmbedSrc = getYouTubeEmbedUrl(lesson.videoUrl);

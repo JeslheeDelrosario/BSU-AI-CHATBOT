@@ -116,7 +116,7 @@ export default function Progress() {
               <TrendingUp className="w-16 h-16 text-cyan-400" />
             </div>
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2 pb-3">
             My Progress
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground">

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
+import { EnrollmentStatus } from "@prisma/client";
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
@@ -11,18 +12,25 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    if (userRole === 'STUDENT') {
-      // Student dashboard
+    if (userRole === "STUDENT") {
+      // FIXED: Count ACTIVE + COMPLETED (matches MyCourses "active" tab)
+      const enrollmentCount = await prisma.enrollment.count({
+        where: {
+          userId,
+          status: {
+            in: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+          },
+        },
+      });
+
       const [
-        enrollmentCount,
         completedCourses,
         totalProgress,
         recentProgress,
         achievements,
         upcomingLessons,
       ] = await Promise.all([
-        prisma.enrollment.count({ where: { userId } }),
-        prisma.enrollment.count({ where: { userId, status: 'COMPLETED' } }),
+        prisma.enrollment.count({ where: { userId, status: "COMPLETED" } }),
         prisma.progress.aggregate({
           where: { userId },
           _avg: { score: true },
@@ -38,12 +46,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
               },
             },
           },
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { updatedAt: "desc" },
           take: 5,
         }),
         prisma.achievement.findMany({
           where: { userId },
-          orderBy: { earnedAt: 'desc' },
+          orderBy: { earnedAt: "desc" },
           take: 5,
         }),
         prisma.progress.findMany({
@@ -66,7 +74,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
       return res.json({
         overview: {
-          enrolledCourses: enrollmentCount,
+          enrolledCourses: enrollmentCount, // now includes ACTIVE + COMPLETED → should be 4
           completedCourses,
           averageScore: totalProgress._avg.score || 0,
           totalTimeSpent: totalProgress._sum.timeSpent || 0,
@@ -75,7 +83,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         achievements,
         upcomingLessons,
       });
-    } else if (userRole === 'TEACHER' || userRole === 'ADMIN') {
+    } else if (userRole === "TEACHER" || userRole === "ADMIN") {
       // Teacher/Admin dashboard
       const [
         totalStudents,
@@ -84,8 +92,10 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         recentEnrollments,
         courseStats,
       ] = await Promise.all([
-        prisma.user.count({ where: { role: 'STUDENT' } }),
-        prisma.course.count({ where: userRole === 'TEACHER' ? { teacherId: userId } : {} }),
+        prisma.user.count({ where: { role: "STUDENT" } }),
+        prisma.course.count({
+          where: userRole === "TEACHER" ? { teacherId: userId } : {},
+        }),
         prisma.enrollment.count(),
         prisma.enrollment.findMany({
           include: {
@@ -102,11 +112,11 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
               },
             },
           },
-          orderBy: { enrolledAt: 'desc' },
+          orderBy: { enrolledAt: "desc" },
           take: 10,
         }),
         prisma.course.findMany({
-          where: userRole === 'TEACHER' ? { teacherId: userId } : {},
+          where: userRole === "TEACHER" ? { teacherId: userId } : {},
           include: {
             _count: {
               select: {
@@ -129,7 +139,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         courseStats,
       });
     } else {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: "Access denied" });
     }
   } catch (error) {
     console.error('Get dashboard stats error:', error);

@@ -1,25 +1,28 @@
 // server\src\controllers\course.controller.ts
-import { Response } from 'express';
-import { CourseStatus, CourseLevel, LessonType } from '@prisma/client';
-import { AuthRequest } from '../middleware/auth.middleware';
-import { prisma } from '../lib/prisma';
+import { Response } from "express";
+import { CourseStatus, CourseLevel, LessonType } from "@prisma/client";
+import { AuthRequest } from "../middleware/auth.middleware";
+import { prisma } from "../lib/prisma";
+import { EnrollmentStatus } from "@prisma/client";
+
 
 export const getCourses = async (req: AuthRequest, res: Response) => {
   try {
-
     const { status, level, search } = req.query;
 
     const where: any = {};
 
     if (status) {
       where.status = status as CourseStatus;
-    } else if (req.user?.role?.toUpperCase() !== 'ADMIN') {
+    } else if (req.user?.role?.toUpperCase() !== "ADMIN") {
       where.status = CourseStatus.PUBLISHED; // non-admins see only published
     }
-    
+
     //pansamantalang log for checking sa terminal
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`getCourses: User ${req.user?.email || 'anonymous'} (role: ${req.user?.role || 'none'}) - showing ${status ? `status=${status}` : 'all statuses'}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `getCourses: User ${req.user?.email || "anonymous"} (role: ${req.user?.role || "none"}) - showing ${status ? `status=${status}` : "all statuses"}`,
+      );
     }
 
     if (level) {
@@ -28,8 +31,8 @@ export const getCourses = async (req: AuthRequest, res: Response) => {
 
     if (search) {
       where.OR = [
-        { title: { contains: search as string, mode: 'insensitive' } },
-        { description: { contains: search as string, mode: 'insensitive' } },
+        { title: { contains: search as string, mode: "insensitive" } },
+        { description: { contains: search as string, mode: "insensitive" } },
       ];
     }
 
@@ -52,14 +55,14 @@ export const getCourses = async (req: AuthRequest, res: Response) => {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
     return res.json({ courses });
   } catch (error) {
-    console.error('Get courses error:', error);
-    return res.status(500).json({ error: 'Server error fetching courses' });
+    console.error("Get courses error:", error);
+    return res.status(500).json({ error: "Server error fetching courses" });
   }
 };
 
@@ -68,7 +71,7 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userId = req.user?.userId;
 
-    // Fetch course with modules and nested lessons (published only, ordered)
+    // Fetch course with all related data
     const courseData = await prisma.course.findUnique({
       where: { id },
       include: {
@@ -76,10 +79,10 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
           select: { id: true, firstName: true, lastName: true, avatar: true },
         },
         modules: {
-          orderBy: { order: 'asc' },
+          orderBy: { order: "asc" },
           include: {
             lessons: {
-              orderBy: { order: 'asc' },
+              orderBy: { order: "asc" },
               select: {
                 id: true,
                 title: true,
@@ -102,90 +105,103 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
         },
         _count: {
           select: {
-            Enrollment: true,   // number of learners (enrollments)
-            Lesson: true,       // total lessons in the course
+            Enrollment: true,
+            Lesson: true,
           },
         },
       },
     });
 
     if (!courseData) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ error: "Course not found" });
     }
 
     let enrollment = null;
-    let progressMap: Record<string, { completed: boolean; score: number | null }> = {};
+    let progressMap: Record<
+      string,
+      { completed: boolean; score: number | null }
+    > = {};
 
     if (userId) {
-      // Lookup enrollment for the current user
-      enrollment = await prisma.enrollment.findUnique({
+      // Find enrollment record
+      const foundEnrollment = await prisma.enrollment.findUnique({
         where: { userId_courseId: { userId, courseId: id } },
       });
 
-      // Get progress for all lessons in this course
-      const progressRecords = await prisma.progress.findMany({
-        where: {
-          userId,
-          Lesson: { courseId: id },
-        },
-        select: { lessonId: true, completed: true, score: true },
-      });
+      // Only treat as "enrolled" if status is ACTIVE or COMPLETED
+      // DROPPED and PAUSED are considered "not enrolled" from student's view
+      if (
+        foundEnrollment &&
+        (foundEnrollment.status === EnrollmentStatus.ACTIVE ||
+          foundEnrollment.status === EnrollmentStatus.COMPLETED)
+      ) {
+        enrollment = foundEnrollment;
 
-      progressMap = progressRecords.reduce((acc, p) => {
-        acc[p.lessonId] = { completed: p.completed, score: p.score };
-        return acc;
-      }, {} as Record<string, { completed: boolean; score: number | null }>);
+        // Fetch progress only for actually enrolled users
+        const progressRecords = await prisma.progress.findMany({
+          where: {
+            userId,
+            Lesson: { courseId: id },
+          },
+          select: { lessonId: true, completed: true, score: true },
+        });
+
+        progressMap = progressRecords.reduce(
+          (acc, p) => {
+            acc[p.lessonId] = { completed: p.completed, score: p.score };
+            return acc;
+          },
+          {} as Record<string, { completed: boolean; score: number | null }>,
+        );
+      }
+      // else → enrollment remains null (DROPPED, PAUSED, or never enrolled)
     }
 
-    // ────────────────────────────────────────────────────────────────
-    // HELPER: Check if a lesson is "satisfactorily completed"
-    // ────────────────────────────────────────────────────────────────
+    // Helper: check if lesson is satisfactorily completed
     const isSatisfactorilyCompleted = (lessonId: string): boolean => {
       const prog = progressMap[lessonId];
       if (!prog || !prog.completed) return false;
 
       const lesson = courseData.modules
-        .flatMap(m => m.lessons)
-        .find(l => l.id === lessonId);
+        .flatMap((m) => m.lessons)
+        .find((l) => l.id === lessonId);
 
       if (!lesson) return false;
 
-      if (lesson.type === 'QUIZ') {
+      if (lesson.type === "QUIZ") {
         return (prog.score ?? 0) >= 85;
       }
-      return true; // non-quiz → just completed === true
+      return true;
     };
 
-    // ────────────────────────────────────────────────────────────────
-    // MAIN ENRICHMENT LOGIC – now with module-to-module dependency
-    // ────────────────────────────────────────────────────────────────
+    // Enrich modules with unlock/completion status
     const enrichedModules = courseData.modules.map((module, moduleIdx) => {
       const enrichedLessons = module.lessons.map((lesson, lessonIdx) => {
         const progress = progressMap[lesson.id] || null;
 
         let isUnlocked = false;
 
-        // ── Rule 1: First module ─────────────────────────────────────
+        // First module: sequential within module
         if (moduleIdx === 0) {
-          // Inside first module: classic sequential unlocking
-          isUnlocked = lessonIdx === 0 || isSatisfactorilyCompleted(module.lessons[lessonIdx - 1].id);
+          isUnlocked =
+            lessonIdx === 0 ||
+            isSatisfactorilyCompleted(module.lessons[lessonIdx - 1].id);
         }
-        // ── Rule 2: Subsequent modules ───────────────────────────────
+        // Other modules: depend on previous module's last lesson
         else {
-          // Get the LAST lesson of the PREVIOUS module
           const prevModule = courseData.modules[moduleIdx - 1];
           if (prevModule && prevModule.lessons.length > 0) {
-            const lastLessonOfPrev = prevModule.lessons[prevModule.lessons.length - 1];
-            const prevModulePassed = isSatisfactorilyCompleted(lastLessonOfPrev.id);
+            const lastLessonOfPrev =
+              prevModule.lessons[prevModule.lessons.length - 1];
+            const prevModulePassed = isSatisfactorilyCompleted(
+              lastLessonOfPrev.id,
+            );
 
-            // If previous module's last lesson is passed → this whole module is open
-            // Then apply intra-module sequential rule
             if (prevModulePassed) {
               isUnlocked =
                 lessonIdx === 0 ||
                 isSatisfactorilyCompleted(module.lessons[lessonIdx - 1].id);
             }
-            // else → entire module stays locked (isUnlocked = false for all lessons)
           }
         }
 
@@ -205,90 +221,46 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
         ...courseData,
         modules: enrichedModules,
       },
-      enrollment,
+      enrollment, // now null when DROPPED or PAUSED
     });
   } catch (error) {
-    console.error('Get course error:', error);
-    return res.status(500).json({ error: 'Server error fetching course' });
-  }
-};
-
-export const enrollInCourse = async (req: AuthRequest, res: Response) => {
-  try {
-    const { courseId } = req.body;
-    const userId = req.user?.userId;
-
-    
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // Check if already enrolled
-    const existingEnrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: {
-          userId,
-          courseId,
-        },
-      },
-    });
-
-    if (existingEnrollment) {
-      return res.status(400).json({ error: 'Already enrolled in this course' });
-    }
-
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        userId,
-        courseId,
-      },
-      include: {
-        Course: true,
-      },
-    });
-
-    return res.status(201).json({ enrollment });
-  } catch (error) {
-    console.error('Enroll in course error:', error);
-    return res.status(500).json({ error: 'Server error enrolling in course' });
+    console.error("Get course error:", error);
+    return res.status(500).json({ error: "Server error fetching course" });
   }
 };
 
 export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // 1. Get all enrollments + course basic data
+    const { tab = "active" } = req.query; // active | dropped
+
+    const whereStatus =
+      tab === "dropped"
+        ? EnrollmentStatus.DROPPED
+        : { in: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED] };
+
     const enrollments = await prisma.enrollment.findMany({
-      where: { userId },
+      where: {
+        userId,
+        status: whereStatus,
+      },
       include: {
         Course: {
           include: {
             User_Course_teacherIdToUser: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
+              select: { firstName: true, lastName: true },
             },
-            _count: {
-              select: {
-                Lesson: true,           // total lessons in the course
-              },
-            },
+            _count: { select: { Lesson: true } },
           },
         },
       },
-      orderBy: {
-        lastAccessedAt: 'desc',
-      },
+      orderBy: { lastAccessedAt: "desc" },
     });
 
-    // 2. Bulk fetch progress + necessary lesson fields for strict completion check
     const courseIds = enrollments.map((e) => e.courseId);
 
     const progressRecords = await prisma.progress.findMany({
@@ -301,71 +273,316 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
       select: {
         lessonId: true,
         completed: true,
-        score: true,                  // needed for quiz strict check
+        score: true,
         Lesson: {
           select: {
             courseId: true,
-            type: true,               // needed to know if it's QUIZ
+            type: true,
           },
         },
       },
     });
 
-    // 3. Count "satisfactorily completed" lessons per course
-    //    → same rule as in getCourseById / LessonViewer
-    const completedByCourse = progressRecords.reduce((acc, record) => {
-      const isSatisfactorilyCompleted =
-        record.completed &&
-        (record.Lesson.type !== 'QUIZ' || (record.score ?? 0) >= 85);
+    const completedByCourse = progressRecords.reduce(
+      (acc, record) => {
+        const isSatisfactorilyCompleted =
+          record.completed &&
+          (record.Lesson.type !== "QUIZ" || (record.score ?? 0) >= 85);
 
-      if (isSatisfactorilyCompleted) {
-        const courseId = record.Lesson.courseId;
-        acc[courseId] = (acc[courseId] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
+        if (isSatisfactorilyCompleted) {
+          const courseId = record.Lesson.courseId;
+          acc[courseId] = (acc[courseId] || 0) + 1;
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    // 4. Enrich each enrollment
     const enrichedEnrollments = enrollments.map((enrollment) => {
       const courseId = enrollment.courseId;
       const totalLessons = enrollment.Course._count.Lesson || 0;
       const completedLessons = completedByCourse[courseId] || 0;
 
       const progressPercentage =
-        totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+        totalLessons > 0
+          ? Math.round((completedLessons / totalLessons) * 100)
+          : 0;
 
       return {
         ...enrollment,
         completedLessonsCount: completedLessons,
         totalLessonsCount: totalLessons,
-        progress: progressPercentage,           // now consistent with unlocking logic
+        progress: progressPercentage,
       };
     });
 
     return res.json({ enrollments: enrichedEnrollments });
   } catch (error) {
-    console.error('Get my enrollments error:', error);
-    return res.status(500).json({ error: 'Server error fetching your courses' });
+    console.error("Get my enrollments error:", error);
+    return res
+      .status(500)
+      .json({ error: "Server error fetching your courses" });
   }
 };
+
+// export const enrollInCourse = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const { courseId } = req.body;
+//     const userId = req.user?.userId;
+
+//     if (!userId) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     const existingEnrollment = await prisma.enrollment.findUnique({
+//       where: {
+//         userId_courseId: {
+//           userId,
+//           courseId,
+//         },
+//       },
+//     });
+
+//     if (existingEnrollment) {
+//       return res.status(400).json({ error: "Already enrolled in this course" });
+//     }
+
+//     const enrollment = await prisma.enrollment.create({
+//       data: {
+//         userId,
+//         courseId,
+//       },
+//       include: {
+//         Course: true,
+//       },
+//     });
+
+//     return res.status(201).json({ enrollment });
+//   } catch (error) {
+//     console.error("Enroll in course error:", error);
+//     return res.status(500).json({ error: "Server error enrolling in course" });
+//   }
+// };
+export const enrollInCourse = async (req: AuthRequest, res: Response) => {
+  try {
+    const { courseId } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    // Declare enrollment outside the transaction so it's accessible later
+    let enrollment: any; // we will assign it inside the transaction
+
+    await prisma.$transaction(async (tx) => {
+      // Check if already exists (including dropped/paused/completed)
+      const existing = await tx.enrollment.findUnique({
+        where: { userId_courseId: { userId, courseId } },
+      });
+
+      let shouldIncrement = true;
+
+      if (existing) {
+        if (existing.status === EnrollmentStatus.ACTIVE) {
+          throw new Error("Already enrolled");
+        }
+
+        // Re-enroll: reset fields
+        enrollment = await tx.enrollment.update({
+          where: { userId_courseId: { userId, courseId } },
+          data: {
+            status: EnrollmentStatus.ACTIVE,
+            droppedAt: null,
+            progress: 0,
+            enrolledAt: new Date(),
+            completedAt: null,
+          },
+          include: { Course: true },
+        });
+
+        // Clean old progress records
+        await tx.progress.deleteMany({
+          where: { userId, Lesson: { courseId } },
+        });
+        
+      } else {
+        // Brand new enrollment
+        enrollment = await tx.enrollment.create({
+          data: {
+            userId,
+            courseId,
+            status: EnrollmentStatus.ACTIVE,
+            progress: 0,
+          },
+          include: { Course: true },
+        });
+      }
+
+      // Increment enrolledCoursesCount only if this is a new active enrollment
+      if (shouldIncrement) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            enrolledCoursesCount: {
+              increment: 1,
+            },
+          },
+        });
+      }
+    });
+
+    // Now enrollment is defined and accessible here
+    return res.status(201).json({ enrollment });
+  } catch (error: any) {
+    console.error("Enroll error:", error);
+
+    if (error.message === "Already enrolled") {
+      return res.status(400).json({ error: "Already enrolled" });
+    }
+
+    return res.status(500).json({ error: "Failed to enroll" });
+  }
+};
+export const unenrollFromCourse = async (req: AuthRequest, res: Response) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId } },
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ error: "Not enrolled" });
+    }
+
+    if (enrollment.status === EnrollmentStatus.DROPPED) {
+      return res.status(400).json({ error: "Already dropped" });
+    }
+
+    // NEW: Block drop only if course is actually 100% finished
+    // Calculate real completion (same logic as in getMyEnrollments)
+    const totalLessons = await prisma.lesson.count({
+      where: { courseId },
+    });
+
+    const completedLessons = await prisma.progress.count({
+      where: {
+        userId,
+        Lesson: { courseId },
+        completed: true,
+      },
+    });
+
+    if (completedLessons >= totalLessons && totalLessons > 0) {
+      return res.status(403).json({
+        error: "Course is already completed — dropping not allowed",
+      });
+    }
+
+    // Soft delete
+    await prisma.enrollment.update({
+      where: { userId_courseId: { userId, courseId } },
+      data: {
+        status: EnrollmentStatus.DROPPED,
+        droppedAt: new Date(),
+      },
+    });
+
+    // Delete progress records
+    await prisma.progress.deleteMany({
+      where: {
+        userId,
+        Lesson: { courseId },
+      },
+    });
+
+    return res.json({ message: "Course dropped successfully" });
+  } catch (error) {
+    console.error("Drop course error:", error);
+    return res.status(500).json({ error: "Failed to drop course" });
+  }
+};
+
+// HARD DELETE VERSION
+// export const unenrollFromCourse = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const { courseId } = req.params;
+//     const userId = req.user?.userId;
+
+//     if (!userId) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     const enrollment = await prisma.enrollment.findUnique({
+//       where: { userId_courseId: { userId, courseId } },
+//     });
+
+//     if (!enrollment) {
+//       return res.status(404).json({ error: "Not enrolled in this course" });
+//     }
+
+//     // Optional: prevent unenroll if course is 100% completed
+//     // (uncomment if you want this strict rule)
+//     /*
+//     const totalLessons = await prisma.lesson.count({
+//       where: { courseId },
+//     });
+
+//     const completedCount = await prisma.progress.count({
+//       where: {
+//         userId,
+//         lesson: { courseId },
+//         completed: true,
+//       },
+//     });
+
+//     if (completedCount >= totalLessons) {
+//       return res.status(403).json({
+//         error: 'Cannot drop a course that is already completed',
+//       });
+//     }
+//     */
+
+//     await prisma.enrollment.delete({
+//       where: { userId_courseId: { userId, courseId } },
+//     });
+
+//     // Optional: also clean up progress records (your choice)
+//     // await prisma.progress.deleteMany({
+//     //   where: { userId, lesson: { courseId } },
+//     // });
+
+//     return res.json({ message: "Successfully unenrolled from course" });
+//   } catch (error: any) {
+//     console.error("Unenroll error:", error);
+//     if (error.code === "P2025") {
+//       return res.status(404).json({ error: "Enrollment not found" });
+//     }
+//     return res.status(500).json({ error: "Failed to unenroll" });
+//   }
+// };
 export const createCourse = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     const userRole = req.user?.role;
 
-    // CHANGED: Restrict to ADMIN only (extra safety even if middleware already checks)
-    if (!userId || userRole !== 'ADMIN') {
-      return res.status(403).json({ error: 'Only admins can create courses' });
+    if (!userId || userRole !== "ADMIN") {
+      return res.status(403).json({ error: "Only admins can create courses" });
     }
 
-    // NEW: Accept status from request body
-    const { title, description, level, duration, price, tags, status } = req.body;
+    const { title, description, level, duration, price, tags, status } =
+      req.body;
 
-    // NEW: Validate status if provided
-    let finalStatus: CourseStatus = CourseStatus.DRAFT; // default
+    let finalStatus: CourseStatus = CourseStatus.DRAFT;
     if (status) {
       if (status !== CourseStatus.DRAFT && status !== CourseStatus.PUBLISHED) {
-        return res.status(400).json({ error: 'Invalid status. Must be "DRAFT" or "PUBLISHED"' });
+        return res
+          .status(400)
+          .json({ error: 'Invalid status. Must be "DRAFT" or "PUBLISHED"' });
       }
       finalStatus = status;
     }
@@ -379,16 +596,16 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
         price,
         tags: tags || [],
         creatorId: userId,
-        teacherId: undefined, // CHANGED: No auto-assign teacher since only ADMIN creates
-        status: finalStatus,  // NEW: Use the provided or default status
+        teacherId: undefined,
+        status: finalStatus,
         updatedAt: new Date(),
       },
     });
 
     return res.status(201).json({ course });
   } catch (error) {
-    console.error('Create course error:', error);
-    return res.status(500).json({ error: 'Server error creating course' });
+    console.error("Create course error:", error);
+    return res.status(500).json({ error: "Server error creating course" });
   }
 };
 
@@ -397,15 +614,30 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userRole = req.user?.role;
 
-    if (userRole !== 'ADMIN') {
-      return res.status(403).json({ error: 'Only admins can update courses' });
+    if (userRole !== "ADMIN") {
+      return res.status(403).json({ error: "Only admins can update courses" });
     }
 
-    const { title, description, level, duration, price, tags, status, teacherId } = req.body;
+    const {
+      title,
+      description,
+      level,
+      duration,
+      price,
+      tags,
+      status,
+      teacherId,
+    } = req.body;
 
     // Validate status if sent
-    if (status && status !== CourseStatus.DRAFT && status !== CourseStatus.PUBLISHED) {
-      return res.status(400).json({ error: 'Invalid status. Must be "DRAFT" or "PUBLISHED"' });
+    if (
+      status &&
+      status !== CourseStatus.DRAFT &&
+      status !== CourseStatus.PUBLISHED
+    ) {
+      return res
+        .status(400)
+        .json({ error: 'Invalid status. Must be "DRAFT" or "PUBLISHED"' });
     }
 
     // Build update object
@@ -423,7 +655,7 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
 
     // FIXED: Handle teacherId properly
     if (teacherId !== undefined) {
-      if (teacherId === '' || teacherId === null) {
+      if (teacherId === "" || teacherId === null) {
         // Allow clearing teacher assignment (set to null)
         updateData.teacherId = null;
       } else {
@@ -434,11 +666,15 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
         });
 
         if (!teacherExists) {
-          return res.status(400).json({ error: 'Invalid teacher ID - user not found' });
+          return res
+            .status(400)
+            .json({ error: "Invalid teacher ID - user not found" });
         }
 
-        if (teacherExists.role !== 'TEACHER') {
-          return res.status(400).json({ error: 'Assigned user must have TEACHER role' });
+        if (teacherExists.role !== "TEACHER") {
+          return res
+            .status(400)
+            .json({ error: "Assigned user must have TEACHER role" });
         }
 
         updateData.teacherId = teacherId;
@@ -452,14 +688,16 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
 
     return res.json({ course: updatedCourse });
   } catch (error: any) {
-    console.error('Update course error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Course not found' });
+    console.error("Update course error:", error);
+    if (error.code === "P2025") {
+      return res.status(404).json({ error: "Course not found" });
     }
-    if (error.code === 'P2003') {
-      return res.status(400).json({ error: 'Invalid teacher ID - foreign key constraint failed' });
+    if (error.code === "P2003") {
+      return res
+        .status(400)
+        .json({ error: "Invalid teacher ID - foreign key constraint failed" });
     }
-    return res.status(500).json({ error: 'Server error updating course' });
+    return res.status(500).json({ error: "Server error updating course" });
   }
 };
 
@@ -468,8 +706,8 @@ export const deleteCourse = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userRole = req.user?.role;
 
-    if (userRole !== 'ADMIN') {
-      return res.status(403).json({ error: 'Only admins can delete courses' });
+    if (userRole !== "ADMIN") {
+      return res.status(403).json({ error: "Only admins can delete courses" });
     }
 
     const course = await prisma.course.findUnique({
@@ -478,25 +716,29 @@ export const deleteCourse = async (req: AuthRequest, res: Response) => {
     });
 
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ error: "Course not found" });
     }
 
     // RESTRICTION: Only allow delete if status is DRAFT
     if (course.status !== CourseStatus.DRAFT) {
-      return res.status(400).json({ error: 'Cannot delete a published course. Set status to DRAFT first.' });
+      return res
+        .status(400)
+        .json({
+          error: "Cannot delete a published course. Set status to DRAFT first.",
+        });
     }
 
     await prisma.course.delete({
       where: { id },
     });
 
-    return res.status(200).json({ message: 'Course deleted successfully' });
+    return res.status(200).json({ message: "Course deleted successfully" });
   } catch (error: any) {
-    console.error('Delete course error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Course not found' });
+    console.error("Delete course error:", error);
+    if (error.code === "P2025") {
+      return res.status(404).json({ error: "Course not found" });
     }
-    return res.status(500).json({ error: 'Server error deleting course' });
+    return res.status(500).json({ error: "Server error deleting course" });
   }
 };
 
@@ -506,10 +748,9 @@ export const createModule = async (req: AuthRequest, res: Response) => {
     const { title, description } = req.body;
 
     if (!title?.trim()) {
-      return res.status(400).json({ error: 'Title is required' });
+      return res.status(400).json({ error: "Title is required" });
     }
 
-    // Auto-calculate next order
     const maxOrder = await prisma.module.aggregate({
       where: { courseId },
       _max: { order: true },
@@ -528,15 +769,11 @@ export const createModule = async (req: AuthRequest, res: Response) => {
 
     return res.status(201).json({ module });
   } catch (error) {
-    console.error('Create module error:', error);
-    return res.status(500).json({ error: 'Failed to create module' });
+    console.error("Create module error:", error);
+    return res.status(500).json({ error: "Failed to create module" });
   }
 };
 
-// server/src/controllers/course.controller.ts
-// ─────────────────────────────────────────────────────────────
-// Updated createLesson – QUIZ questions now stored in content (JSON)
-// ─────────────────────────────────────────────────────────────
 export const createLesson = async (req: AuthRequest, res: Response) => {
   try {
     const { moduleId } = req.params;
@@ -549,42 +786,47 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
       videoUrl,
       audioUrl,
       isPublished = false,
-      questions, // only used when type = QUIZ
+      questions,
     } = req.body;
 
-    // Basic validation
     if (!title?.trim() || !type) {
-      return res.status(400).json({ error: 'Title and type are required' });
+      return res.status(400).json({ error: "Title and type are required" });
     }
 
-    const validTypes: LessonType[] = ['VIDEO', 'TEXT', 'AUDIO', 'INTERACTIVE', 'QUIZ', 'ASSIGNMENT'];
+    const validTypes: LessonType[] = [
+      "VIDEO",
+      "TEXT",
+      "AUDIO",
+      "INTERACTIVE",
+      "QUIZ",
+      "ASSIGNMENT",
+    ];
     if (!validTypes.includes(type)) {
-      return res.status(400).json({ error: 'Invalid lesson type' });
+      return res.status(400).json({ error: "Invalid lesson type" });
     }
 
-    // For QUIZ: validate and prepare questions as JSON
-    let finalContent = typeof content === 'string' ? content.trim() : '';
+    let finalContent = typeof content === "string" ? content.trim() : "";
 
-    if (type === 'QUIZ') {
+    if (type === "QUIZ") {
       if (!questions || !Array.isArray(questions) || questions.length === 0) {
-        return res.status(400).json({ error: 'Quiz lessons require at least one question' });
+        return res
+          .status(400)
+          .json({ error: "Quiz lessons require at least one question" });
       }
 
-      // Basic structure validation
       for (const q of questions) {
-        if (!q.text?.trim()) throw new Error('Question text is required');
+        if (!q.text?.trim()) throw new Error("Question text is required");
         if (!Array.isArray(q.answers) || q.answers.length < 2) {
-          throw new Error('Each question needs at least 2 answers');
+          throw new Error("Each question needs at least 2 answers");
         }
         const correctCount = q.answers.filter((a: any) => a.isCorrect).length;
         if (correctCount !== 1) {
-          throw new Error('Each question must have exactly one correct answer');
+          throw new Error("Each question must have exactly one correct answer");
         }
       }
 
-      // Store questions as JSON string in content
       finalContent = JSON.stringify({
-        instructions: content?.trim() || 'Answer the following questions.',
+        instructions: content?.trim() || "Answer the following questions.",
         questions: questions.map((q: any) => ({
           text: q.text.trim(),
           explanation: q.explanation?.trim() || null,
@@ -596,31 +838,28 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Auto-calculate next order in this module
     const maxOrder = await prisma.lesson.aggregate({
       where: { moduleId },
       _max: { order: true },
     });
     const nextOrder = (maxOrder._max.order || 0) + 1;
 
-    // Get courseId from module
     const moduleData = await prisma.module.findUnique({
       where: { id: moduleId },
       select: { courseId: true },
     });
 
     if (!moduleData) {
-      return res.status(404).json({ error: 'Module not found' });
+      return res.status(404).json({ error: "Module not found" });
     }
 
-    // Create the lesson
     const lesson = await prisma.lesson.create({
       data: {
         title: title.trim(),
         description: description?.trim() || null,
         type: type as LessonType,
         duration: duration ? Number(duration) : null,
-        content: finalContent,           // ← now contains JSON for quizzes
+        content: finalContent,
         videoUrl: videoUrl?.trim() || null,
         audioUrl: audioUrl?.trim() || null,
         order: nextOrder,
@@ -632,13 +871,13 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
 
     return res.status(201).json({ lesson });
   } catch (error: any) {
-    console.error('Create lesson error:', error);
+    console.error("Create lesson error:", error);
     return res.status(500).json({
-      error: error.message || 'Failed to create lesson',
+      error: error.message || "Failed to create lesson",
     });
   }
 };
-
+// DO NOT REMOVE THE COMMENTED DELETEMODULE
 // export const deleteModule = async (req: AuthRequest, res: Response) => {
 //   try {
 //     const { moduleId } = req.params;
@@ -683,7 +922,6 @@ export const deleteModule = async (req: AuthRequest, res: Response) => {
   try {
     const { moduleId } = req.params;
 
-    // 1. Find the module and load related data
     const moduleData = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
@@ -693,16 +931,18 @@ export const deleteModule = async (req: AuthRequest, res: Response) => {
     });
 
     if (!moduleData) {
-      return res.status(404).json({ error: 'Module not found' });
+      return res.status(404).json({ error: "Module not found" });
     }
 
-    console.warn(`[FORCE DELETE] Deleting module ${moduleId} and all related data`);
+    console.warn(
+      `[FORCE DELETE] Deleting module ${moduleId} and all related data`,
+    );
 
-    // 2. If there is a quiz → delete questions → answers → quiz
     if (moduleData.quiz) {
-      console.log(`Deleting quiz ${moduleData.quiz.id} and its questions/answers...`);
+      console.log(
+        `Deleting quiz ${moduleData.quiz.id} and its questions/answers...`,
+      );
 
-      // Delete all answers for questions in this quiz
       await prisma.answer.deleteMany({
         where: {
           question: {
@@ -711,53 +951,49 @@ export const deleteModule = async (req: AuthRequest, res: Response) => {
         },
       });
 
-      // Delete all questions
       await prisma.question.deleteMany({
         where: { quizId: moduleData.quiz.id },
       });
 
-      // Delete the quiz itself
       await prisma.quiz.delete({
         where: { id: moduleData.quiz.id },
       });
     }
 
-    // 3. Delete all lessons in this module
     if (moduleData.lessons.length > 0) {
       console.log(`Deleting ${moduleData.lessons.length} lessons...`);
 
-      // Delete progress records for these lessons
       await prisma.progress.deleteMany({
         where: {
           lessonId: {
-            in: moduleData.lessons.map(l => l.id),
+            in: moduleData.lessons.map((l) => l.id),
           },
         },
       });
 
-      // Delete the lessons
       await prisma.lesson.deleteMany({
         where: { moduleId },
       });
     }
 
-    // 4. Delete user module progress (if any)
     await prisma.userModuleProgress.deleteMany({
       where: { moduleId },
     });
 
-    // 5. Finally delete the module itself
     await prisma.module.delete({
       where: { id: moduleId },
     });
 
     console.log(`Module ${moduleId} and all related data deleted successfully`);
 
-    return res.json({ message: 'Module and all related content deleted (force mode)' });
+    return res.json({
+      message: "Module and all related content deleted (force mode)",
+    });
   } catch (error: any) {
-    console.error('Force delete module error:', error);
+    console.error("Force delete module error:", error);
     return res.status(500).json({
-      error: 'Failed to force delete module: ' + (error.message || 'unknown error'),
+      error:
+        "Failed to force delete module: " + (error.message || "unknown error"),
     });
   }
 };
@@ -766,14 +1002,14 @@ export const deleteLesson = async (req: AuthRequest, res: Response) => {
     const { lessonId } = req.params;
 
     const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
-    if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
 
     await prisma.lesson.delete({ where: { id: lessonId } });
 
-    return res.json({ message: 'Lesson deleted' });
+    return res.json({ message: "Lesson deleted" });
   } catch (error) {
-    console.error('Delete lesson error:', error);
-    return res.status(500).json({ error: 'Failed to delete lesson' });
+    console.error("Delete lesson error:", error);
+    return res.status(500).json({ error: "Failed to delete lesson" });
   }
 };
 
@@ -782,47 +1018,41 @@ export const createQuizWithQuestions = async (
   questions: Array<{
     text: string;
     answers: Array<{ text: string; isCorrect: boolean }>;
-  }>
+  }>,
 ) => {
   if (questions.length === 0) {
-    throw new Error('At least one question is required for a quiz');
+    throw new Error("At least one question is required for a quiz");
   }
 
-  // Get the lesson → we need its moduleId
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     select: { moduleId: true },
   });
 
   if (!lesson?.moduleId) {
-    throw new Error('Lesson has no associated module → cannot create quiz');
+    throw new Error("Lesson has no associated module → cannot create quiz");
   }
 
-  // Create Quiz attached to MODULE (schema confirms moduleId is required)
   const quiz = await prisma.quiz.create({
     data: {
-      moduleId: lesson.moduleId,     // ← this is correct per your schema
-      // You can add more fields later, e.g.:
-      // passingScore: 75,
+      moduleId: lesson.moduleId,
     },
   });
 
-  // Create questions + answers
   for (const q of questions) {
     const correctCount = q.answers.filter(
-      // ── Added explicit type to fix TS7006 ────────────────────────
-      (a: { text: string; isCorrect: boolean }) => a.isCorrect
+      (a: { text: string; isCorrect: boolean }) => a.isCorrect,
     ).length;
 
     if (correctCount !== 1) {
-      throw new Error('Each question must have exactly one correct answer');
+      throw new Error("Each question must have exactly one correct answer");
     }
 
     const question = await prisma.question.create({
       data: {
         quizId: quiz.id,
         text: q.text,
-        type: 'MULTIPLE_CHOICE',
+        type: "MULTIPLE_CHOICE",
       },
     });
 
@@ -838,17 +1068,15 @@ export const createQuizWithQuestions = async (
   return quiz;
 };
 
-// Fetch quiz questions for a lesson by going through its module (hide correct answers!)
 export const getQuizForLesson = async (req: AuthRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
     const userId = req.user?.userId;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Include module + quiz + questions + answers (only id & text)
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
@@ -861,7 +1089,7 @@ export const getQuizForLesson = async (req: AuthRequest, res: Response) => {
                     answers: {
                       select: {
                         id: true,
-                        text: true,      // NEVER send isCorrect to client!
+                        text: true,
                       },
                     },
                   },
@@ -874,20 +1102,21 @@ export const getQuizForLesson = async (req: AuthRequest, res: Response) => {
     });
 
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ error: "Lesson not found" });
     }
 
-    if (lesson.type !== 'QUIZ') {
-      return res.status(400).json({ error: 'This lesson is not a quiz type' });
+    if (lesson.type !== "QUIZ") {
+      return res.status(400).json({ error: "This lesson is not a quiz type" });
     }
 
     const quiz = lesson.module?.quiz;
 
     if (!quiz) {
-      return res.status(404).json({ error: 'No quiz attached to this lesson\'s module' });
+      return res
+        .status(404)
+        .json({ error: "No quiz attached to this lesson's module" });
     }
 
-    // Safe client response – hide correct answers & any internal fields
     const safeQuestions = quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,
@@ -900,22 +1129,21 @@ export const getQuizForLesson = async (req: AuthRequest, res: Response) => {
     return res.json({
       questions: safeQuestions,
       totalQuestions: safeQuestions.length,
-      // Optional: passingScore: quiz.passingScore  (if you want frontend to know)
     });
   } catch (error) {
-    console.error('Get quiz for lesson error:', error);
-    return res.status(500).json({ error: 'Failed to fetch quiz questions' });
+    console.error("Get quiz for lesson error:", error);
+    return res.status(500).json({ error: "Failed to fetch quiz questions" });
   }
 };
 
-// Update Module (title, description, optional order)
+// Update Module
 export const updateModule = async (req: AuthRequest, res: Response) => {
   try {
     const { moduleId } = req.params;
     const { title, description, order } = req.body;
 
     if (!title?.trim()) {
-      return res.status(400).json({ error: 'Module title is required' });
+      return res.status(400).json({ error: "Module title is required" });
     }
 
     const updated = await prisma.module.update({
@@ -930,13 +1158,14 @@ export const updateModule = async (req: AuthRequest, res: Response) => {
 
     return res.json({ module: updated });
   } catch (error: any) {
-    console.error('Update module error:', error);
-    if (error.code === 'P2025') return res.status(404).json({ error: 'Module not found' });
-    return res.status(500).json({ error: 'Failed to update module' });
+    console.error("Update module error:", error);
+    if (error.code === "P2025")
+      return res.status(404).json({ error: "Module not found" });
+    return res.status(500).json({ error: "Failed to update module" });
   }
 };
 
-// Update Lesson (basic fields – quiz questions handled separately later)
+// Update Lesson
 export const updateLesson = async (req: AuthRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
@@ -952,12 +1181,19 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
     } = req.body;
 
     if (!title?.trim() || !type) {
-      return res.status(400).json({ error: 'Title and type are required' });
+      return res.status(400).json({ error: "Title and type are required" });
     }
 
-    const validTypes = ['VIDEO', 'TEXT', 'AUDIO', 'INTERACTIVE', 'QUIZ', 'ASSIGNMENT'];
+    const validTypes = [
+      "VIDEO",
+      "TEXT",
+      "AUDIO",
+      "INTERACTIVE",
+      "QUIZ",
+      "ASSIGNMENT",
+    ];
     if (!validTypes.includes(type)) {
-      return res.status(400).json({ error: 'Invalid lesson type' });
+      return res.status(400).json({ error: "Invalid lesson type" });
     }
 
     const updated = await prisma.lesson.update({
@@ -967,7 +1203,7 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
         description: description?.trim() || null,
         type: type as LessonType,
         duration: duration ? Number(duration) : null,
-        content: content ?? '',
+        content: content ?? "",
         videoUrl: videoUrl?.trim() || null,
         audioUrl: audioUrl?.trim() || null,
         isPublished: isPublished ?? false,
@@ -977,8 +1213,10 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
 
     return res.json({ lesson: updated });
   } catch (error: any) {
-    console.error('Update lesson error:', error);
-    if (error.code === 'P2025') return res.status(404).json({ error: 'Lesson not found' });
-    return res.status(500).json({ error: 'Failed to update lesson' });
+    console.error("Update lesson error:", error);
+    if (error.code === "P2025")
+      return res.status(404).json({ error: "Lesson not found" });
+    return res.status(500).json({ error: "Failed to update lesson" });
   }
 };
+

@@ -223,49 +223,49 @@ export default function CourseDetail() {
   });
 
 // Corrected insertTable – expects the REF (MutableRefObject), not the Quill instance
-const insertTable = (
-  quillRef: React.MutableRefObject<Quill | null>,
-  rows: number,
-  cols: number
-) => {
-  const quill = quillRef.current;
+  const insertTable = (
+    quillRef: React.MutableRefObject<Quill | null>,
+    rows: number,
+    cols: number
+  ) => {
+    const quill = quillRef.current;
 
-  if (!quill) {
-    showToast({
-      type: 'error',
-      title: 'Editor not ready',
-      message: 'Please wait a moment and try again',
-    });
-    return;
-  }
-
-  try {
-    // Get the module – correct name is 'better-table'
-    const tableModule = quill.getModule('better-table') as any;
-
-    if (tableModule && typeof tableModule.insertTable === 'function') {
-      tableModule.insertTable(rows, cols);
-      showToast({
-        type: 'success',
-        title: 'Table Added',
-        message: `${rows} × ${cols} table inserted`,
-      });
-    } else {
+    if (!quill) {
       showToast({
         type: 'error',
-        title: 'Table module not found',
-        message: 'Make sure quill-better-table is registered correctly',
+        title: 'Editor not ready',
+        message: 'Please wait a moment and try again',
+      });
+      return;
+    }
+
+    try {
+      // Get the module – correct name is 'better-table'
+      const tableModule = quill.getModule('better-table') as any;
+
+      if (tableModule && typeof tableModule.insertTable === 'function') {
+        tableModule.insertTable(rows, cols);
+        showToast({
+          type: 'success',
+          title: 'Table Added',
+          message: `${rows} × ${cols} table inserted`,
+        });
+      } else {
+        showToast({
+          type: 'error',
+          title: 'Table module not found',
+          message: 'Make sure quill-better-table is registered correctly',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to insert table:', err);
+      showToast({
+        type: 'error',
+        title: 'Failed to insert table',
+        message: 'Check console for details',
       });
     }
-  } catch (err) {
-    console.error('Failed to insert table:', err);
-    showToast({
-      type: 'error',
-      title: 'Failed to insert table',
-      message: 'Check console for details',
-    });
-  }
-};
+  };
 
   useEffect(() => {
     fetchCourseDetail();
@@ -521,7 +521,7 @@ const insertTable = (
       showToast({
         type: 'info',
         title: 'Lesson Locked',
-        message: 'To unlock this lesson, complete the previous one with at least 85% score (if it was a quiz).',
+        message: 'To unlock this lesson, complete the previous lesson with and score at least 85% score (if it was a quiz).',
       });
       return;
     }
