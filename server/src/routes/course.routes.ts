@@ -18,6 +18,7 @@ import {
   
   createLesson,
   updateLesson,
+  reorderLessonsInModule,
   deleteLesson,
   getQuizForLesson,
 } from "../controllers/course.controller";
@@ -97,6 +98,13 @@ router.put(
   authenticateToken,
   authorizeRoles('ADMIN'),
   updateLesson
+);
+// Reorder lessons within a module
+router.patch(
+  "/modules/:moduleId/lessons/reorder",
+  authenticateToken,
+  authorizeRoles("ADMIN"),
+  reorderLessonsInModule, 
 );
 
 // Unenroll from course

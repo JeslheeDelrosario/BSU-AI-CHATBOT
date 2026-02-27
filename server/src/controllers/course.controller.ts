@@ -1220,3 +1220,58 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
   }
 };
 
+//Reorder lessons inside one module (ADMIN only)
+export const reorderLessonsInModule = async (req: AuthRequest, res: Response) => {
+  try {
+    const { moduleId } = req.params;
+    const { lessonIds } = req.body; // expected: string[] of lesson IDs in NEW order
+
+    // ────────────────────────────────────────────────
+    // Basic validation
+    // ────────────────────────────────────────────────
+    if (!Array.isArray(lessonIds) || lessonIds.length === 0) {
+      return res.status(400).json({
+        error: "lessonIds must be a non-empty array of lesson IDs",
+      });
+    }
+
+    // ────────────────────────────────────────────────
+    // Safety check: make sure all IDs really belong to this module
+    // Prevents bad requests / potential security issues
+    // ────────────────────────────────────────────────
+    const foundLessons = await prisma.lesson.findMany({
+      where: {
+        moduleId,
+        id: { in: lessonIds },
+      },
+      select: { id: true },
+    });
+
+    if (foundLessons.length !== lessonIds.length) {
+      return res.status(400).json({
+        error: "One or more lesson IDs do not belong to this module",
+      });
+    }
+
+    // ────────────────────────────────────────────────
+    // Atomic update using transaction
+    // If any update fails → nothing is saved
+    // ────────────────────────────────────────────────
+    await prisma.$transaction(
+      lessonIds.map((id: string, index: number) =>
+        prisma.lesson.update({
+          where: { id },
+          data: { order: index + 1 }, // 1-based order (your DB uses this)
+        })
+      )
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Lesson order updated successfully",
+    });
+  } catch (error) {
+    console.error("Error reordering lessons:", error);
+    return res.status(500).json({ error: "Failed to reorder lessons" });
+  }
+};
