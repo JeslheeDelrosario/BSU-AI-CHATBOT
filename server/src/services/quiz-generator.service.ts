@@ -61,7 +61,10 @@ const SUPPORTED_QUIZ_TOPICS: Record<string, string[]> = {
   'environmental science': ['Climate change', 'Pollution', 'Conservation', 'Sustainability', 'Ecosystems', 'Renewable energy'],
   
   // Food Technology topics
-  'food technology': ['Food processing', 'Food safety', 'Preservation', 'Quality control', 'Nutrition', 'Food chemistry'],
+  'food technology': ['Food processing', 'Food safety', 'Preservation', 'Quality control', 'Nutrition', 'Food chemistry', 'HACCP', 'Foodborne diseases'],
+  'food safety': ['HACCP', 'Foodborne diseases', 'Food hygiene', 'Cross-contamination', 'Temperature control', 'Food storage', 'Sanitation', 'Food regulations'],
+  'food processing': ['Thermal processing', 'Non-thermal methods', 'Packaging', 'Storage', 'Preservation', 'Canning', 'Pasteurization'],
+  'food hygiene': ['Sanitation', 'Personal hygiene', 'Cross-contamination', 'Cleaning', 'Disinfection', 'Food handling'],
   
   // Medical Technology topics
   'medical technology': ['Clinical chemistry', 'Hematology', 'Microbiology', 'Immunology', 'Urinalysis', 'Blood banking']
@@ -527,41 +530,44 @@ Generate ${questionCount} real practice test questions now:`;
         take: 5
       });
 
-      // Generate questions from learning materials if available
+      // Generate questions based on the user's requested topic
       const questions: QuizQuestion[] = [];
       const difficulties: Array<'easy' | 'medium' | 'hard'> = ['easy', 'medium', 'hard'];
+      const usedQuestions = new Set<string>(); // Track used questions to avoid duplicates
 
-      // Check if we have learning materials
-      let hasLearningMaterials = false;
-      for (const course of courses) {
-        if (course.Lesson.length > 0 || course.modules.some((m: any) => m.lessons.length > 0)) {
-          hasLearningMaterials = true;
-          break;
+      // PRIORITY 1: Generate topic-specific questions first (most relevant to user's request)
+      // This ensures quizzes match the user's requested topic, not random lesson content
+      for (let i = 0; i < questionCount; i++) {
+        const difficulty = difficulties[i % 3];
+        const question = this.createTopicBasedQuestion(topic, difficulty, usedQuestions);
+        if (question) {
+          usedQuestions.add(question.question);
+          questions.push(question);
         }
       }
 
-      if (hasLearningMaterials) {
-        // Generate questions from learning materials
-        for (let i = 0; i < questionCount; i++) {
-          const course = courses[i % courses.length];
-          const difficulty = difficulties[i % 3];
-          
-          // Get lesson content
+      // PRIORITY 2: If we don't have enough topic-specific questions, try learning materials
+      if (questions.length < questionCount) {
+        for (const course of courses) {
           const lessons = course.Lesson.length > 0 
             ? course.Lesson 
             : course.modules.flatMap((m: any) => m.lessons);
           
-          if (lessons.length > 0) {
-            const lesson = lessons[i % lessons.length];
+          for (const lesson of lessons) {
+            if (questions.length >= questionCount) break;
+            const difficulty = difficulties[questions.length % 3];
             const question = this.createQuestionFromLearningMaterial(lesson, difficulty);
-            questions.push(question);
+            if (!usedQuestions.has(question.question)) {
+              usedQuestions.add(question.question);
+              questions.push(question);
+            }
           }
+          if (questions.length >= questionCount) break;
         }
       }
 
-      // Fallback: Generate topic-specific educational questions using the user's requested topic
+      // PRIORITY 3: Fallback to curriculum-based questions if still not enough
       if (questions.length < questionCount) {
-        const usedQuestions = new Set<string>(); // Track used questions to avoid duplicates
         for (let i = questions.length; i < questionCount; i++) {
           const difficulty = difficulties[i % 3];
           // Use the user's requested topic directly, not curriculum subjects
@@ -771,6 +777,51 @@ Generate ${questionCount} real practice test questions now:`;
       return { ...questions[Math.floor(Math.random() * questions.length)], difficulty };
     }
     
+    // Food Safety questions
+    if (subjectName.includes('food safety') || subjectName.includes('food hygiene') || subjectName.includes('haccp')) {
+      const questions = [
+        { question: 'What does HACCP stand for?', options: ['Hazard Analysis and Critical Control Points', 'Health and Cleanliness Control Program', 'Hygiene Assessment and Contamination Control Plan', 'Hazardous Agent Control and Cleaning Protocol'], correctAnswer: 0, explanation: 'HACCP stands for Hazard Analysis and Critical Control Points, a systematic approach to food safety.' },
+        { question: 'What is the temperature danger zone for food?', options: ['0°C to 10°C', '5°C to 60°C', '10°C to 40°C', '20°C to 80°C'], correctAnswer: 1, explanation: 'The temperature danger zone is 5°C to 60°C (41°F to 140°F), where bacteria grow most rapidly.' },
+        { question: 'Which of the following is a biological hazard in food?', options: ['Glass fragments', 'Pesticide residues', 'Salmonella bacteria', 'Metal shavings'], correctAnswer: 2, explanation: 'Salmonella is a biological hazard. Glass and metal are physical hazards, pesticides are chemical hazards.' },
+        { question: 'What is cross-contamination?', options: ['Cooking food at wrong temperature', 'Transfer of harmful substances from one food to another', 'Using expired ingredients', 'Improper food storage'], correctAnswer: 1, explanation: 'Cross-contamination is the transfer of harmful bacteria or substances from one food, surface, or person to another.' },
+        { question: 'What is the minimum internal temperature for cooking poultry?', options: ['63°C (145°F)', '68°C (155°F)', '74°C (165°F)', '82°C (180°F)'], correctAnswer: 2, explanation: 'Poultry must be cooked to a minimum internal temperature of 74°C (165°F) to kill harmful bacteria.' },
+      ];
+      return { ...questions[Math.floor(Math.random() * questions.length)], difficulty };
+    }
+    
+    // Food Technology questions
+    if (subjectName.includes('food') || subjectName.includes('nutrition')) {
+      const questions = [
+        { question: 'What is pasteurization?', options: ['Freezing food to preserve it', 'Heating food to kill pathogens', 'Adding preservatives to food', 'Drying food to remove moisture'], correctAnswer: 1, explanation: 'Pasteurization is a heat treatment process that kills harmful microorganisms in food and beverages.' },
+        { question: 'What is the purpose of food preservation?', options: ['To change food color', 'To extend shelf life and prevent spoilage', 'To increase food weight', 'To add artificial flavors'], correctAnswer: 1, explanation: 'Food preservation extends shelf life by preventing microbial growth and chemical changes.' },
+        { question: 'Which method of food preservation uses low temperatures?', options: ['Canning', 'Smoking', 'Refrigeration', 'Irradiation'], correctAnswer: 2, explanation: 'Refrigeration uses low temperatures to slow down microbial growth and enzymatic reactions.' },
+        { question: 'What is the main purpose of food packaging?', options: ['To make food look attractive only', 'To protect food from contamination and extend shelf life', 'To increase food cost', 'To hide food defects'], correctAnswer: 1, explanation: 'Food packaging protects against contamination, physical damage, and helps extend shelf life.' },
+      ];
+      return { ...questions[Math.floor(Math.random() * questions.length)], difficulty };
+    }
+    
+    // Ecology questions
+    if (subjectName.includes('ecology') || subjectName.includes('ecosystem')) {
+      const questions = [
+        { question: 'What is an ecosystem?', options: ['A single organism', 'A community of organisms and their physical environment', 'Only the plants in an area', 'A type of biome'], correctAnswer: 1, explanation: 'An ecosystem includes all living organisms in an area and their interactions with the physical environment.' },
+        { question: 'What is the role of decomposers in an ecosystem?', options: ['Produce food through photosynthesis', 'Hunt and eat other organisms', 'Break down dead organic matter', 'Provide shelter for animals'], correctAnswer: 2, explanation: 'Decomposers break down dead organisms and waste, recycling nutrients back into the ecosystem.' },
+        { question: 'What is biodiversity?', options: ['The number of plants only', 'The variety of life in an ecosystem', 'The size of an ecosystem', 'The climate of an area'], correctAnswer: 1, explanation: 'Biodiversity refers to the variety of all living species, including plants, animals, and microorganisms.' },
+        { question: 'What is a food chain?', options: ['A grocery store network', 'A linear sequence of organisms where each is eaten by the next', 'A type of restaurant', 'A food processing method'], correctAnswer: 1, explanation: 'A food chain shows the linear transfer of energy from producers to consumers in an ecosystem.' },
+      ];
+      return { ...questions[Math.floor(Math.random() * questions.length)], difficulty };
+    }
+    
+    // Environmental Science questions
+    if (subjectName.includes('environment') || subjectName.includes('pollution') || subjectName.includes('climate')) {
+      const questions = [
+        { question: 'What is the greenhouse effect?', options: ['Growing plants in greenhouses', 'Trapping of heat in the atmosphere by greenhouse gases', 'A type of pollution', 'Cooling of the Earth'], correctAnswer: 1, explanation: 'The greenhouse effect is the trapping of heat by gases like CO2 and methane in Earth\'s atmosphere.' },
+        { question: 'Which gas is the primary contributor to global warming?', options: ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Helium'], correctAnswer: 2, explanation: 'Carbon dioxide (CO2) is the main greenhouse gas contributing to global warming from human activities.' },
+        { question: 'What is sustainable development?', options: ['Rapid industrialization', 'Development that meets present needs without compromising future generations', 'Stopping all development', 'Only economic growth'], correctAnswer: 1, explanation: 'Sustainable development balances economic, social, and environmental needs for present and future generations.' },
+        { question: 'What is the ozone layer?', options: ['A layer of oxygen in the ocean', 'A protective layer in the stratosphere that absorbs UV radiation', 'A type of pollution', 'A layer of clouds'], correctAnswer: 1, explanation: 'The ozone layer in the stratosphere absorbs harmful ultraviolet radiation from the sun.' },
+      ];
+      return { ...questions[Math.floor(Math.random() * questions.length)], difficulty };
+    }
+    
     // Default: generate a real general science question instead of a meta-question
     const generalQuestions = [
       { question: 'What is the scientific method?', options: ['A way to memorize facts', 'A systematic approach to inquiry involving observation, hypothesis, experimentation, and conclusion', 'A type of laboratory equipment', 'A mathematical formula'], correctAnswer: 1, explanation: 'The scientific method is a systematic process of observation, hypothesis formation, experimentation, and analysis used to understand natural phenomena.' },
@@ -849,9 +900,54 @@ Generate ${questionCount} real practice test questions now:`;
       questionPool = calculusQuestions.map(q => ({ ...q, difficulty }));
     } else if (normalizedTopic.includes('microbiology') || normalizedTopic.includes('micro') || normalizedTopic.includes('bacteria')) {
       questionPool = microbiologyQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('food safety') || normalizedTopic.includes('food hygiene') || normalizedTopic.includes('haccp')) {
+      // Food Safety questions
+      const foodSafetyQuestions = [
+        { question: 'What does HACCP stand for?', options: ['Hazard Analysis and Critical Control Points', 'Health and Cleanliness Control Program', 'Hygiene Assessment and Contamination Control Plan', 'Hazardous Agent Control and Cleaning Protocol'], correctAnswer: 0, explanation: 'HACCP stands for Hazard Analysis and Critical Control Points, a systematic approach to food safety.' },
+        { question: 'What is the temperature danger zone for food?', options: ['0°C to 10°C', '5°C to 60°C', '10°C to 40°C', '20°C to 80°C'], correctAnswer: 1, explanation: 'The temperature danger zone is 5°C to 60°C (41°F to 140°F), where bacteria grow most rapidly.' },
+        { question: 'Which of the following is a biological hazard in food?', options: ['Glass fragments', 'Pesticide residues', 'Salmonella bacteria', 'Metal shavings'], correctAnswer: 2, explanation: 'Salmonella is a biological hazard. Glass and metal are physical hazards, pesticides are chemical hazards.' },
+        { question: 'What is cross-contamination?', options: ['Cooking food at wrong temperature', 'Transfer of harmful substances from one food to another', 'Using expired ingredients', 'Improper food storage'], correctAnswer: 1, explanation: 'Cross-contamination is the transfer of harmful bacteria or substances from one food, surface, or person to another.' },
+        { question: 'What is the minimum internal temperature for cooking poultry?', options: ['63°C (145°F)', '68°C (155°F)', '74°C (165°F)', '82°C (180°F)'], correctAnswer: 2, explanation: 'Poultry must be cooked to a minimum internal temperature of 74°C (165°F) to kill harmful bacteria.' },
+        { question: 'Which bacteria is commonly associated with undercooked eggs?', options: ['E. coli', 'Listeria', 'Salmonella', 'Clostridium'], correctAnswer: 2, explanation: 'Salmonella is commonly found in raw or undercooked eggs and can cause food poisoning.' },
+        { question: 'What is the primary purpose of food safety regulations?', options: ['Increase food prices', 'Protect public health', 'Reduce food production', 'Limit food variety'], correctAnswer: 1, explanation: 'Food safety regulations are designed to protect public health by ensuring food is safe for consumption.' },
+        { question: 'How should raw meat be stored in a refrigerator?', options: ['On the top shelf', 'On the bottom shelf', 'Next to ready-to-eat foods', 'At room temperature'], correctAnswer: 1, explanation: 'Raw meat should be stored on the bottom shelf to prevent dripping onto other foods.' },
+        { question: 'What is the correct order for washing hands in food preparation?', options: ['Rinse, soap, scrub, dry', 'Wet, soap, scrub, rinse, dry', 'Soap, rinse, dry', 'Scrub, rinse, soap, dry'], correctAnswer: 1, explanation: 'Proper handwashing: wet hands, apply soap, scrub for 20 seconds, rinse thoroughly, and dry with clean towel.' },
+        { question: 'Which foodborne illness is caused by Clostridium botulinum?', options: ['Salmonellosis', 'Botulism', 'Listeriosis', 'Campylobacteriosis'], correctAnswer: 1, explanation: 'Botulism is caused by Clostridium botulinum, often found in improperly canned foods.' },
+      ];
+      questionPool = foodSafetyQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('food') || normalizedTopic.includes('nutrition')) {
+      // Food Technology questions
+      const foodTechQuestions = [
+        { question: 'What is pasteurization?', options: ['Freezing food to preserve it', 'Heating food to kill pathogens', 'Adding preservatives to food', 'Drying food to remove moisture'], correctAnswer: 1, explanation: 'Pasteurization is a heat treatment process that kills harmful microorganisms in food and beverages.' },
+        { question: 'What is the purpose of food preservation?', options: ['To change food color', 'To extend shelf life and prevent spoilage', 'To increase food weight', 'To add artificial flavors'], correctAnswer: 1, explanation: 'Food preservation extends shelf life by preventing microbial growth and chemical changes.' },
+        { question: 'Which method of food preservation uses low temperatures?', options: ['Canning', 'Smoking', 'Refrigeration', 'Irradiation'], correctAnswer: 2, explanation: 'Refrigeration uses low temperatures to slow down microbial growth and enzymatic reactions.' },
+        { question: 'What is the main purpose of food packaging?', options: ['To make food look attractive only', 'To protect food from contamination and extend shelf life', 'To increase food cost', 'To hide food defects'], correctAnswer: 1, explanation: 'Food packaging protects against contamination, physical damage, and helps extend shelf life.' },
+        { question: 'What is water activity (aw) in food science?', options: ['The amount of water in food', 'The availability of water for microbial growth', 'The water used in processing', 'The moisture content percentage'], correctAnswer: 1, explanation: 'Water activity measures the availability of water for microbial growth and chemical reactions.' },
+      ];
+      questionPool = foodTechQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('ecology') || normalizedTopic.includes('ecosystem')) {
+      // Ecology questions
+      const ecologyQuestions = [
+        { question: 'What is an ecosystem?', options: ['A single organism', 'A community of organisms and their physical environment', 'Only the plants in an area', 'A type of biome'], correctAnswer: 1, explanation: 'An ecosystem includes all living organisms in an area and their interactions with the physical environment.' },
+        { question: 'What is the role of decomposers in an ecosystem?', options: ['Produce food through photosynthesis', 'Hunt and eat other organisms', 'Break down dead organic matter', 'Provide shelter for animals'], correctAnswer: 2, explanation: 'Decomposers break down dead organisms and waste, recycling nutrients back into the ecosystem.' },
+        { question: 'What is biodiversity?', options: ['The number of plants only', 'The variety of life in an ecosystem', 'The size of an ecosystem', 'The climate of an area'], correctAnswer: 1, explanation: 'Biodiversity refers to the variety of all living species, including plants, animals, and microorganisms.' },
+        { question: 'What is a food chain?', options: ['A grocery store network', 'A linear sequence of organisms where each is eaten by the next', 'A type of restaurant', 'A food processing method'], correctAnswer: 1, explanation: 'A food chain shows the linear transfer of energy from producers to consumers in an ecosystem.' },
+        { question: 'What are primary producers in an ecosystem?', options: ['Carnivores', 'Herbivores', 'Organisms that make their own food (autotrophs)', 'Decomposers'], correctAnswer: 2, explanation: 'Primary producers are autotrophs like plants that produce their own food through photosynthesis.' },
+      ];
+      questionPool = ecologyQuestions.map(q => ({ ...q, difficulty }));
+    } else if (normalizedTopic.includes('environment') || normalizedTopic.includes('pollution') || normalizedTopic.includes('climate')) {
+      // Environmental Science questions
+      const envSciQuestions = [
+        { question: 'What is the greenhouse effect?', options: ['Growing plants in greenhouses', 'Trapping of heat in the atmosphere by greenhouse gases', 'A type of pollution', 'Cooling of the Earth'], correctAnswer: 1, explanation: 'The greenhouse effect is the trapping of heat by gases like CO2 and methane in Earth\'s atmosphere.' },
+        { question: 'Which gas is the primary contributor to global warming?', options: ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Helium'], correctAnswer: 2, explanation: 'Carbon dioxide (CO2) is the main greenhouse gas contributing to global warming from human activities.' },
+        { question: 'What is sustainable development?', options: ['Rapid industrialization', 'Development that meets present needs without compromising future generations', 'Stopping all development', 'Only economic growth'], correctAnswer: 1, explanation: 'Sustainable development balances economic, social, and environmental needs for present and future generations.' },
+        { question: 'What is the ozone layer?', options: ['A layer of oxygen in the ocean', 'A protective layer in the stratosphere that absorbs UV radiation', 'A type of pollution', 'A layer of clouds'], correctAnswer: 1, explanation: 'The ozone layer in the stratosphere absorbs harmful ultraviolet radiation from the sun.' },
+        { question: 'What is the main cause of acid rain?', options: ['Carbon dioxide only', 'Sulfur dioxide and nitrogen oxides', 'Water vapor', 'Oxygen'], correctAnswer: 1, explanation: 'Acid rain is caused by sulfur dioxide and nitrogen oxides reacting with water in the atmosphere.' },
+      ];
+      questionPool = envSciQuestions.map(q => ({ ...q, difficulty }));
     } else {
-      // Default to CS questions for general/unknown topics
-      questionPool = csQuestions.map(q => ({ ...q, difficulty }));
+      // Default: Return null to force AI generation for unknown topics
+      return null;
     }
 
     // Filter out already used questions

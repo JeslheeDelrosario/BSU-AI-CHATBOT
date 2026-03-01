@@ -395,7 +395,7 @@ export const enrollInCourse = async (req: AuthRequest, res: Response) => {
             progress: 0,
             enrolledAt: new Date(),
             completedAt: null,
-          },
+          } as any,
           include: { Course: true },
         });
 
@@ -425,7 +425,7 @@ export const enrollInCourse = async (req: AuthRequest, res: Response) => {
             enrolledCoursesCount: {
               increment: 1,
             },
-          },
+          } as any,
         });
       }
     });
@@ -489,7 +489,7 @@ export const unenrollFromCourse = async (req: AuthRequest, res: Response) => {
       data: {
         status: EnrollmentStatus.DROPPED,
         droppedAt: new Date(),
-      },
+      } as any,
     });
 
     // Delete progress records

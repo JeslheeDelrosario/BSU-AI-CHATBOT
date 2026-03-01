@@ -285,6 +285,9 @@ model FAQ {
 
   @@index([category])
   @@index([isPublished])
+  @@index([isPublished, category])
+  @@index([isPublished, helpful(sort: Desc), viewCount(sort: Desc)])
+  @@index([keywords], type: Gin) // GIN index for array contains queries
 }
 
 model Faculty {
@@ -496,6 +499,8 @@ model UniversityProgram {
   title           String            @unique
   abbreviation    String?
   college         String
+  description     String?
+  careerPaths     String[]          @default([])
   isActive        Boolean           @default(true)
   order           Int               @default(0)
   createdAt       DateTime          @default(now())
@@ -621,6 +626,13 @@ enum AchievementType {
   LEADERBOARD_TOP3
   LEADERBOARD_TOP1
   DEDICATED_LEARNER
+  RANK_NEWCOMER
+  RANK_LEARNER
+  RANK_EXPLORER
+  RANK_ACHIEVER
+  RANK_SCHOLAR
+  RANK_EXPERT
+  RANK_MASTER_SCHOLAR
 }
 
 enum AssignmentType {

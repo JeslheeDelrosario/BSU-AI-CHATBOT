@@ -8,6 +8,7 @@ import {
   deleteAchievementDefinition,
   getUserAchievements,
   triggerAchievementCheck,
+  getUserRankProgress,
   getLeaderboardConfigs,
   createLeaderboardConfig,
   updateLeaderboardConfig,
@@ -42,6 +43,10 @@ router.post('/achievement-definitions/seed', isAdmin, seedDefaultAchievements);
 router.get('/achievements/me', getUserAchievements);
 router.post('/achievements/check', triggerAchievementCheck);
 router.get('/achievements/user/:userId', isAdmin, getUserAchievements);
+
+// ─── Rank Progression ─────────────────────────────────────────────────────────
+router.get('/rank/me', getUserRankProgress);
+router.get('/rank/user/:userId', isAdmin, getUserRankProgress);
 
 // ─── Leaderboard Configs (Admin) ──────────────────────────────────────────────
 router.get('/leaderboard-configs', getLeaderboardConfigs);

@@ -118,6 +118,46 @@ export default function ConsultationBookingCard({
     return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   };
 
+  // Generate available time slots (30-minute intervals)
+  const availableTimeSlots = useMemo(() => {
+    if (!selectedFaculty) return [];
+    
+    const startTime = selectedFaculty.consultationStart || '08:00';
+    const endTime = selectedFaculty.consultationEnd || '17:00';
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    
+    const slots: { start: string; end: string; isBooked: boolean }[] = [];
+    let currentH = startH;
+    let currentM = startM;
+    
+    while (currentH < endH || (currentH === endH && currentM < endM)) {
+      const slotStart = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`;
+      
+      // Calculate end time (30 min slot)
+      let nextM = currentM + 30;
+      let nextH = currentH;
+      if (nextM >= 60) {
+        nextH += 1;
+        nextM = nextM % 60;
+      }
+      const slotEnd = `${String(nextH).padStart(2, '0')}:${String(nextM).padStart(2, '0')}`;
+      
+      // Check if slot is booked
+      const isBooked = bookedSlots.some(b => 
+        (slotStart >= b.startTime && slotStart < b.endTime) ||
+        (slotEnd > b.startTime && slotEnd <= b.endTime)
+      );
+      
+      slots.push({ start: slotStart, end: slotEnd, isBooked });
+      
+      currentH = nextH;
+      currentM = nextM;
+    }
+    
+    return slots;
+  }, [selectedFaculty, bookedSlots]);
+
   const getDayName = (date: Date | string) => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -445,31 +485,61 @@ export default function ConsultationBookingCard({
           </div>
         )}
 
-        {/* Time Selection */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
-              {language === 'fil' ? 'Oras ng Simula' : 'Start Time'}
+        {/* Time Slot Selection - Clickable Grid */}
+        {bookingForm.date && isDateAvailable(bookingForm.date) && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              {language === 'fil' ? 'Pumili ng Oras' : 'Select Time Slot'} *
             </label>
-            <input
-              type="time"
-              value={bookingForm.startTime}
-              onChange={e => setBookingForm({ ...bookingForm, startTime: e.target.value })}
-              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              {availableTimeSlots.map((slot, idx) => {
+                const isSelected = bookingForm.startTime === slot.start && bookingForm.endTime === slot.end;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => !slot.isBooked && setBookingForm({ 
+                      ...bookingForm, 
+                      startTime: slot.start, 
+                      endTime: slot.end 
+                    })}
+                    disabled={slot.isBooked}
+                    className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2
+                      ${slot.isBooked
+                        ? 'bg-red-100 dark:bg-red-500/20 text-red-400 dark:text-red-500 cursor-not-allowed line-through'
+                        : isSelected
+                          ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 hover:text-cyan-700 dark:hover:text-cyan-300 border border-slate-200 dark:border-white/10'
+                      }
+                    `}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {formatTime(slot.start)}
+                  </button>
+                );
+              })}
+            </div>
+            {availableTimeSlots.length === 0 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+                {language === 'fil' ? 'Walang available na slot' : 'No available time slots'}
+              </p>
+            )}
+            {/* Legend */}
+            <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded" />
+                {language === 'fil' ? 'Available' : 'Available'}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 bg-gradient-to-r from-cyan-500 to-purple-600 rounded" />
+                {language === 'fil' ? 'Napili' : 'Selected'}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 bg-red-100 dark:bg-red-500/20 rounded" />
+                {language === 'fil' ? 'Occupied' : 'Occupied'}
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
-              {language === 'fil' ? 'Oras ng Tapos' : 'End Time'}
-            </label>
-            <input
-              type="time"
-              value={bookingForm.endTime}
-              onChange={e => setBookingForm({ ...bookingForm, endTime: e.target.value })}
-              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30"
-            />
-          </div>
-        </div>
+        )}
 
         {/* Topic */}
         <div className="mb-4">

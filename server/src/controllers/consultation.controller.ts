@@ -1,68 +1,61 @@
 // server/src/controllers/consultation.controller.ts
+// Production-grade consultation booking controller
+// Implements comprehensive validation, slot locking, and analytics
 import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ConsultationStatus } from '@prisma/client';
+import { 
+  invalidateBookingCache,
+  invalidateFacultyCache,
+  validateBookingRequest,
+  lockSlot,
+  unlockSlot,
+  getBookingHistory,
+  getConsultationAnalytics,
+  getBookingRules,
+} from '../services/faculty-consultation.service';
 
-// Book a consultation
+// Book a consultation with comprehensive validation
 export const bookConsultation = async (req: AuthRequest, res: Response) => {
   try {
     const studentId = req.user!.id;
     const { facultyId, date, startTime, endTime, topic, notes } = req.body;
 
+    // Basic field validation
     if (!facultyId || !date || !startTime || !endTime || !topic) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        required: ['facultyId', 'date', 'startTime', 'endTime', 'topic']
+      });
     }
 
-    // Check if faculty exists
-    const faculty = await prisma.faculty.findUnique({
-      where: { id: facultyId }
-    });
-
-    if (!faculty) {
-      return res.status(404).json({ error: 'Faculty not found' });
+    // Topic length validation
+    if (topic.length < 5 || topic.length > 500) {
+      return res.status(400).json({ error: 'Topic must be between 5 and 500 characters' });
     }
 
-    // Check if the date is in the faculty's consultation days
     const bookingDate = new Date(date);
-    const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][bookingDate.getDay()];
     
-    if (!faculty.consultationDays.includes(dayName)) {
-      return res.status(400).json({ error: 'Faculty not available on this day' });
+    // Use comprehensive validation service
+    const validation = await validateBookingRequest(
+      studentId,
+      facultyId,
+      bookingDate,
+      startTime,
+      endTime
+    );
+
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        error: validation.errors[0],
+        errors: validation.errors,
+        warnings: validation.warnings
+      });
     }
 
-    // Check for conflicting bookings
-    const conflictingBooking = await prisma.consultationBooking.findFirst({
-      where: {
-        facultyId,
-        date: bookingDate,
-        status: { in: ['PENDING', 'CONFIRMED'] },
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: startTime } },
-              { endTime: { gt: startTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { lt: endTime } },
-              { endTime: { gte: endTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { gte: startTime } },
-              { endTime: { lte: endTime } }
-            ]
-          }
-        ]
-      }
-    });
-
-    if (conflictingBooking) {
-      return res.status(409).json({ error: 'Time slot already booked' });
-    }
+    // Include warnings in response if any
+    const responseWarnings = validation.warnings;
 
     // Create the booking
     const booking = await prisma.consultationBooking.create({
@@ -97,7 +90,15 @@ export const bookConsultation = async (req: AuthRequest, res: Response) => {
 
     // TODO: Send email notification to faculty
 
-    return res.status(201).json(booking);
+    // Invalidate cache for this faculty and student
+    await invalidateBookingCache(facultyId, studentId);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Booking request submitted successfully',
+      booking,
+      warnings: responseWarnings.length > 0 ? responseWarnings : undefined,
+    });
   } catch (error) {
     console.error('Book consultation error:', error);
     return res.status(500).json({ error: 'Failed to book consultation' });
@@ -216,6 +217,9 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
 
     // TODO: Send email notification to student
 
+    // Invalidate cache for this faculty and student
+    await invalidateBookingCache(booking.facultyId, booking.studentId);
+
     return res.json(updated);
   } catch (error) {
     console.error('Update booking status error:', error);
@@ -254,6 +258,9 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
     });
 
     // TODO: Send email notification to faculty
+
+    // Invalidate cache for this faculty and student
+    await invalidateBookingCache(booking.facultyId, studentId);
 
     return res.json(updated);
   } catch (error) {
@@ -591,5 +598,139 @@ export const getAvailableSlots = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Get available slots error:', error);
     return res.status(500).json({ error: 'Failed to fetch available slots' });
+  }
+};
+
+// ─── Slot Locking (Admin/Faculty) ──────────────────────────────────────────────
+
+// Lock a consultation slot
+export const lockConsultationSlot = async (req: AuthRequest, res: Response) => {
+  try {
+    const userRole = req.user!.role;
+    if (userRole !== 'ADMIN' && userRole !== 'TEACHER') {
+      return res.status(403).json({ error: 'Only faculty or admins can lock slots' });
+    }
+
+    const { facultyId, date, startTime, endTime, reason, expiresAt } = req.body;
+
+    if (!facultyId || !date || !startTime || !endTime || !reason) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const locked = await lockSlot(
+      facultyId,
+      date,
+      startTime,
+      endTime,
+      reason,
+      req.user!.id,
+      expiresAt ? new Date(expiresAt) : undefined
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Slot locked successfully',
+      lockedSlot: locked,
+    });
+  } catch (error) {
+    console.error('Lock slot error:', error);
+    return res.status(500).json({ error: 'Failed to lock slot' });
+  }
+};
+
+// Unlock a consultation slot
+export const unlockConsultationSlot = async (req: AuthRequest, res: Response) => {
+  try {
+    const userRole = req.user!.role;
+    if (userRole !== 'ADMIN' && userRole !== 'TEACHER') {
+      return res.status(403).json({ error: 'Only faculty or admins can unlock slots' });
+    }
+
+    const { facultyId, date, startTime } = req.body;
+
+    if (!facultyId || !date || !startTime) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await unlockSlot(facultyId, date, startTime);
+
+    return res.json({
+      success: true,
+      message: 'Slot unlocked successfully',
+    });
+  } catch (error) {
+    console.error('Unlock slot error:', error);
+    return res.status(500).json({ error: 'Failed to unlock slot' });
+  }
+};
+
+// ─── Booking History & Analytics (Admin) ───────────────────────────────────────
+
+// Get booking history with filters
+export const getBookingHistoryEndpoint = async (req: AuthRequest, res: Response) => {
+  try {
+    const userRole = req.user!.role;
+    if (userRole !== 'ADMIN' && userRole !== 'TEACHER') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { facultyId, studentId, startDate, endDate, status, page, limit } = req.query;
+
+    const filters: any = {};
+    if (facultyId) filters.facultyId = facultyId as string;
+    if (studentId) filters.studentId = studentId as string;
+    if (startDate) filters.startDate = new Date(startDate as string);
+    if (endDate) filters.endDate = new Date(endDate as string);
+    if (status) filters.status = (status as string).split(',');
+
+    const pagination = {
+      page: parseInt(page as string) || 1,
+      limit: Math.min(parseInt(limit as string) || 50, 100),
+    };
+
+    const result = await getBookingHistory(filters, pagination);
+
+    return res.json(result);
+  } catch (error) {
+    console.error('Get booking history error:', error);
+    return res.status(500).json({ error: 'Failed to fetch booking history' });
+  }
+};
+
+// Get consultation analytics
+export const getAnalyticsEndpoint = async (req: AuthRequest, res: Response) => {
+  try {
+    const userRole = req.user!.role;
+    if (userRole !== 'ADMIN') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { startDate, endDate, facultyId } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Start date and end date required' });
+    }
+
+    const analytics = await getConsultationAnalytics(
+      new Date(startDate as string),
+      new Date(endDate as string),
+      facultyId as string | undefined
+    );
+
+    return res.json(analytics);
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    return res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+};
+
+// Get booking rules configuration
+export const getBookingRulesEndpoint = async (_req: AuthRequest, res: Response) => {
+  try {
+    const rules = getBookingRules();
+    return res.json(rules);
+  } catch (error) {
+    console.error('Get booking rules error:', error);
+    return res.status(500).json({ error: 'Failed to fetch booking rules' });
   }
 };
