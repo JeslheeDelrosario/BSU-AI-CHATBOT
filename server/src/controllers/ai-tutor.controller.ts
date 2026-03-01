@@ -20,6 +20,8 @@ import {
   RAGContext
 } from '../services/rag-context.service';
 import { quizGeneratorService } from '../services/quiz-generator.service';
+import * as FacultyConsultationService from '../services/faculty-consultation.service';
+import { FAQCacheService } from '../services/faq-cache.service';
 
 // Initialize Gemini AI client (FREE!)
 let geminiAI: GoogleGenerativeAI | null = null;
@@ -231,6 +233,141 @@ If the information isn't in the database, say so politely. Never hallucinate or 
     // Add current user message
     messages.push({ role: 'user', content: userMessage });
 
+    // Detect GENERAL faculty list queries (e.g., "who are the faculty members?", "show me faculty", "list faculty")
+    const generalFacultyPatterns = [
+      /who\s+are\s+the\s+faculty/i,
+      /list\s+(all\s+)?(the\s+)?faculty/i,
+      /show\s+(me\s+)?(all\s+)?(the\s+)?faculty/i,
+      /faculty\s+(members|list)/i,
+      /all\s+faculty/i,
+      /sino\s+ang\s+mga\s+faculty/i,
+      /mga\s+faculty\s+members/i
+    ];
+
+    const isDepartmentQuery = /mathematics|math|computer\s+science|cs|biology|bio|food\s+tech|environmental|medical\s+tech|science\s+department/i.test(lowerMsg);
+    const isGeneralFacultyQuery = generalFacultyPatterns.some(pattern => pattern.test(lowerMsg));
+
+    if (isGeneralFacultyQuery || (isDepartmentQuery && /faculty|professor|instructor|teacher/i.test(lowerMsg))) {
+      // Get all COS faculty
+      const allFaculty = await prisma.faculty.findMany({
+        where: {
+          college: { startsWith: 'College of Science', mode: 'insensitive' }
+        },
+        orderBy: [
+          { position: 'asc' },
+          { lastName: 'asc' }
+        ]
+      });
+
+      if (allFaculty.length === 0) {
+        return language === 'fil'
+          ? `Paumanhin, wala pa akong impormasyon tungkol sa faculty members ng College of Science sa aking database. Maaari mong kontakin ang COS office para sa updated faculty list.`
+          : `I apologize, but I don't have information about faculty members in the College of Science in my database yet. Please contact the COS office for an updated faculty list.`;
+      }
+
+      // Deduplicate faculty by full name (keep entry with most complete email)
+      const facultyMap = new Map<string, typeof allFaculty[0]>();
+      allFaculty.forEach(f => {
+        const fullName = `${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}`.toLowerCase().trim();
+        const existing = facultyMap.get(fullName);
+        
+        // Keep the entry with the more complete/standard email format
+        if (!existing || 
+            (f.email && !existing.email) || 
+            (f.email && existing.email && f.email.length < existing.email.length)) {
+          facultyMap.set(fullName, f);
+        }
+      });
+
+      const facultyList = Array.from(facultyMap.values());
+
+      // Group faculty by position/role
+      const groupedFaculty: { [key: string]: typeof facultyList } = {};
+      facultyList.forEach(f => {
+        const role = f.position || 'Faculty';
+        if (!groupedFaculty[role]) {
+          groupedFaculty[role] = [];
+        }
+        groupedFaculty[role].push(f);
+      });
+
+      let response = '';
+      
+      // Add department-specific note if mentioned
+      if (isDepartmentQuery) {
+        const deptName = lowerMsg.match(/(mathematics|math|computer\s+science|biology|food\s+tech|environmental|medical\s+tech)/i)?.[0] || 'the department';
+        response = language === 'fil'
+          ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring kontakin ang COS office.*\n\n`
+          : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please contact the COS office.*\n\n`;
+      } else {
+        response = language === 'fil'
+          ? `📚 **Faculty Members ng College of Science**\n\n`
+          : `📚 **College of Science Faculty Members**\n\n`;
+      }
+
+      // Display faculty grouped by role with optimized formatting
+      const sortedRoles = Object.keys(groupedFaculty).sort((a, b) => {
+        // Dean first, then Program Coordinators, then Research Coordinator, then Faculty
+        if (a === 'Dean') return -1;
+        if (b === 'Dean') return 1;
+        if (a.includes('Program Coordinator')) return -1;
+        if (b.includes('Program Coordinator')) return 1;
+        if (a.includes('Research Coordinator')) return -1;
+        if (b.includes('Research Coordinator')) return 1;
+        return a.localeCompare(b);
+      });
+
+      // Limit display for very large lists
+      const MAX_DISPLAY = 50;
+      let displayedCount = 0;
+      let hasMore = false;
+
+      sortedRoles.forEach(role => {
+        const facultyInRole = groupedFaculty[role];
+        
+        // Always show leadership roles (Dean, Coordinators)
+        const isLeadership = role === 'Dean' || role.includes('Coordinator');
+        
+        if (isLeadership || displayedCount < MAX_DISPLAY) {
+          response += `\n**${role}** (${facultyInRole.length}):\n`;
+          
+          facultyInRole.forEach((f, idx) => {
+            if (!isLeadership && displayedCount >= MAX_DISPLAY) {
+              hasMore = true;
+              return;
+            }
+            
+            const fullName = `${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}`;
+            response += `${idx + 1}. **${fullName}**\n`;
+            
+            // Show email on separate line for better readability
+            if (f.email) {
+              response += `   📧 ${f.email}\n`;
+            }
+            
+            displayedCount++;
+          });
+        } else {
+          hasMore = true;
+        }
+      });
+
+      // Summary section
+      response += `\n---\n📊 **Total Faculty**: ${facultyList.length} members`;
+      
+      if (hasMore) {
+        response += language === 'fil'
+          ? `\n\n*Showing ${displayedCount} of ${facultyList.length} faculty members. Sabihin ang specific na pangalan para sa mas detalyadong impormasyon.*`
+          : `\n\n*Showing ${displayedCount} of ${facultyList.length} faculty members. Ask about a specific faculty member by name for detailed information.*`;
+      }
+
+      response += language === 'fil'
+        ? `\n\n💡 **Tip**: Sabihin "who is [name]" para sa contact details at consultation schedule, o "book consultation with [name]" para mag-schedule.`
+        : `\n\n💡 **Tip**: Say "who is [name]" for contact details and consultation schedule, or "book consultation with [name]" to schedule an appointment.`;
+
+      return response;
+    }
+
     // Detect faculty name inquiries (e.g., "who is [name]?")
     // IMPORTANT: Exclude program-related queries to avoid false positives
     const programKeywords = ['program', 'course', 'degree', 'curriculum', 'bs ', 'bsm ', 'bachelor', 'major', 'specialization'];
@@ -323,11 +460,21 @@ If the information isn't in the database, say so politely. Never hallucinate or 
             response += language === 'fil'
               ? `\n📅 **Consultation Days**: ${faculty.consultationDays.join(', ')}`
               : `\n📅 **Consultation Days**: ${faculty.consultationDays.join(', ')}`;
+            
+            // Add consultation time if available
+            if (faculty.consultationStart && faculty.consultationEnd) {
+              response += ` (${faculty.consultationStart} - ${faculty.consultationEnd})`;
+            }
+            
+            // Add booking prompt
+            response += language === 'fil'
+              ? `\n\n💡 **Tip**: Sabihin mo lang "book consultation with ${faculty.firstName}" para mag-schedule ng appointment!`
+              : `\n\n💡 **Tip**: Just say "book consultation with ${faculty.firstName}" to schedule an appointment!`;
           }
 
           response += language === 'fil'
-            ? `\n\nMay iba ka pa bang gustong malaman tungkol kay ${faculty.firstName}?`
-            : `\n\nWould you like to know more about ${faculty.firstName}?`;
+            ? `\n\nMay iba ka pa bang gustong malaman tungkol kay ${faculty.firstName}? Maaari mo ring sabihin "book him/her" para mag-book ng consultation.`
+            : `\n\nWould you like to know more about ${faculty.firstName}? You can also say "book him/her" to schedule a consultation.`;
 
           return response;
         } else if (facultyMatches.length > 1) {
@@ -621,15 +768,46 @@ Each program offers unique opportunities and career paths!
         geminiPrompt += `User: ${userMessage}\nAssistant:`;
         
         console.log('[Gemini] Generating response...');
-        const result = await geminiModel.generateContent(geminiPrompt);
-        const response = await result.response;
-        const text = response.text();
         
-        console.log('✓ Gemini AI response generated successfully');
-        return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+        // Retry logic for rate limits
+        let retries = 0;
+        const maxRetries = 3;
+        let lastError: any = null;
+        
+        while (retries < maxRetries) {
+          try {
+            const result = await geminiModel.generateContent(geminiPrompt);
+            const response = await result.response;
+            const text = response.text();
+            
+            console.log('✓ Gemini AI response generated successfully');
+            return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+          } catch (retryError: any) {
+            lastError = retryError;
+            const errorMessage = retryError?.message || '';
+            const isRateLimit = errorMessage.includes('429') || 
+                               errorMessage.includes('RESOURCE_EXHAUSTED') ||
+                               errorMessage.includes('rate') ||
+                               errorMessage.includes('quota') ||
+                               retryError?.status === 429;
+            
+            if (isRateLimit && retries < maxRetries - 1) {
+              const waitTime = Math.pow(2, retries + 1) * 1000; // 2s, 4s, 8s
+              console.log(`[Gemini] Rate limited, waiting ${waitTime/1000}s before retry ${retries + 1}/${maxRetries}...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              retries++;
+            } else {
+              break;
+            }
+          }
+        }
+        
+        // If we exhausted retries or got a non-rate-limit error
+        console.error('❌ Gemini API Error:', lastError?.message);
+        console.error('Gemini Error Details:', JSON.stringify(lastError, null, 2));
+        // Fall through to OpenAI fallback
       } catch (geminiError: any) {
-        console.error('❌ Gemini API Error:', geminiError.message);
-        console.error('Gemini Error Details:', JSON.stringify(geminiError, null, 2));
+        console.error('❌ Gemini API Error (outer):', geminiError.message);
         // Fall through to OpenAI fallback
       }
     } else {
@@ -988,21 +1166,34 @@ You can ask me:
     }
 
     // STEP 0.5: Check if user is requesting a consultation/appointment with faculty
+    const consultationIntent = FacultyConsultationService.detectConsultationIntent(message);
     const consultationKeywords = /consult|consultation|appointment|book|schedule|meet|meeting|talk to|speak with|available|office hours|professor|faculty|instructor|teacher|advisor|advising/i;
-    const isConsultationRequest = consultationKeywords.test(message) && 
-      (/book|schedule|appointment|consult|meet|available|office hours|advising/i.test(message));
+    
+    // Check if this is a SCHEDULE INQUIRY (not a booking request) - should use FAQ instead
+    const isScheduleInquiry = /(?:what|when|where).*schedule|schedule\s+of|class\s+schedule|teaching\s+schedule|room\s+schedule/i.test(message);
+    
+    const isConsultationRequest = !isScheduleInquiry && (consultationIntent.isConsultationQuery || (
+      consultationKeywords.test(message) && 
+      (/book|schedule|appointment|consult|meet|available|office hours|advising/i.test(message))
+    ));
 
     if (isConsultationRequest) {
       try {
         const lowerMessage = message.toLowerCase();
         
+        // PRONOUN RESOLUTION: Check if user is referring to previously mentioned faculty
+        const resolvedFaculty = FacultyConsultationService.resolvePronoun(userId, message);
+        if (resolvedFaculty) {
+          console.log(`[Consultation] Pronoun resolved to: ${resolvedFaculty.fullName}`);
+        }
+        
         // Extract potential faculty name from message
         // Common patterns: "book me with [name]", "book with [name]", "meet [name]", "[name]'s schedule"
         const namePatterns = [
-          /(?:book|meet|consult|schedule|appointment)\s+(?:me\s+)?with\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i,
-          /(?:book|meet|consult|schedule|appointment)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i,
-          /(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)\s*(?:'s)?\s*(?:schedule|availability|office hours)/i,
-          /(?:talk|speak)\s+(?:to|with)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)?)/i
+          /(?:book|meet|consult|schedule|appointment)\s+(?:a\s+)?(?:consultation\s+)?(?:me\s+)?with\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)*)/i,
+          /(?:book|meet|consult|schedule|appointment)\s+(?:a\s+)?(?:consultation\s+)?(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)*)/i,
+          /(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)*)\s*(?:'s)?\s*(?:schedule|availability|office hours)/i,
+          /(?:talk|speak)\s+(?:to|with)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)*)/i
         ];
         
         let extractedName = '';
@@ -1011,7 +1202,7 @@ You can ask me:
           if (match && match[1]) {
             // Filter out common words that aren't names
             const candidate = match[1].trim().toLowerCase();
-            const nonNameWords = ['me', 'a', 'an', 'the', 'my', 'for', 'with', 'to', 'professor', 'prof', 'faculty', 'teacher', 'instructor'];
+            const nonNameWords = ['me', 'a', 'an', 'the', 'my', 'for', 'with', 'to', 'professor', 'prof', 'faculty', 'teacher', 'instructor', 'him', 'her', 'them'];
             if (!nonNameWords.includes(candidate) && !nonNameWords.includes(candidate.split(/\s+/)[0])) {
               extractedName = candidate;
               break;
@@ -1098,34 +1289,155 @@ You can ask me:
           }
         }
         
-        // Fetch general available faculty list if no specific match
-        const availableFaculty = await prisma.faculty.findMany({
-          where: {
-            consultationDays: { isEmpty: false }
-          },
-          select: {
-            id: true,
-            firstName: true,
-            middleName: true,
-            lastName: true,
-            email: true,
-            position: true,
-            college: true,
-            consultationDays: true,
-            consultationStart: true,
-            consultationEnd: true,
-            officeHours: true
-          },
-          take: 10
-        });
+        // If no name match but we have a pronoun-resolved faculty, use that
+        if (!matchedFaculty && resolvedFaculty) {
+          const resolvedFromDb = await prisma.faculty.findUnique({
+            where: { id: resolvedFaculty.id },
+            select: {
+              id: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              email: true,
+              position: true,
+              college: true,
+              consultationDays: true,
+              consultationStart: true,
+              consultationEnd: true,
+              officeHours: true
+            }
+          });
+          if (resolvedFromDb) {
+            matchedFaculty = resolvedFromDb;
+            console.log(`[Consultation] Using pronoun-resolved faculty: ${matchedFaculty.firstName} ${matchedFaculty.lastName}`);
+          }
+        }
+        
+        // Fetch general available faculty list using cached service
+        const availableFaculty = await FacultyConsultationService.getAllFacultyWithConsultation();
+        const facultyWithConsultation = availableFaculty.filter(f => f.consultationDays.length > 0).slice(0, 10);
 
         // Build response with consultation booking UI
         let consultationResponse: string;
         
+        // Store context for pronoun resolution in future messages
         if (matchedFaculty) {
+          const facultyInfo: FacultyConsultationService.FacultyInfo = {
+            id: matchedFaculty.id,
+            fullName: `${matchedFaculty.firstName}${matchedFaculty.middleName ? ' ' + matchedFaculty.middleName : ''} ${matchedFaculty.lastName}`,
+            firstName: matchedFaculty.firstName,
+            lastName: matchedFaculty.lastName,
+            middleName: matchedFaculty.middleName || undefined,
+            position: matchedFaculty.position,
+            college: matchedFaculty.college,
+            email: matchedFaculty.email || undefined,
+            officeHours: matchedFaculty.officeHours || undefined,
+            consultationDays: matchedFaculty.consultationDays,
+            consultationStart: matchedFaculty.consultationStart || undefined,
+            consultationEnd: matchedFaculty.consultationEnd || undefined,
+          };
+          FacultyConsultationService.setConversationContext(userId, facultyInfo);
+          
+          // Get available slots for today/tomorrow if date was mentioned
+          let slotsInfo = '';
+          let pendingBooking: any = null;
+          let showConfirmation = false;
+          
+          if (consultationIntent.extractedDate) {
+            const slots = await FacultyConsultationService.getAvailableSlots(
+              matchedFaculty.id, 
+              new Date(consultationIntent.extractedDate)
+            );
+            const availableSlots = slots.filter(s => s.isAvailable);
+            
+            // If user also specified a time, prepare a pending booking for confirmation
+            if (consultationIntent.extractedTime && availableSlots.length > 0) {
+              // Find the matching slot or closest available slot
+              const requestedTime = consultationIntent.extractedTime;
+              let matchingSlot = availableSlots.find(s => s.startTime === requestedTime);
+              
+              // If exact match not found, find closest slot
+              if (!matchingSlot) {
+                matchingSlot = availableSlots.find(s => {
+                  const slotStart = parseInt(s.startTime.replace(':', ''));
+                  const reqTime = parseInt(requestedTime.replace(':', ''));
+                  return Math.abs(slotStart - reqTime) <= 30; // Within 30 minutes
+                });
+              }
+              
+              if (matchingSlot) {
+                // Calculate end time (30 min slot)
+                const [h, m] = matchingSlot.startTime.split(':').map(Number);
+                const endH = m + 30 >= 60 ? h + 1 : h;
+                const endM = (m + 30) % 60;
+                const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+                
+                pendingBooking = {
+                  facultyId: matchedFaculty.id,
+                  facultyName: `${matchedFaculty.firstName} ${matchedFaculty.lastName}`,
+                  date: consultationIntent.extractedDate,
+                  startTime: matchingSlot.startTime,
+                  endTime: endTime,
+                  dayName: matchingSlot.dayName,
+                };
+                showConfirmation = true;
+              }
+            }
+            
+            if (availableSlots.length > 0 && !showConfirmation) {
+              slotsInfo = userLanguage === 'fil'
+                ? `\n\n**Available Slots (${consultationIntent.extractedDate}):**\n${availableSlots.slice(0, 5).map(s => `• ${s.startTime} - ${s.endTime}`).join('\n')}`
+                : `\n\n**Available Slots (${consultationIntent.extractedDate}):**\n${availableSlots.slice(0, 5).map(s => `• ${s.startTime} - ${s.endTime}`).join('\n')}`;
+            }
+          }
+          
+          // If we have a pending booking with date + time, show confirmation prompt
+          if (showConfirmation && pendingBooking) {
+            const formatTime12h = (time: string) => {
+              const [h, m] = time.split(':').map(Number);
+              const ampm = h >= 12 ? 'PM' : 'AM';
+              const hour = h % 12 || 12;
+              return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
+            };
+            
+            // Add marker for frontend detection: __BOOKING_CONFIRM__facultyId__date__startTime__endTime__facultyName__dayName__
+            const bookingMarker = `__BOOKING_CONFIRM__${pendingBooking.facultyId}__${pendingBooking.date}__${pendingBooking.startTime}__${pendingBooking.endTime}__${pendingBooking.facultyName}__${pendingBooking.dayName}__`;
+            
+            consultationResponse = userLanguage === 'fil'
+              ? `${bookingMarker}📅 **Kumpirmahin ang Booking**\n\n**Faculty:** ${pendingBooking.facultyName}\n**Petsa:** ${pendingBooking.date} (${pendingBooking.dayName})\n**Oras:** ${formatTime12h(pendingBooking.startTime)} - ${formatTime12h(pendingBooking.endTime)}\n\nI-click ang **Confirm** para i-book ang consultation, o **Cancel** para mag-cancel.`
+              : `${bookingMarker}📅 **Confirm Your Booking**\n\n**Faculty:** ${pendingBooking.facultyName}\n**Date:** ${pendingBooking.date} (${pendingBooking.dayName})\n**Time:** ${formatTime12h(pendingBooking.startTime)} - ${formatTime12h(pendingBooking.endTime)}\n\nClick **Confirm** to book this consultation, or **Cancel** to go back.`;
+            
+            // Save interaction
+            const interaction = await prisma.aIInteraction.create({
+              data: {
+                userId,
+                type: AIInteractionType.QUESTION,
+                context: 'consultation_booking_confirmation',
+                userMessage: message,
+                aiResponse: consultationResponse,
+              },
+            });
+
+            return res.json({
+              response: consultationResponse,
+              showBookingConfirmation: true,
+              pendingBooking: pendingBooking,
+              consultationData: {
+                faculty: [matchedFaculty],
+                selectedFaculty: matchedFaculty
+              },
+              suggestions: userLanguage === 'fil' 
+                ? ['Ibang oras', 'Ibang araw', 'Cancel']
+                : ['Different time', 'Different day', 'Cancel'],
+              interactionId: interaction.id,
+              timestamp: interaction.createdAt,
+              intent: 'consultation_booking_confirmation'
+            });
+          }
+          
           consultationResponse = userLanguage === 'fil'
-            ? `Nakita ko na gusto mong mag-book ng consultation kay **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Araw: ${matchedFaculty.consultationDays.join(', ')}\n• Oras: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}\n\nI-click ang button sa ibaba para mag-book ng appointment:`
-            : `I see you'd like to book a consultation with **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Days: ${matchedFaculty.consultationDays.join(', ')}\n• Time: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}\n\nClick the button below to book an appointment:`;
+            ? `Nakita ko na gusto mong mag-book ng consultation kay **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Araw: ${matchedFaculty.consultationDays.join(', ')}\n• Oras: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}${slotsInfo}\n\nSabihin mo ang araw at oras na gusto mo (hal. "tomorrow at 2pm") o i-click ang button sa ibaba:`
+            : `I see you'd like to book a consultation with **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Days: ${matchedFaculty.consultationDays.join(', ')}\n• Time: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}${slotsInfo}\n\nTell me the day and time you prefer (e.g., "tomorrow at 2pm") or click the button below:`;
         } else {
           const facultyList = availableFaculty.slice(0, 5).map(f => 
             `• **${f.firstName} ${f.lastName}** - ${f.position} (${f.consultationDays.join(', ')})`
@@ -1589,31 +1901,56 @@ You can ask me:
       resolvedMessage = `${message} (referring to ${lastEntity})`;
     }
 
-    // STEP 4: Retrieve comprehensive RAG context from database
-    // This is the ONLY source of truth for AI responses
-    // Use resolvedMessage which includes entity context for follow-up questions
-    const ragContext = await retrieveRAGContext(resolvedMessage);
-
-    // STEP 5: Check for course recommendation queries
-    const isRecommendationQuery = /recommend|best course|what course|which program|should i take|want to become|career/i.test(message);
+    // STEP 4: Check for cached AI response (for frequently asked questions)
+    // Skip cache for personalized queries (pronouns, follow-ups, recommendations)
+    const isPersonalizedQuery = hasPronounReference || 
+                                /my|me|i want|i need|recommend|book|schedule|appointment/i.test(message);
     
-    if (isRecommendationQuery) {
-      const recommendation = await generateCourseRecommendation(message);
-      if (recommendation.recommendedProgram) {
-        // Add recommendation to RAG context
-        ragContext.programs = [recommendation.recommendedProgram, ...ragContext.programs.filter(p => p.id !== recommendation.recommendedProgram?.id)];
-        ragContext.curriculum = [...recommendation.relevantSubjects, ...ragContext.curriculum];
+    let aiResponse: string = '';
+    let usedCache = false;
+    let ragContext: RAGContext | null = null;
+    
+    if (!isPersonalizedQuery) {
+      const cachedResponse = await FAQCacheService.getCachedAIResponse(message);
+      if (cachedResponse) {
+        console.log(`[AI Cache] Using cached response (hit #${cachedResponse.hitCount})`);
+        aiResponse = cachedResponse.response;
+        usedCache = true;
       }
     }
+    
+    if (!usedCache) {
+      // STEP 5: Retrieve comprehensive RAG context from database
+      // This is the ONLY source of truth for AI responses
+      // Use resolvedMessage which includes entity context for follow-up questions
+      ragContext = await retrieveRAGContext(resolvedMessage);
 
-    // STEP 6: Generate AI response with strict RAG context
-    const aiResponse = await generateAIResponse(
-      message, 
-      ragContext,
-      lastInteraction,
-      userLanguage,
-      conversationHistory
-    );
+      // STEP 5.5: Check for course recommendation queries
+      const isRecommendationQuery = /recommend|best course|what course|which program|should i take|want to become|career/i.test(message);
+      
+      if (isRecommendationQuery) {
+        const recommendation = await generateCourseRecommendation(message);
+        if (recommendation.recommendedProgram) {
+          // Add recommendation to RAG context
+          ragContext.programs = [recommendation.recommendedProgram, ...ragContext.programs.filter(p => p.id !== recommendation.recommendedProgram?.id)];
+          ragContext.curriculum = [...recommendation.relevantSubjects, ...ragContext.curriculum];
+        }
+      }
+
+      // STEP 6: Generate AI response with strict RAG context
+      aiResponse = await generateAIResponse(
+        message, 
+        ragContext,
+        lastInteraction,
+        userLanguage,
+        conversationHistory
+      );
+      
+      // Cache the response for future similar questions (only for non-personalized queries)
+      if (!isPersonalizedQuery && aiResponse && aiResponse.length > 50) {
+        FAQCacheService.cacheAIResponse(message, aiResponse).catch(() => {});
+      }
+    }
 
     // STEP 7: Generate smart follow-up suggestions
     const suggestions = await generateSmartSuggestions(
@@ -1629,10 +1966,11 @@ You can ask me:
         userId,
         type: (type as AIInteractionType) || AIInteractionType.QUESTION,
         context: JSON.stringify({
-          queryType: ragContext.metadata.queryType,
-          programsFound: ragContext.metadata.totalPrograms,
-          facultyFound: ragContext.metadata.totalFaculty,
-          curriculumFound: ragContext.metadata.totalCurriculumEntries
+          queryType: ragContext?.metadata?.queryType || 'cached',
+          programsFound: ragContext?.metadata?.totalPrograms || 0,
+          facultyFound: ragContext?.metadata?.totalFaculty || 0,
+          curriculumFound: ragContext?.metadata?.totalCurriculumEntries || 0,
+          usedCache: usedCache
         }),
         userMessage: message,
         aiResponse: aiResponse,
@@ -1655,7 +1993,8 @@ You can ask me:
       generatedTitle,
       interactionId: interaction.id,
       timestamp: interaction.createdAt,
-      scopeAnalysis: { inScope: true, queryType: ragContext.metadata.queryType }
+      scopeAnalysis: { inScope: true, queryType: ragContext?.metadata?.queryType || 'cached' },
+      usedCache
     });
 
   } catch (error) {

@@ -4,6 +4,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
+import { invalidateFacultyCache } from '../services/faculty-consultation.service';
 
 // Get all faculty with consultation info
 export const getAllFacultyForConsultation = async (req: AuthRequest, res: Response) => {
@@ -84,6 +85,9 @@ export const updateFacultyConsultation = async (req: AuthRequest, res: Response)
       }
     });
 
+    // Invalidate cache for real-time sync
+    await invalidateFacultyCache(id);
+
     return res.json(updated);
   } catch (error) {
     console.error('Update faculty consultation error:', error);
@@ -125,6 +129,9 @@ export const bulkUpdateConsultation = async (req: AuthRequest, res: Response) =>
         }
       });
     }
+
+    // Invalidate cache for all updated faculty
+    await invalidateFacultyCache();
 
     return res.json({ message: `Updated ${facultyIds.length} faculty members` });
   } catch (error) {

@@ -4,7 +4,7 @@ import api from '../lib/api';
 import { 
   Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare, MoreVertical, 
   Star, Edit2, ArrowDown, Search, AlertTriangle, Smile, Pin, PinOff,
-  Palette, Bell, Clock, Sparkles,
+  Palette, Bell, Clock, Sparkles, Calendar,
   CheckCircle2, XCircle, WifiOff, Copy, Check
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -14,6 +14,7 @@ import { useAccessibility } from '../contexts/AccessibilityContext';
 import QuizCard from '../components/QuizCard';
 import QuizSidePanel from '../components/QuizSidePanel';
 import ConsultationBookingCard from '../components/ConsultationBookingCard';
+import BookingConfirmationCard from '../components/BookingConfirmationCard';
 
 interface Message {
   role: 'user' | 'ai';
@@ -27,6 +28,17 @@ interface Message {
     existingBookings?: any[];
   };
   showConsultationBooking?: boolean;
+  showBookingConfirmation?: boolean;
+  pendingBooking?: {
+    facultyId: string;
+    facultyName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    dayName: string;
+  };
+  bookingConfirmed?: boolean;
+  bookingCancelled?: boolean;
   showLeaderboard?: boolean;
   leaderboardData?: Array<{
     name: string;
@@ -440,6 +452,41 @@ export default function AITutor() {
         };
         const finalMessages = [...tempMessages, aiMsg];
         setMessages(finalMessages);
+        
+        if (chatId) {
+          await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
+          setChats(prev => {
+            const updated = prev.map(c => (c.id === chatId ? { ...c, messages: finalMessages, title: finalTitle, updatedAt: Date.now() } : c));
+            return [...updated].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+          });
+        }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Check if AI response includes booking confirmation (direct booking with date + time)
+      console.log('[BookingConfirmation] Response data:', { 
+        showBookingConfirmation: res.data?.showBookingConfirmation, 
+        pendingBooking: res.data?.pendingBooking 
+      });
+      if (res.data?.showBookingConfirmation && res.data?.pendingBooking) {
+        console.log('[BookingConfirmation] Creating message with booking confirmation');
+        const aiMsg: Message = { 
+          role: 'ai', 
+          content: res.data.response,
+          timestamp: new Date().toISOString(),
+          showBookingConfirmation: true,
+          pendingBooking: res.data.pendingBooking,
+          consultationData: res.data.consultationData
+        };
+        const finalMessages = [...tempMessages, aiMsg];
+        setMessages(finalMessages);
+        
+        if (res.data?.suggestions) {
+          setSuggestions(res.data.suggestions);
+        }
+        setShowGreeting(false);
         
         if (chatId) {
           await api.put(`/chat-sessions/${chatId}`, { title: finalTitle, messages: finalMessages });
@@ -1188,6 +1235,163 @@ export default function AITutor() {
                                   </>
                                 );
                               })()}
+                            </div>
+                          ) : msg.role === 'ai' && msg.content.startsWith('__BOOKING_CONFIRMED__') ? (
+                            // Confirmed booking - render success state
+                            (() => {
+                              const parts = msg.content.split('__');
+                              // Format: __BOOKING_CONFIRMED__facultyName__date__startTime__endTime__dayName__
+                              const facultyName = parts[2] || 'Faculty';
+                              const date = parts[3] || '';
+                              const startTime = parts[4] || '';
+                              const endTime = parts[5] || '';
+                              const dayName = parts[6] || '';
+                              
+                              const formatTime12h = (time: string) => {
+                                if (!time) return '';
+                                const [h, m] = time.split(':').map(Number);
+                                const ampm = h >= 12 ? 'PM' : 'AM';
+                                const hour = h % 12 || 12;
+                                return `${hour}:${m?.toString().padStart(2, '0') || '00'} ${ampm}`;
+                              };
+                              
+                              const formatDate = (dateStr: string) => {
+                                if (!dateStr) return '';
+                                const d = new Date(dateStr);
+                                return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                              };
+                              
+                              return (
+                                <div className="mt-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-2xl p-5 max-w-md">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                                      <CheckCircle2 className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-green-800 dark:text-green-200">Booking Confirmed!</h4>
+                                      <p className="text-sm text-green-600 dark:text-green-300">Consultation with {facultyName}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
+                                    <p className="flex items-center gap-2">
+                                      <Calendar className="w-4 h-4" />
+                                      {formatDate(date)} {dayName && `(${dayName})`}
+                                    </p>
+                                    <p className="flex items-center gap-2">
+                                      <Clock className="w-4 h-4" />
+                                      {formatTime12h(startTime)} - {formatTime12h(endTime)}
+                                    </p>
+                                  </div>
+                                  <p className="text-xs text-green-600 dark:text-green-400 mt-3">
+                                    Please wait for confirmation from the faculty.
+                                  </p>
+                                </div>
+                              );
+                            })()
+                          ) : msg.role === 'ai' && msg.content.startsWith('__BOOKING_CANCELLED__') ? (
+                            // Cancelled booking - render cancelled state
+                            (() => {
+                              const parts = msg.content.split('__');
+                              const facultyName = parts[2] || 'Faculty';
+                              
+                              return (
+                                <div className="mt-3 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 max-w-md">
+                                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                                    <XCircle className="w-5 h-5" />
+                                    <span className="text-sm">Booking with {facultyName} cancelled</span>
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          ) : msg.role === 'ai' && (msg.showBookingConfirmation || msg.content.startsWith('__BOOKING_CONFIRM__')) ? (
+                            <div className="space-y-3 max-w-lg">
+                              <BookingConfirmationCard 
+                                pendingBooking={(() => {
+                                  // Parse pendingBooking from content marker if not in message object
+                                  if (msg.pendingBooking) return msg.pendingBooking;
+                                  
+                                  if (msg.content.startsWith('__BOOKING_CONFIRM__')) {
+                                    const parts = msg.content.split('__');
+                                    // Format: __BOOKING_CONFIRM__facultyId__date__startTime__endTime__facultyName__dayName__content
+                                    // parts[0]="" parts[1]="BOOKING_CONFIRM" parts[2]=facultyId etc.
+                                    if (parts.length >= 8) {
+                                      return {
+                                        facultyId: parts[2],
+                                        date: parts[3],
+                                        startTime: parts[4],
+                                        endTime: parts[5],
+                                        facultyName: parts[6],
+                                        dayName: parts[7]
+                                      };
+                                    }
+                                  }
+                                  // Fallback
+                                  return {
+                                    facultyId: '',
+                                    date: '',
+                                    startTime: '',
+                                    endTime: '',
+                                    facultyName: 'Unknown',
+                                    dayName: ''
+                                  };
+                                })()}
+                                language={accessibilitySettings.language}
+                                isConfirmed={msg.bookingConfirmed}
+                                isCancelled={msg.bookingCancelled}
+                                onConfirm={() => {
+                                  const msgIndex = messages.indexOf(msg);
+                                  // Parse booking data for success message
+                                  let facultyName = msg.pendingBooking?.facultyName || 'Faculty';
+                                  let date = msg.pendingBooking?.date || '';
+                                  let startTime = msg.pendingBooking?.startTime || '';
+                                  let endTime = msg.pendingBooking?.endTime || '';
+                                  let dayName = msg.pendingBooking?.dayName || '';
+                                  
+                                  if (msg.content.startsWith('__BOOKING_CONFIRM__')) {
+                                    const parts = msg.content.split('__');
+                                    if (parts.length >= 8) {
+                                      facultyName = parts[6];
+                                      date = parts[3];
+                                      startTime = parts[4];
+                                      endTime = parts[5];
+                                      dayName = parts[7];
+                                    }
+                                  }
+                                  
+                                  // Update message content to use CONFIRMED marker (persists to DB)
+                                  const confirmedContent = `__BOOKING_CONFIRMED__${facultyName}__${date}__${startTime}__${endTime}__${dayName}__`;
+                                  const updatedMessages = messages.map((m, mi) => 
+                                    mi === msgIndex ? { ...m, content: confirmedContent, bookingConfirmed: true } : m
+                                  );
+                                  setMessages(updatedMessages);
+                                  
+                                  // Persist to database
+                                  if (currentChatId) {
+                                    api.put(`/chat-sessions/${currentChatId}`, { messages: updatedMessages }).catch(console.error);
+                                  }
+                                }}
+                                onCancel={() => {
+                                  const msgIndex = messages.indexOf(msg);
+                                  // Parse booking data
+                                  let facultyName = msg.pendingBooking?.facultyName || 'Faculty';
+                                  if (msg.content.startsWith('__BOOKING_CONFIRM__')) {
+                                    const parts = msg.content.split('__');
+                                    if (parts.length >= 7) facultyName = parts[6];
+                                  }
+                                  
+                                  // Update message content to use CANCELLED marker (persists to DB)
+                                  const cancelledContent = `__BOOKING_CANCELLED__${facultyName}__`;
+                                  const updatedMessages = messages.map((m, mi) => 
+                                    mi === msgIndex ? { ...m, content: cancelledContent, bookingCancelled: true } : m
+                                  );
+                                  setMessages(updatedMessages);
+                                  
+                                  // Persist to database
+                                  if (currentChatId) {
+                                    api.put(`/chat-sessions/${currentChatId}`, { messages: updatedMessages }).catch(console.error);
+                                  }
+                                }}
+                              />
                             </div>
                           ) : msg.role === 'ai' && msg.showConsultationBooking && msg.consultationData ? (
                             <div className="space-y-3 max-w-lg">

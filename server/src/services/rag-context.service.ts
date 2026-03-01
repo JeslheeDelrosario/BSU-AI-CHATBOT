@@ -4,6 +4,7 @@
 // CRITICAL: AI must ONLY answer based on this retrieved context
 
 import { prisma } from '../lib/prisma';
+import { FAQCacheService } from './faq-cache.service';
 
 // Import modular components
 export { analyzeQueryScope } from '../modules/rag/scope-analyzer';
@@ -185,8 +186,10 @@ async function fetchPrograms(msg: string, queryType: string): Promise<ProgramCon
     title: p.title,
     abbreviation: p.abbreviation,
     college: p.college,
-    careerPaths: PROGRAM_CAREER_PATHS[p.title] || [],
-    description: generateProgramDescription(p.title)
+    // Use database careerPaths if available, fallback to hardcoded
+    careerPaths: (p.careerPaths && p.careerPaths.length > 0) ? p.careerPaths : (PROGRAM_CAREER_PATHS[p.title] || []),
+    // Use database description if available, fallback to generated
+    description: p.description || generateProgramDescription(p.title)
   }));
 }
 
@@ -429,52 +432,32 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
  */
 async function fetchFAQs(msg: string): Promise<FAQContext[]> {
   // Extract meaningful keywords from user message
-  const stopWords = ['what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 'tell', 'explain'];
+  const stopWords = ['what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 'tell', 'explain', 'prof', 'prof.', 'professor'];
   const keywords = msg.toLowerCase()
+    .replace(/[?.,!;:'"()]/g, '') // Strip punctuation
     .split(/\s+/)
-    .filter(word => word.length > 3 && !stopWords.includes(word));
+    .filter(word => word.length > 2 && !stopWords.includes(word)); // Reduced min length to 2 for names
 
-  // Build search conditions
-  const searchConditions: any[] = [];
-  
-  // Search in question text
-  keywords.forEach(keyword => {
-    searchConditions.push({ question: { contains: keyword, mode: 'insensitive' } });
-    searchConditions.push({ answer: { contains: keyword, mode: 'insensitive' } });
-  });
-  
-  // Search in keywords array
-  if (keywords.length > 0) {
-    searchConditions.push({ keywords: { hasSome: keywords } });
+  if (keywords.length === 0) {
+    console.log(`[FAQ Retrieval] No keywords extracted from: "${msg.substring(0, 50)}..."`);
+    return [];
   }
 
-  // Search in category
-  searchConditions.push({ category: { contains: msg.substring(0, 30), mode: 'insensitive' } });
-
-  const faqs = await prisma.fAQ.findMany({
-    where: {
-      isPublished: true,
-      OR: searchConditions.length > 0 ? searchConditions : undefined
-    },
-    take: 10, // Increased to get more relevant FAQs
-    orderBy: [
-      { helpful: 'desc' },
-      { viewCount: 'desc' }
-    ]
-  });
+  // Use cached FAQ search
+  const faqs = await FAQCacheService.searchFAQs(keywords);
 
   console.log(`[FAQ Retrieval] Query: "${msg.substring(0, 50)}..." | Found: ${faqs.length} FAQs | Keywords: ${keywords.join(', ')}`);
 
-  // Update view count for retrieved FAQs
+  // Update view count for retrieved FAQs (async, don't wait)
   if (faqs.length > 0) {
-    await Promise.all(
+    Promise.all(
       faqs.map(faq => 
         prisma.fAQ.update({
           where: { id: faq.id },
           data: { viewCount: { increment: 1 } }
         }).catch(() => {}) // Ignore errors for view count updates
       )
-    );
+    ).catch(() => {}); // Fire and forget
   }
 
   return faqs.map(f => ({
