@@ -1508,38 +1508,70 @@ export const getTrendingTopics = async (req: AuthRequest, res: Response) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Aggregate tags from recent posts
+    // Aggregate keywords from recent posts (title + content + tags)
     const recentPosts = await prisma.forumPost.findMany({
       where: {
         createdAt: { gte: thirtyDaysAgo },
         visibility: 'PUBLIC',
+        status: 'PUBLISHED',
       },
       select: {
+        title: true,
+        content: true,
         tags: true,
         createdAt: true,
       },
     });
 
-    // Count tag occurrences
-    const tagCounts: Record<string, { count: number; recentCount: number }> = {};
+    // Extract and count keywords from posts
+    const keywordCounts: Record<string, { count: number; recentCount: number }> = {};
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    // Common words to exclude (stop words)
+    const stopWords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+      'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be', 'been', 'being', 'have', 'has',
+      'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'can',
+      'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'what',
+      'which', 'who', 'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
+      'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
+      'so', 'than', 'too', 'very', 'just', 'about', 'into', 'through', 'during', 'before',
+      'after', 'above', 'below', 'between', 'under', 'again', 'further', 'then', 'once',
+      'here', 'there', 'also', 'any', 'because', 'if', 'while', 'my', 'your', 'their', 'our',
+      'na', 'ang', 'ng', 'sa', 'mga', 'ko', 'mo', 'niya', 'natin', 'nila', 'ako', 'ikaw',
+      'siya', 'tayo', 'kayo', 'sila', 'ito', 'iyan', 'iyon', 'ay', 'si', 'ni', 'kay'
+    ]);
+
     for (const post of recentPosts) {
-      for (const tag of post.tags) {
-        const normalizedTag = tag.toLowerCase().trim();
-        if (!tagCounts[normalizedTag]) {
-          tagCounts[normalizedTag] = { count: 0, recentCount: 0 };
+      // Extract keywords from title, content, and tags
+      const text = `${post.title} ${post.content} ${post.tags.join(' ')}`;
+      
+      // Split by non-word characters and filter
+      const words = text
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ') // Remove punctuation
+        .split(/\s+/)
+        .filter(word => 
+          word.length > 2 && // At least 3 characters
+          !stopWords.has(word) && // Not a stop word
+          !/^\d+$/.test(word) // Not just numbers
+        );
+
+      // Count each keyword
+      for (const word of words) {
+        if (!keywordCounts[word]) {
+          keywordCounts[word] = { count: 0, recentCount: 0 };
         }
-        tagCounts[normalizedTag].count++;
+        keywordCounts[word].count++;
         if (post.createdAt >= sevenDaysAgo) {
-          tagCounts[normalizedTag].recentCount++;
+          keywordCounts[word].recentCount++;
         }
       }
     }
 
     // Sort by count and determine trend
-    const topics = Object.entries(tagCounts)
+    const topics = Object.entries(keywordCounts)
       .map(([tag, data]) => ({
         tag,
         count: data.count,
