@@ -87,11 +87,11 @@ export default function NotificationBell() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-cyan-500/10 z-50 overflow-hidden flex flex-col max-h-[600px]">
+        <div className="absolute right-0 mt-2 w-96 dropdown-menu backdrop-blur-xl shadow-cyan-500/10 z-50 flex flex-col max-h-[600px]">
           {/* Fixed Header - Always Visible */}
-          <div className="sticky top-0 z-10 p-4 border-b border-white/10 flex items-center justify-between bg-slate-900/95 backdrop-blur-xl">
+          <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between bg-inherit">
             <div>
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                 {settings.language === 'fil' ? 'Mga Notipikasyon' : 'Notifications'}
               </h3>
               {unreadCount > 0 && (
@@ -146,9 +146,7 @@ export default function NotificationBell() {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-white/5 transition-colors cursor-pointer group relative ${
-                      !notification.isRead ? 'bg-cyan-500/5' : ''
-                    }`}
+                    className={`dropdown-item ${!notification.isRead ? 'bg-cyan-500/5' : ''} cursor-pointer group`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3">
@@ -160,7 +158,7 @@ export default function NotificationBell() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-semibold text-white mb-1 line-clamp-1">
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1">
                             {notification.title}
                           </h4>
                           {!notification.isRead && (

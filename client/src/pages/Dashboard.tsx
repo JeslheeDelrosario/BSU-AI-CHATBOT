@@ -87,11 +87,11 @@ export default function Dashboard() {
   return (
     <div className="py-10 lg:py-16">
       {/* Welcome Header */}
-      <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 mb-12 shadow-2xl">
+      <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-8 lg:p-12 mb-12 shadow-2xl">
         <h1 className="text-4xl lg:text-6xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent pb-3">
           {t.dashboard.welcome}, {user?.firstName}!
         </h1>
-        <p className="text-xl lg:text-2xl text-slate-700 dark:text-gray-300 mt-4 font-light tracking-wide">
+        <p className="text-xl lg:text-2xl text-slate-800 dark:text-gray-300 mt-4 font-light tracking-wide">
           {isStudent
             ? accessibilitySettings.language === "fil"
               ? "Handa ka na bang mag-level up ng iyong kaalaman ngayon?"
@@ -180,7 +180,7 @@ export default function Dashboard() {
       {/* Two Column Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto px-6">
         {/* Recent Activity */}
-        <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
+        <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
           <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
             {isStudent
               ? accessibilitySettings.language === "fil"
@@ -191,24 +191,31 @@ export default function Dashboard() {
                 : "Recent Enrollments"}
           </h2>
 
-          <div className="space-y-4 max-h-96 overflow-y-auto">
+          <div className="space-y-4 max-h-96 overflow-y-auto content-scrollbar">
             {isStudent ? (
               stats?.recentProgress?.length ? (
                 stats.recentProgress
-                  .filter((p: any) => p?.lesson)
+                  .filter((p: any) => p?.Lesson)
                   .map((p: any, i: number) => (
                     <div
-                      key={i}
-                      className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/10 hover:border-cyan-500/50 transition-all group"
-                    >
+                        key={i}
+                        className="flex items-center justify-between p-5 bg-white/60 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 hover:border-cyan-500/50 transition-all group"
+                      >
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="p-3 bg-cyan-500/20 rounded-xl group-hover:bg-cyan-500/40 transition">
                           <Play className="w-6 h-6 text-cyan-400" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-slate-900 dark:text-white truncate">
-                            {p.lesson?.title || "Untitled Lesson"}
-                          </p>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-medium text-slate-900 dark:text-white truncate">
+                              {p.Lesson?.title || "Untitled Lesson"}
+                            </p>
+                            {p.score && (
+                              <span className="text-cyan-400 font-bold text-lg ml-2 flex-shrink-0">
+                                {Math.round(p.score)}%
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-slate-600 dark:text-gray-400">
                             {p.completed
                               ? accessibilitySettings.language === "fil"
@@ -219,11 +226,6 @@ export default function Dashboard() {
                                 : "In Progress"}
                           </p>
                         </div>
-                        {p.score && (
-                          <span className="text-cyan-400 font-bold text-lg ml-4">
-                            {Math.round(p.score)}%
-                          </span>
-                        )}
                       </div>
                     </div>
                   ))
@@ -264,7 +266,7 @@ export default function Dashboard() {
         </div>
 
         {/* Achievements / Stats */}
-        <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
+        <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
           <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
             {isStudent
               ? accessibilitySettings.language === "fil"
@@ -274,7 +276,7 @@ export default function Dashboard() {
                 ? "Pinakamahusay na Kurso"
                 : "Top Performing Courses"}
           </h2>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
+          <div className="space-y-4 max-h-96 overflow-y-auto content-scrollbar">
             {isStudent ? (
               stats?.achievements?.length ? (
                 stats.achievements.map((a: any, i: number) => (
@@ -391,10 +393,10 @@ export default function Dashboard() {
                 <div className="flex flex-wrap gap-3">
                   {gamification.earned.slice(0, 6).map((a: any, i: number) => (
                     <div
-                      key={i}
-                      title={a.title}
-                      className="flex flex-col items-center gap-1 p-3 bg-gradient-to-br from-yellow-900/20 to-orange-900/10 border border-yellow-500/20 rounded-2xl hover:border-yellow-400/40 transition-all cursor-default"
-                    >
+                          key={i}
+                          title={a.title}
+                          className="flex flex-col items-center gap-1 p-3 bg-gradient-to-br from-yellow-900/20 to-orange-900/10 border border-yellow-500/20 rounded-2xl hover:border-yellow-400/40 transition-all cursor-default"
+                        >
                       <span className="text-3xl">{a.icon}</span>
                       <span className="text-xs text-slate-600 dark:text-gray-400 max-w-[60px] text-center truncate">
                         {a.title}
@@ -426,7 +428,7 @@ export default function Dashboard() {
             </div>
 
             {/* Leaderboard Preview */}
-            <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent flex items-center gap-2">
                   <Crown className="w-6 h-6 text-cyan-400" />
@@ -497,7 +499,7 @@ export default function Dashboard() {
       {/* Quick Actions - Students Only */}
       {isStudent && (
         <div className="mt-8 max-w-7xl mx-auto px-6">
-          <div className="backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
+          <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
             <h2 className="text-2xl font-bold mb-8 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
               Quick Actions
             </h2>
@@ -540,12 +542,12 @@ export default function Dashboard() {
 // Futuristic StatCard
 function StatCard({ icon, label, value, gradient }: { icon: React.ReactNode; label: string; value: any; gradient: string }) {
   return (
-    <div className={`backdrop-blur-2xl bg-white/5 border border-white/10 rounded-3xl p-6 shadow-2xl hover:border-cyan-500/50 transition-all group`}>
+    <div className={`backdrop-blur-2xl bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl hover:border-cyan-500/50 transition-all group`}>
       <div className="flex flex-col items-center text-center">
         <div className={`p-5 rounded-2xl mb-4 bg-gradient-to-br ${gradient} shadow-lg group-hover:scale-110 transition-transform`}>
           {icon}
         </div>
-        <p className="text-sm text-slate-600 dark:text-gray-400 font-medium">{label}</p>
+        <p className="text-sm text-slate-700 dark:text-gray-400 font-medium">{label}</p>
         <p className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white mt-2">{value}</p>
       </div>
     </div>

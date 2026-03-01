@@ -488,7 +488,7 @@ const DigitalSerenityWithSummary: React.FC = () => {
                   Towards
                 </span>{" "}
                 <span className="word-animate" style={{ animationDelay: "2s" }}>
-                  Intelligence
+                  Intelligent
                 </span>{" "}
                 <span
                   className="word-animate"
@@ -500,7 +500,7 @@ const DigitalSerenityWithSummary: React.FC = () => {
                   className="word-animate"
                   style={{ animationDelay: "2.4s" }}
                 >
-                  Assistant
+                  Assistance
                 </span>
               </p>
 

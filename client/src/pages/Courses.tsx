@@ -437,7 +437,7 @@ export default function Courses() {
                 bg-white dark:bg-white/5 backdrop-blur-xl
               `}
             >
-              <Link to={`/courses/${course.id}`} className="block h-full">
+              <Link to={`/courses/${course.id}`} state={{ from: '/courses' }} className="block h-full">
                 {/* Course Header */}
                 <div className="h-56 relative flex items-center justify-center bg-gradient-to-br from-cyan-600/30 via-purple-600/20 to-indigo-700/30">
                   <div className="absolute inset-0 bg-black/25" />

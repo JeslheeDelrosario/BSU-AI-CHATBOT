@@ -923,44 +923,44 @@ export default function ClassroomDetail() {
                   </button>
                   
                   {showTaskDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-10 max-h-96 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 dropdown-menu z-10 max-h-96 overflow-y-auto">
                       <div className="p-2">
-                        <button onClick={() => { setTaskType('ANNOUNCEMENT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">
+                        <button onClick={() => { setTaskType('ANNOUNCEMENT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">
                           📢 {settings.language === 'fil' ? 'Anunsyo' : 'Announcement'}
                         </button>
                         
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold mt-2">{settings.language === 'fil' ? 'Pangunahing Gawain' : 'Major Academic Work'}</div>
-                        <button onClick={() => { setTaskType('PROJECT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📁 Project</button>
-                        <button onClick={() => { setTaskType('CAPSTONE_PROJECT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🎓 Capstone Project</button>
-                        <button onClick={() => { setTaskType('THESIS'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📚 Thesis</button>
-                        <button onClick={() => { setTaskType('RESEARCH_PAPER'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📄 Research Paper</button>
-                        <button onClick={() => { setTaskType('CASE_STUDY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🔍 Case Study</button>
+                        <div className="dropdown-header">{settings.language === 'fil' ? 'Pangunahing Gawain' : 'Major Academic Work'}</div>
+                        <button onClick={() => { setTaskType('PROJECT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📁 Project</button>
+                        <button onClick={() => { setTaskType('CAPSTONE_PROJECT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🎓 Capstone Project</button>
+                        <button onClick={() => { setTaskType('THESIS'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📚 Thesis</button>
+                        <button onClick={() => { setTaskType('RESEARCH_PAPER'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📄 Research Paper</button>
+                        <button onClick={() => { setTaskType('CASE_STUDY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🔍 Case Study</button>
                         
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold mt-2">{settings.language === 'fil' ? 'Gawain sa Kurso' : 'Coursework'}</div>
-                        <button onClick={() => { setTaskType('ASSIGNMENT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">✍️ Assignment</button>
-                        <button onClick={() => { setTaskType('HOMEWORK'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📝 Homework</button>
-                        <button onClick={() => { setTaskType('SEATWORK'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🪑 Seatwork</button>
-                        <button onClick={() => { setTaskType('WORKSHEET'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📋 Worksheet</button>
+                        <div className="dropdown-header">{settings.language === 'fil' ? 'Gawain sa Kurso' : 'Coursework'}</div>
+                        <button onClick={() => { setTaskType('ASSIGNMENT'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">✍️ Assignment</button>
+                        <button onClick={() => { setTaskType('HOMEWORK'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📝 Homework</button>
+                        <button onClick={() => { setTaskType('SEATWORK'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🪑 Seatwork</button>
+                        <button onClick={() => { setTaskType('WORKSHEET'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📋 Worksheet</button>
                         
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold mt-2">{settings.language === 'fil' ? 'Aktibidad' : 'Activities'}</div>
-                        <button onClick={() => { setTaskType('ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🎯 Activity</button>
-                        <button onClick={() => { setTaskType('GROUP_ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">👥 Group Activity</button>
-                        <button onClick={() => { setTaskType('LABORATORY_ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🧪 Laboratory Activity</button>
+                        <div className="dropdown-header">{settings.language === 'fil' ? 'Aktibidad' : 'Activities'}</div>
+                        <button onClick={() => { setTaskType('ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🎯 Activity</button>
+                        <button onClick={() => { setTaskType('GROUP_ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">👥 Group Activity</button>
+                        <button onClick={() => { setTaskType('LABORATORY_ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🧪 Laboratory Activity</button>
                         
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold mt-2">{settings.language === 'fil' ? 'Pagsusulit' : 'Assessments'}</div>
-                        <button onClick={() => { setTaskType('QUIZ'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📝 Quiz</button>
-                        <button onClick={() => { setTaskType('EXAMINATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📖 Examination</button>
-                        <button onClick={() => { setTaskType('MIDTERM_EXAM'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📗 Midterm Exam</button>
-                        <button onClick={() => { setTaskType('FINAL_EXAM'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">📕 Final Exam</button>
+                        <div className="dropdown-header">{settings.language === 'fil' ? 'Pagsusulit' : 'Assessments'}</div>
+                        <button onClick={() => { setTaskType('QUIZ'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📝 Quiz</button>
+                        <button onClick={() => { setTaskType('EXAMINATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📖 Examination</button>
+                        <button onClick={() => { setTaskType('MIDTERM_EXAM'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📗 Midterm Exam</button>
+                        <button onClick={() => { setTaskType('FINAL_EXAM'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">📕 Final Exam</button>
                         
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold mt-2">{settings.language === 'fil' ? 'Presentasyon' : 'Presentations'}</div>
-                        <button onClick={() => { setTaskType('PRESENTATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🎤 Presentation</button>
-                        <button onClick={() => { setTaskType('ORAL_PRESENTATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🗣️ Oral Presentation</button>
-                        <button onClick={() => { setTaskType('VIDEO_PRESENTATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">🎥 Video Presentation</button>
+                        <div className="dropdown-header">{settings.language === 'fil' ? 'Presentasyon' : 'Presentations'}</div>
+                        <button onClick={() => { setTaskType('PRESENTATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🎤 Presentation</button>
+                        <button onClick={() => { setTaskType('ORAL_PRESENTATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🗣️ Oral Presentation</button>
+                        <button onClick={() => { setTaskType('VIDEO_PRESENTATION'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">🎥 Video Presentation</button>
                         
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold mt-2">{settings.language === 'fil' ? 'Online' : 'Online Tasks'}</div>
-                        <button onClick={() => { setTaskType('ONLINE_ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">💻 Online Activity</button>
-                        <button onClick={() => { setTaskType('FORUM_POST'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-white transition-colors">💬 Forum Post</button>
+                        <div className="dropdown-header">{settings.language === 'fil' ? 'Online' : 'Online Tasks'}</div>
+                        <button onClick={() => { setTaskType('ONLINE_ACTIVITY'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">💻 Online Activity</button>
+                        <button onClick={() => { setTaskType('FORUM_POST'); setShowAnnouncementModal(true); setShowTaskDropdown(false); }} className="dropdown-item">💬 Forum Post</button>
                       </div>
                     </div>
                   )}

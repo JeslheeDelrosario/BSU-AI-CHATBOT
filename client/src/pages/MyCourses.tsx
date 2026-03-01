@@ -196,10 +196,10 @@ export default function MyCourses() {
                 key={enrollment.id}
                 className={`group relative h-full rounded-3xl border shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
                   isDropped
-                    ? "bg-gray-900/40 border-red-800/40 opacity-85 hover:opacity-100"
+                    ? "bg-red-50 border-red-200 hover:border-red-300 hover:shadow-red-200/40 dark:bg-gray-900/40 dark:border-red-800/40"
                     : isCompleted
-                      ? "bg-green-900/20 border-green-800/40" // subtle green tint when completed
-                      : "bg-white/5 border-white/10 hover:border-cyan-500/50 hover:shadow-cyan-500/30"
+                      ? "bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-800/40" // improved light-mode contrast
+                      : "bg-white border-gray-200 hover:border-cyan-300 hover:shadow-cyan-200/40 dark:bg-white/5 dark:border-white/10 dark:hover:border-cyan-500/50 dark:hover:shadow-cyan-500/30"
                 }`}
               >
                 {/* Dropped badge - always visible on dropped cards */}
@@ -219,22 +219,35 @@ export default function MyCourses() {
                 {/* Card content – clickable area */}
                 <Link
                   to={`/courses/${enrollment.Course?.id}`}
+                  state={{ from: '/my-courses' }}
                   className="block flex-1"
                 >
                   {/* Header */}
-                  <div className="h-48 relative flex items-center justify-center bg-gradient-to-br from-cyan-600/20 via-purple-600/15 to-indigo-700/20">
-                    <BookOpen className="w-20 h-20 text-cyan-400/80 drop-shadow-xl" />
+                  <div
+                    className={`h-48 relative flex items-center justify-center bg-gradient-to-br ${
+                      isDropped
+                        ? "from-rose-100 via-red-100 to-orange-100 dark:from-red-900/20 dark:via-rose-900/15 dark:to-orange-900/20"
+                        : "from-cyan-100 via-purple-100 to-indigo-100 dark:from-cyan-600/20 dark:via-purple-600/15 dark:to-indigo-700/20"
+                    }`}
+                  >
+                    <BookOpen
+                      className={`w-20 h-20 drop-shadow-xl ${
+                        isDropped
+                          ? "text-red-500 dark:text-red-400/80"
+                          : "text-cyan-500 dark:text-cyan-400/80"
+                      }`}
+                    />
                   </div>
 
                   {/* Content */}
                   <div className="p-6 flex-1 flex flex-col">
                     {/* Title */}
-                    <h3 className="text-xl font-bold mb-3 line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                    <h3 className="text-xl font-bold mb-3 line-clamp-2 text-gray-900 group-hover:text-cyan-600 transition-colors dark:text-white dark:group-hover:text-cyan-300">
                       {enrollment.Course?.title}
                     </h3>
 
                     {/* Short description */}
-                    <p className="text-gray-400 dark:text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">
+                    <p className="text-gray-600 dark:text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">
                       {enrollment.Course?.description ||
                         "No description available."}
                     </p>
@@ -245,12 +258,12 @@ export default function MyCourses() {
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border backdrop-blur-sm ${
                           enrollment.Course?.level === "BEGINNER"
-                            ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/60"
+                            ? "bg-cyan-100 text-cyan-700 border-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/60"
                             : enrollment.Course?.level === "INTERMEDIATE"
-                              ? "bg-purple-500/20 text-purple-300 border-purple-500/60"
+                              ? "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/60"
                               : enrollment.Course?.level === "ADVANCED"
-                                ? "bg-orange-500/20 text-orange-300 border-orange-500/60"
-                                : "bg-pink-500/20 text-pink-300 border-pink-500/60"
+                                ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/60"
+                                : "bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-500/20 dark:text-pink-300 dark:border-pink-500/60"
                         }`}
                       >
                         {enrollment.Course?.level?.charAt(0) +
@@ -259,7 +272,7 @@ export default function MyCourses() {
                       </span>
 
                       {/* Duration */}
-                      <span className="flex items-center gap-1.5 text-gray-400">
+                      <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                         <Clock className="w-4 h-4" />
                         {enrollment.Course?.duration
                           ? `${Math.floor(enrollment.Course.duration / 60)}h`
@@ -267,7 +280,7 @@ export default function MyCourses() {
                       </span>
 
                       {/* Lessons count */}
-                      <span className="flex items-center gap-1.5 text-gray-400">
+                      <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                         <BookOpen className="w-4 h-4" />
                         {total} lessons
                       </span>
@@ -276,20 +289,20 @@ export default function MyCourses() {
                     {/* Progress bar */}
                     <div className="space-y-2 mb-6">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Progress</span>
+                        <span className="text-gray-600 dark:text-gray-400">Progress</span>
                         <span
                           className={
-                            isDropped ? "text-gray-300" : "text-cyan-400"
+                            isDropped ? "text-gray-500" : "text-cyan-600 dark:text-cyan-400"
                           }
                         >
                           {progress}%
                         </span>
                       </div>
-                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden dark:bg-gray-700">
                         <div
                           className={`h-full rounded-full transition-all duration-1000 ${
                             isDropped
-                              ? "bg-gray-500"
+                              ? "bg-gray-400 dark:bg-gray-500"
                               : "bg-gradient-to-r from-cyan-500 to-purple-500"
                           }`}
                           style={{ width: `${progress}%` }}
@@ -298,7 +311,7 @@ export default function MyCourses() {
                     </div>
 
                     {/* Completed count */}
-                    <div className="mt-auto flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="mt-auto flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
                       <TrendingUp className="w-4 h-4" />
                       <span>
                         {completed} / {total} completed

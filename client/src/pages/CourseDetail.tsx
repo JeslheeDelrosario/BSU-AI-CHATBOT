@@ -1,6 +1,6 @@
 // client/src/pages/CourseDetail.tsx
 import { useState, useEffect, useRef, useCallback  } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Disclosure, Transition } from '@headlessui/react';
 import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -117,6 +117,7 @@ function QuillEditor({
 export default function CourseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [course, setCourse] = useState<any>(null);
@@ -766,11 +767,11 @@ export default function CourseDetail() {
       {/* Back Button */}
 
       <button
-        onClick={() => navigate("/courses")}
+        onClick={() => navigate(((location.state as any)?.from as string) || '/courses')}
         className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors mb-6 group"
       >
         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-        Back to Courses
+        {((location.state as any)?.from === '/my-courses' && 'Back in My Courses') || ((location.state as any)?.from === '/courses' && 'Back in Courses') || 'Back to Courses'}
       </button>
 
       {/* Course Header */}

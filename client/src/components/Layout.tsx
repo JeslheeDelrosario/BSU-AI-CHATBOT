@@ -102,13 +102,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => {
     if (href === '/dashboard') return location.pathname === href;
     // /courses exact-only: detail pages (/courses/:id) and lessons (/lessons/:id)
-    // should not highlight Browse Courses when reached from My Courses
-    if (href === '/courses') return location.pathname === '/courses';
-    // Lesson viewer and course detail pages keep My Courses active
+    // /courses exact-only: detail pages (/courses/:id) use origin state to decide
+    if (href === '/courses') {
+      if (location.pathname === '/courses') return true;
+      // if on a course detail but origin was /courses, highlight Browse Courses
+      if (location.pathname.startsWith('/courses/') && (location.state as any)?.from === '/courses') return true;
+      return false;
+    }
+    // Lesson viewer and course detail pages may belong to My Courses when navigated from there
     if (href === '/my-courses') {
-      return location.pathname.startsWith('/my-courses') ||
+      return (
+        location.pathname.startsWith('/my-courses') ||
         location.pathname.startsWith('/lessons/') ||
-        (location.pathname.startsWith('/courses/') && location.pathname !== '/courses');
+        (location.pathname.startsWith('/courses/') && (location.state as any)?.from === '/my-courses')
+      );
     }
     return location.pathname.startsWith(href);
   };
