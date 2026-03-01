@@ -22,7 +22,7 @@ export default function LessonViewer() {
   const [progress, setProgress] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
-  const [startTime] = useState(Date.now());
+  const [startTime, setStartTime] = useState(Date.now());
   const { showToast } = useToast();
   //For non-quiz completion
   const [canComplete, setCanComplete] = useState(false);
@@ -40,6 +40,7 @@ export default function LessonViewer() {
   const [timeTaken, setTimeTaken] = useState(0);
   const [showMissingWarning, setShowMissingWarning] = useState(false);
   const [courseLessons, setCourseLessons] = useState<any[]>([]);
+  const [showCongratsModal, setShowCongratsModal] = useState(false);
 
   const fetchLesson = useCallback(async () => {
     try {
@@ -83,6 +84,16 @@ export default function LessonViewer() {
           console.error("Failed to parse quiz JSON:", parseError);
         }
       }
+
+      // whenever we load a lesson (especially a quiz) reset prior quiz state
+      setCurrentQuestionIndex(0);
+      setSelectedAnswers({});
+      setSubmittedQuestions(new Set());
+      setShowQuizResult(false);
+      setQuizScore(0);
+      setTimeTaken(0);
+      setShowMissingWarning(false);
+      setStartTime(Date.now());
 
       const saved = localStorage.getItem(`quiz-state-${id}`);
       if (saved) {
@@ -277,11 +288,11 @@ export default function LessonViewer() {
       }
     }
 
-    // Proceed to navigation
+    // Proceed to navigation or show congrats when course complete
     if (nextLesson) {
       navigate(`/lessons/${nextLesson.id}`);
     } else {
-      navigate(`/courses/${lesson.courseId}`);
+      setShowCongratsModal(true);
     }
   };
 
@@ -361,6 +372,7 @@ export default function LessonViewer() {
     setShowQuizResult(false);
     setQuizScore(0);
     setTimeTaken(0);
+    setStartTime(Date.now());
   };
 
   const getLessonIcon = (type: string) => {
@@ -834,6 +846,26 @@ export default function LessonViewer() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Congrats modal when course finished */}
+      {showCongratsModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl">
+            <h2 className="text-3xl font-black mb-4 bg-gradient-to-r from-green-500 to-teal-500 bg-clip-text text-transparent">
+              🎉 Course Complete! 🎉
+            </h2>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              You've finished every lesson. Congrats on your achievement!
+            </p>
+            <button
+              onClick={() => navigate(`/courses/${lesson.courseId}`)}
+              className="px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-bold transition hover:scale-105 shadow-lg"
+            >
+              Back to Course Overview
+            </button>
           </div>
         </div>
       )}
