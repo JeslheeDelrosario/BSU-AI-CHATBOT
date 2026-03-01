@@ -33,6 +33,7 @@ import Achievements from './pages/Achievements';
 import Leaderboard from './pages/Leaderboard';
 import AdminGamification from './pages/AdminGamification';
 import Forums from './pages/Forums';
+import PostDetail from './pages/PostDetail';
 import CommunityDetail from './pages/CommunityDetail';
 import RoomSchedules from './pages/RoomSchedules';
 
@@ -46,6 +47,7 @@ import AdminAnalytics from './pages/AdminAnalytics';
 import AdminRooms from './pages/AdminRooms';
 import AdminForums from './pages/AdminForums';
 import AdminConsultations from './pages/AdminConsultations';
+import AdminAISettings from './pages/AdminAISettings';
 
 // Public Pages
 import FAQs from './pages/FAQs';
@@ -92,6 +94,7 @@ function App() {
                   <Route path="/achievements" element={<Achievements />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/forums" element={<Forums />} />
+                  <Route path="/forums/post/:id" element={<PostDetail />} />
                   <Route path="/forums/c/:slug" element={<CommunityDetail />} />
                   <Route path="/room-schedules" element={<RoomSchedules />} />
 
@@ -106,6 +109,7 @@ function App() {
                   <Route path="/AdminGamification" element={<AdminGamification />} />
                   <Route path="/AdminForums" element={<AdminForums />} />
                   <Route path="/AdminConsultations" element={<AdminConsultations />} />
+                  <Route path="/AdminAISettings" element={<AdminAISettings />} />
 
                         {/* Catch-all: redirect to dashboard if unknown route */}
                         <Route

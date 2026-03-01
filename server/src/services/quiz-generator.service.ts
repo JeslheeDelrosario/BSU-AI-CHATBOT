@@ -5,7 +5,6 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { openAIQuizService } from './openai-quiz.service';
 import { huggingFaceQuizService } from './huggingface-quiz.service';
 import { prisma } from '../lib/prisma';
 
@@ -107,7 +106,13 @@ export class QuizGeneratorService {
     if (apiKey && apiKey !== 'your-gemini-api-key-here') {
       this.geminiAI = new GoogleGenerativeAI(apiKey);
       const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-      this.geminiModel = this.geminiAI.getGenerativeModel({ model: modelName });
+      this.geminiModel = this.geminiAI.getGenerativeModel({ 
+        model: modelName,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000
+        }
+      });
       this.isEnabled = true;
       console.log(`✓ Quiz Generator service enabled (Gemini AI - ${modelName})`);
     } else {
@@ -157,11 +162,10 @@ export class QuizGeneratorService {
   }
 
   /**
-   * Check if quiz generation is available (OpenAI, Gemini, or Hugging Face)
+   * Check if quiz generation is available (Gemini or Hugging Face)
    */
   isAvailable(): boolean {
-    return openAIQuizService.isAvailable() || 
-           (this.isEnabled && this.geminiModel !== null) || 
+    return (this.isEnabled && this.geminiModel !== null) || 
            huggingFaceQuizService.isAvailable();
   }
 
@@ -179,25 +183,7 @@ export class QuizGeneratorService {
       return null;
     }
 
-    // PRIORITY 1: Try OpenAI first (most reliable)
-    if (openAIQuizService.isAvailable()) {
-      try {
-        const quiz = await openAIQuizService.generateQuizFromCourse(
-          courseCode,
-          topic,
-          questionCount,
-          difficulty
-        );
-        if (quiz && quiz.questions.length >= questionCount) {
-          console.log(`[QuizGen] Generated ${quiz.questions.length} questions using OpenAI`);
-          return quiz;
-        }
-      } catch (error: any) {
-        console.warn('[QuizGen] OpenAI failed, trying Gemini:', error.message);
-      }
-    }
-
-    // PRIORITY 2: Fallback to Gemini
+    // PRIORITY 1: Try Gemini
     if (this.isEnabled && this.geminiModel) {
       try {
         const curriculum = await prisma.curriculumEntry.findFirst({
@@ -229,7 +215,7 @@ export class QuizGeneratorService {
       }
     }
 
-    // PRIORITY 3: Fallback to Hugging Face
+    // PRIORITY 2: Fallback to Hugging Face
     if (huggingFaceQuizService.isAvailable()) {
       try {
         const quiz = await huggingFaceQuizService.generateQuizFromCourse(
@@ -264,20 +250,7 @@ export class QuizGeneratorService {
       return null;
     }
 
-    // PRIORITY 1: Try OpenAI first (most reliable)
-    if (openAIQuizService.isAvailable()) {
-      try {
-        const quiz = await openAIQuizService.generateQuiz(topic, questionCount, difficulty);
-        if (quiz && quiz.questions.length >= questionCount) {
-          console.log(`[QuizGen] Generated ${quiz.questions.length} questions using OpenAI`);
-          return quiz;
-        }
-      } catch (error: any) {
-        console.warn('[QuizGen] OpenAI failed, trying Gemini:', error.message);
-      }
-    }
-
-    // PRIORITY 2: Fallback to Gemini
+    // PRIORITY 1: Try Gemini
     if (this.isEnabled && this.geminiModel) {
       try {
         const prompt = this.buildQuizPrompt(topic, topic, questionCount, difficulty);
@@ -293,7 +266,7 @@ export class QuizGeneratorService {
       }
     }
 
-    // PRIORITY 3: Fallback to Hugging Face
+    // PRIORITY 2: Fallback to Hugging Face
     if (huggingFaceQuizService.isAvailable()) {
       try {
         const quiz = await huggingFaceQuizService.generateQuiz(topic, questionCount, difficulty);
@@ -332,26 +305,7 @@ export class QuizGeneratorService {
       content: lesson.content ? lesson.content.substring(0, 500) : '' // Limit content to 500 chars
     }));
 
-    // PRIORITY 1: Try OpenAI with minimal context
-    if (openAIQuizService.isAvailable()) {
-      try {
-        const quiz = await this.generateQuizWithLessonContext(
-          openAIQuizService,
-          topic,
-          lessonContext,
-          questionCount,
-          difficulty
-        );
-        if (quiz && quiz.questions.length >= questionCount) {
-          console.log(`[QuizGen] Generated ${quiz.questions.length} questions from lessons using OpenAI`);
-          return quiz;
-        }
-      } catch (error: any) {
-        console.warn('[QuizGen] OpenAI failed with lessons:', error.message);
-      }
-    }
-
-    // PRIORITY 2: Try Gemini with minimal context
+    // PRIORITY 1: Try Gemini with lesson context
     if (this.isEnabled && this.geminiModel) {
       try {
         const prompt = this.buildLessonBasedPrompt(topic, lessonContext, questionCount, difficulty);

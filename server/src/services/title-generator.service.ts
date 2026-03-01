@@ -1,19 +1,7 @@
 // server/src/services/title-generator.service.ts
-import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-let openai: OpenAI | null = null;
 let geminiTitleModel: any = null;
-
-try {
-  if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-} catch (error) {
-  console.error('Failed to initialize OpenAI for title generation:', error);
-}
 
 try {
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -65,7 +53,7 @@ function cleanTitle(raw: string): string | null {
 
 /**
  * Generate a concise, meaningful chat title using AI
- * Priority: Gemini (free) → OpenAI → Pattern-based fallback
+ * Priority: Gemini (free) → Pattern-based fallback
  */
 export async function generateChatTitle(
   userMessage: string,
@@ -86,27 +74,7 @@ export async function generateChatTitle(
     }
   }
 
-  // PRIORITY 2: OpenAI
-  if (openai) {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: 'You are a title generator. Create concise, descriptive titles (max 6 words) for conversations. Return ONLY the title, no quotes or extra text.' },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 20,
-        temperature: 0.7,
-      });
-      const text = completion.choices[0]?.message?.content || '';
-      const title = cleanTitle(text);
-      if (title) return title;
-    } catch (error: any) {
-      console.warn('[TitleGen] OpenAI failed:', error.message);
-    }
-  }
-
-  // PRIORITY 3: Pattern-based fallback
+  // PRIORITY 2: Pattern-based fallback
   return fallbackTitleGeneration(userMessage, language);
 }
 
