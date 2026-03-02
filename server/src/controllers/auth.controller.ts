@@ -32,6 +32,14 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
   try {
     const { email, password, firstName, lastName, role, learningStyle, gradeLevel } = req.body;
 
+    // Block privileged role self-registration — faculty/admin accounts are admin-only
+    const RESTRICTED_ROLES: UserRole[] = [UserRole.TEACHER, UserRole.ADMIN, UserRole.CONTENT_CREATOR];
+    if (role && RESTRICTED_ROLES.includes(role as UserRole)) {
+      return res.status(403).json({ 
+        error: 'Faculty and admin accounts can only be created by an administrator. Please contact the admin.' 
+      });
+    }
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -48,7 +56,7 @@ export const register = async (req: Request<object, object, RegisterBody>, res: 
         password: hashedPassword,
         firstName,
         lastName,
-        role: role || UserRole.STUDENT,
+        role: UserRole.STUDENT,
         learningStyle: learningStyle as any,
         gradeLevel,
       },

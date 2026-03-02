@@ -160,6 +160,73 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* Faculty Quick Access — TEACHER role only */}
+      {user?.role === 'TEACHER' && (
+        <div className="max-w-7xl mx-auto px-6 mb-8">
+          <div className="backdrop-blur-2xl bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-purple-400" />
+              {accessibilitySettings.language === 'fil' ? 'Faculty Features' : 'Faculty Features'}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Link
+                to="/classrooms"
+                className="group flex items-center gap-4 p-5 bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 rounded-2xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <BookOpen className="w-6 h-6 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground group-hover:text-cyan-400 transition-colors">
+                    {accessibilitySettings.language === 'fil' ? 'Mga Classroom' : 'Classroom Management'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {accessibilitySettings.language === 'fil' ? 'Gumawa at pamahalaan ang mga classroom' : 'Create classrooms & manage students'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+              </Link>
+
+              <Link
+                to="/consultations"
+                className="group flex items-center gap-4 p-5 bg-white/5 hover:bg-purple-500/10 border border-white/10 hover:border-purple-500/30 rounded-2xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Clock className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground group-hover:text-purple-400 transition-colors">
+                    {accessibilitySettings.language === 'fil' ? 'Konsultasyon' : 'Consultation Scheduling'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {accessibilitySettings.language === 'fil' ? 'Itakda ang oras at kumpirmahin ang booking' : 'Set availability & confirm bookings'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+              </Link>
+
+              <Link
+                to="/faculty-calendar"
+                className="group flex items-center gap-4 p-5 bg-white/5 hover:bg-pink-500/10 border border-white/10 hover:border-pink-500/30 rounded-2xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-pink-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Target className="w-6 h-6 text-pink-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground group-hover:text-pink-400 transition-colors">
+                    {accessibilitySettings.language === 'fil' ? 'Faculty Calendar' : 'Faculty Calendar'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {accessibilitySettings.language === 'fil' ? 'Tingnan ang schedule at booking' : 'View schedule & consultation bookings'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Student Rank Card */}
       {isStudent && rankProgress && (
         <div className="max-w-7xl mx-auto px-6 mb-8">

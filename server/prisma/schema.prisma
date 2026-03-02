@@ -292,6 +292,7 @@ model FAQ {
 
 model Faculty {
   id                   String                 @id @default(cuid())
+  userId               String?                @unique
   firstName            String
   middleName           String?
   lastName             String
@@ -306,6 +307,9 @@ model Faculty {
   FacultySchedule      FacultySchedule[]
   FacultySubject       FacultySubject[]
   ConsultationBookings ConsultationBooking[]
+  User                 User?                  @relation("FacultyUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }
 
 model FacultySchedule {
@@ -587,6 +591,7 @@ model User {
   ForumReportReviews               ForumReport[]          @relation("ForumReportReviewer")
   RoomChatMessages                 RoomChatMessage[]
   AIContextLogs                    AIContextLog[]
+  FacultyProfile                   Faculty?               @relation("FacultyUser")
 
   @@index([email])
   @@index([role])
