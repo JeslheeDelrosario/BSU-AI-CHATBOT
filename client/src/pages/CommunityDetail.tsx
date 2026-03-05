@@ -289,7 +289,8 @@ export default function CommunityDetail() {
         communityId: community.id,
         tags: newPost.tags.split(',').map(t => t.trim()).filter(Boolean),
       });
-      setPosts(prev => [response.data, ...prev]);
+      const newPostData = response.data.post || response.data;
+      setPosts(prev => [newPostData, ...prev]);
       setShowCreateModal(false);
       setNewPost({ title: '', content: '', type: 'DISCUSSION', tags: '' });
       showToast({

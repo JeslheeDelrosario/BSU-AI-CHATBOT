@@ -410,7 +410,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
       { semester: 'asc' },
       { courseCode: 'asc' }
     ],
-    take: 100 // Limit for performance
+    take: 30 // Limit to reduce token usage and avoid rate limits
   });
 
   return curriculum.map(c => ({

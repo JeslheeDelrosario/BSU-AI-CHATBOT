@@ -292,6 +292,7 @@ model FAQ {
 
 model Faculty {
   id                   String                 @id @default(cuid())
+  userId               String?                @unique
   firstName            String
   middleName           String?
   lastName             String
@@ -306,6 +307,9 @@ model Faculty {
   FacultySchedule      FacultySchedule[]
   FacultySubject       FacultySubject[]
   ConsultationBookings ConsultationBooking[]
+  User                 User?                  @relation("FacultyUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }
 
 model FacultySchedule {
@@ -586,6 +590,8 @@ model User {
   ForumReports                     ForumReport[]          @relation("ForumReporter")
   ForumReportReviews               ForumReport[]          @relation("ForumReportReviewer")
   RoomChatMessages                 RoomChatMessage[]
+  AIContextLogs                    AIContextLog[]
+  FacultyProfile                   Faculty?               @relation("FacultyUser")
 
   @@index([email])
   @@index([role])
@@ -1965,4 +1971,39 @@ model ForumSettings {
   spamFilterEnabled     Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+model AISettings {
+  id                        String   @id @default(cuid())
+  conversationHistoryLength Int      @default(10)
+  pronounResolutionEnabled  Boolean  @default(true)
+  entityExtractionEnabled   Boolean  @default(true)
+  contextInjectionEnabled   Boolean  @default(true)
+  scopeRestrictionEnabled   Boolean  @default(true)
+  scopeConfidenceThreshold  Float    @default(0.8)
+  cacheEnabled              Boolean  @default(true)
+  cacheTTLMinutes           Int      @default(60)
+  maxResponseTokens         Int      @default(4096)
+  temperature               Float    @default(0.7)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model AIContextLog {
+  id                String   @id @default(cuid())
+  userId            String
+  sessionId         String?
+  userMessage       String
+  resolvedMessage   String?
+  extractedEntities String[]
+  pronounsResolved  Boolean  @default(false)
+  contextUsed       Boolean  @default(false)
+  scopeAnalysis     Json?
+  responseTime      Int?
+  createdAt         DateTime @default(now())
+  User              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([sessionId])
 }

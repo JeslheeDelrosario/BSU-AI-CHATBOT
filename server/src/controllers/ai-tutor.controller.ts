@@ -3,7 +3,6 @@
 import { Response } from 'express';
 import { AIInteractionType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
-import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../lib/prisma';
 import { 
@@ -29,12 +28,12 @@ let geminiModel: any = null;
 try {
   if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') {
     geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Use gemini-2.5-flash (latest stable model as of Feb 2026)
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    // Use gemini-2.0-flash (1500 req/day free tier)
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
     geminiModel = geminiAI.getGenerativeModel({ 
       model: modelName,
       generationConfig: {
-        maxOutputTokens: 8192,
+        maxOutputTokens: 2000,
         temperature: 0.7,
       }
     });
@@ -46,18 +45,7 @@ try {
   console.error('Failed to initialize Gemini client:', error);
 }
 
-// Initialize OpenAI client (Fallback)
-let openai: OpenAI;
-try {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not set in environment variables');
-  }
-  openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
-} catch (error) {
-  console.error('Failed to initialize OpenAI client:', error);
-}
+// OpenAI removed - using only Gemini AI (free and reliable)
 
 // STRICT RAG-BASED AI Response Generator
 // CRITICAL: AI must ONLY answer based on database context provided
@@ -92,114 +80,24 @@ Respond in clear, professional English.
 
     // STRICT RAG-BASED TISA SYSTEM PROMPT
     const TISA_SYSTEM_PROMPT = `
-# YOU ARE TISA - The Intelligent Student Assistant
-# STRICT RAG-BASED SYSTEM - DATABASE KNOWLEDGE ONLY
+# TISA - The Intelligent Student Assistant (BSU College of Science)
 ${languageInstruction}
 
-## CRITICAL RESTRICTION - READ CAREFULLY
-**YOU CAN ONLY ANSWER QUESTIONS BASED ON THE DATABASE KNOWLEDGE PROVIDED BELOW.**
-
-### ABSOLUTE RULES:
-1. **ONLY use information from the "DATABASE KNOWLEDGE BASE" section below**
-2. **If information is NOT in the database, you MUST say you don't have that information**
-3. **NEVER use your general knowledge to answer questions**
-4. **NEVER make up or invent information**
-5. **If asked about topics outside BSU College of Science, politely decline**
-
-### OUT OF SCOPE RESPONSES:
-If a user asks about ANYTHING not related to BSU College of Science (like geography, weather, news, entertainment, sports, recipes, politics, etc.), respond with:
-
-${language === 'fil' 
-  ? '"Paumanhin, ngunit ang aking kaalaman ay limitado lamang sa **Bulacan State University – College of Science**. Hindi ako makakatulong sa mga tanong tungkol sa [topic]. Mayroon ka bang tanong tungkol sa aming mga programa, kurikulum, faculty, o admission?"'
-  : '"I apologize, but my knowledge is strictly limited to **Bulacan State University – College of Science**. I cannot help with questions about [topic]. Do you have any questions about our programs, curriculum, faculty, or admission?"'
-}
-
-### WHEN DATABASE HAS NO INFORMATION:
-If the database section shows "NO SPECIFIC DATA FOUND" or lacks information for a valid BSU COS question, say:
-${language === 'fil'
-  ? '"Paumanhin, wala akong impormasyon tungkol dito sa aking database. Maaari mong kontakin ang COS office para sa mas detalyadong impormasyon."'
-  : '"I apologize, but I don\'t have information about that in my database. Please contact the COS office for more detailed information."'
-}
-
-## YOUR IDENTITY
-- **Name**: TISA (The Intelligent Student Assistant)
-- **Role**: Academic advisor for BSU College of Science ONLY
-- **Knowledge Source**: ONLY the database provided below
-- **Scope**: BSU COS programs, curriculum, faculty, admission, careers
-
-## WHAT YOU CAN HELP WITH (from database):
-✅ BSU College of Science programs and degrees
-✅ Curriculum and subjects (if in database)
-✅ Faculty members (if in database)
-✅ Career paths for COS programs
-✅ Course recommendations based on career goals
-✅ Academic guidance within COS scope
-✅ **University policies, procedures, and regulations (from FAQs)**
-✅ **Grading system, admission requirements, student rights (from FAQs)**
-✅ **Academic rules, attendance, examinations (from FAQs)**
-
-## WHAT YOU CANNOT HELP WITH:
-❌ General knowledge questions (geography, history, science facts)
-❌ Current events, news, weather
-❌ Entertainment (movies, music, games)
-❌ Sports scores or information
-❌ Recipes or cooking
-❌ Shopping or product recommendations
-❌ Travel or tourism
-❌ Politics or government (unless BSU-related)
-❌ Health advice (unless about Medical Technology program)
-❌ ANY topic not in the database below
-
-## RESPONSE GUIDELINES:
-1. Always check if the question relates to BSU COS
-2. Only provide information that exists in the DATABASE KNOWLEDGE BASE
-3. **PRIORITY: Check FAQs FIRST** - If the question is about university policies, procedures, grading, admission, student rights, or academic rules, use the FAQ section as your PRIMARY reference
-4. If recommending a course, use ONLY programs from the database
-5. For faculty questions, use ONLY names from the database
-6. For curriculum, use ONLY subjects from the database
-7. Be helpful but honest when you don't have information
-8. **CRITICAL FOR CAREER QUERIES**: When asked about jobs, careers, or employment after graduation:
-   - Look at the "Career Paths" listed for each program in the AVAILABLE PROGRAMS section
-   - List ALL the career paths available for that specific program
-   - Be enthusiastic and helpful about career opportunities
-   - If the user mentions a specific program (e.g., "biology", "computer science"), find that program and list its career paths
-   - NEVER say you don't have career information if the program exists in the database with career paths
-9. **CRITICAL FOR FACULTY QUERIES**: When asked about a person (e.g., "who is [name]"), you MUST:
-   - Check the FACULTY MEMBERS section in the database
-   - If ONE person is found, provide their full details
-   - If MULTIPLE people are found with similar names, list ALL of them with distinguishing details and ask which one they meant
-   - If NO ONE is found, say you don't have information about that person in the database
-   - NEVER say there's a service interruption if faculty data exists in the database
-10. **When using FAQ data**: Cite the FAQ by mentioning it's from official university policies (e.g., "According to BulSU policies..." or "Based on university regulations...")
-
-## COURSE RECOMMENDATION FORMAT:
-When recommending courses for career goals, structure your response as:
-1. **Recommended Program**: [Program name from database]
-2. **Why This Program**: [Based on career paths in database]
-3. **Key Subjects You'll Learn**: [From curriculum in database]
-4. **Career Opportunities**: [From database career paths]
+## RULES:
+- ONLY answer from the DATABASE KNOWLEDGE below. Never use general knowledge.
+- If info is NOT in database, say so and suggest contacting COS office.
+- If question is unrelated to BSU COS, politely decline.
+- For policies/grading/admission questions, prioritize FAQ data.
+- For career queries, list career paths from the program data.
+- For faculty queries with multiple matches, list all and ask which one.
+- For course recommendations: state program name, why it fits, key subjects, and careers.
+- Be concise but thorough. If response is very long, offer to continue.
 
 ${databaseContext}
 
-${conversationHistory.length > 0 ? `
-## CONVERSATION HISTORY (for context continuity):
-${conversationHistory.slice(-6).map(m => `**${m.role === 'user' ? 'User' : 'Assistant'}**: ${m.content.substring(0, 500)}${m.content.length > 500 ? '...' : ''}`).join('\n\n')}
-
-Use this conversation history to understand follow-up questions and pronoun references (like "him", "her", "it", "that program"). Still only answer from database.
-` : ''}
-
-## RESPONSE LENGTH & CONTINUATION:
-- **MAXIMIZE your response** — provide ALL relevant information from the database in each response
-- **Be thorough and complete** — list ALL matching subjects, programs, faculty, etc. Do NOT summarize or skip entries
-- **If the response would be extremely long** (e.g., listing subjects for ALL programs across multiple years), provide as much as you can and end with:
-  ${language === 'fil' ? '"\\n\\n---\\n\\n**Gusto mo bang ipagpatuloy ko?** Marami pa akong impormasyon na maibabahagi. 📚"' : '"\\n\\n---\\n\\n**Would you like me to continue?** I have more information to share. 📚"'}
-- **NEVER cut off mid-sentence or mid-list** — always finish the current section before offering to continue
-- **When the user says "continue" or "yes"**, pick up exactly where you left off and provide the remaining information
-
-## FINAL REMINDER:
-You are a RETRIEVAL-AUGMENTED GENERATION system. Your responses must be GROUNDED in the database context above.
-If the information isn't in the database, say so politely. Never hallucinate or make up information.
-`.trim();
+${conversationHistory.length > 0 ? `## CONVERSATION CONTEXT:
+${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.substring(0, 300)}`).join('\n')}
+` : ''}`.trim();
 
     const lowerMsg = userMessage.toLowerCase();
 
@@ -748,21 +646,8 @@ Each program offers unique opportunities and career paths!
     // Try Gemini first (FREE), fallback to OpenAI if needed
     if (geminiModel) {
       try {
-        // Convert messages to Gemini format (combine system + conversation)
+        // Convert messages to Gemini format (system prompt already includes conversation context)
         let geminiPrompt = TISA_SYSTEM_PROMPT + '\n\n';
-        
-        // Add full conversation history (last 6 messages for context)
-        if (conversationHistory.length > 0) {
-          geminiPrompt += 'Previous conversation:\n';
-          for (const msg of conversationHistory.slice(-6)) {
-            const role = msg.role === 'user' ? 'User' : 'Assistant';
-            const content = msg.content.substring(0, 500) + (msg.content.length > 500 ? '...' : '');
-            geminiPrompt += `${role}: ${content}\n\n`;
-          }
-        } else if (lastInteraction) {
-          // Fallback to lastInteraction if no history
-          geminiPrompt += `Previous conversation:\nUser: ${lastInteraction.userMessage}\nAssistant: ${lastInteraction.aiResponse}\n\n`;
-        }
         
         // Add current user message
         geminiPrompt += `User: ${userMessage}\nAssistant:`;
@@ -805,30 +690,21 @@ Each program offers unique opportunities and career paths!
         // If we exhausted retries or got a non-rate-limit error
         console.error('❌ Gemini API Error:', lastError?.message);
         console.error('Gemini Error Details:', JSON.stringify(lastError, null, 2));
-        // Fall through to OpenAI fallback
+        
+        // Return user-friendly error instead of falling back to exhausted OpenAI
+        const errorMessage = lastError?.message || '';
+        if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
+          return `I'm experiencing high demand right now. 🔄\n\nPlease wait a moment and try again. If the issue persists, contact support.`;
+        }
+        return `I'm having trouble connecting to my AI service right now. 🔧\n\nPlease try again in a moment. If this continues, contact support.`;
       } catch (geminiError: any) {
         console.error('❌ Gemini API Error (outer):', geminiError.message);
-        // Fall through to OpenAI fallback
+        return `I'm experiencing technical difficulties. 🔧\n\nPlease try again in a moment. If this continues, contact support.`;
       }
     } else {
-      console.log('[AI] Gemini not configured, using OpenAI');
+      console.error('[AI] Gemini not configured - AI service unavailable');
+      return `I apologize, but the AI service is not properly configured. 🔧\n\nPlease contact support to enable the AI assistant.`;
     }
-
-    // Fallback to OpenAI if Gemini fails or is not configured
-    if (!openai) {
-      console.error('OpenAI client not initialized');
-      return `I apologize, but the AI service is not properly configured. Please contact support.`;
-    }
-    
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: messages as any,
-      max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS || '4096'),
-      temperature: 0.7,
-    });
-
-    return completion.choices[0].message.content || 
-      'I apologize, but I had trouble generating a response. Could you rephrase your question? I\'m here to help!';
 
   } catch (error: any) {
     console.error('AI API Error:', error?.message || error);
@@ -1761,8 +1637,13 @@ You can ask me:
       // Check for keyboard mashing patterns (only for longer strings)
       const keyboardPatterns = /^[asdfghjklqwertyuiopzxcvbnm]{6,}$/i;
       if (keyboardPatterns.test(cleaned.replace(/\s/g, ''))) {
-        // Additional check: does it contain any common English/Filipino words?
-        const commonWords = ['the', 'is', 'are', 'what', 'who', 'how', 'can', 'help', 'ano', 'sino', 'paano', 'hi', 'hello', 'bsu', 'cos'];
+        // Additional check: does it contain any common English/Filipino/academic words?
+        const commonWords = [
+          'the', 'is', 'are', 'what', 'who', 'how', 'can', 'help', 'want', 'wanted', 'become',
+          'ano', 'sino', 'paano', 'hi', 'hello', 'bsu', 'cos', 'program', 'course', 'dean',
+          'software', 'engineer', 'developer', 'data', 'analyst', 'biologist', 'scientist',
+          'teacher', 'doctor', 'nurse', 'career', 'future', 'take', 'enroll', 'about', 'faculty'
+        ];
         const hasCommonWord = commonWords.some(w => cleaned.includes(w));
         if (!hasCommonWord) return true;
       }
@@ -1796,8 +1677,12 @@ You can ask me:
     // STEP 1: Analyze query scope BEFORE processing
     const scopeAnalysis = analyzeQueryScope(message);
     
-    // STEP 2: If clearly out of scope, respond immediately without calling OpenAI
-    if (!scopeAnalysis.isInScope && scopeAnalysis.confidence > 0.8) {
+    // STEP 1.5: Check if this is a career intent query - these should ALWAYS be handled by career handler
+    // even if the career itself is out of scope (e.g., "doctor", "lawyer")
+    const isCareerIntentQuery = /\b(want(?:ed)? to be|become|work(?:ed)? as|career in|job as|future|program.*for|course.*for|should i take|what program|which program)\b/i.test(message.toLowerCase());
+    
+    // STEP 2: If clearly out of scope AND NOT a career query, respond immediately without calling OpenAI
+    if (!scopeAnalysis.isInScope && scopeAnalysis.confidence > 0.8 && !isCareerIntentQuery) {
       let outOfScopeResponse: string;
       
       // Handle unsupported language
@@ -1886,19 +1771,112 @@ You can ask me:
       }
     }
     
-    // STEP 3.5: Resolve pronoun references in current message
-    // If user says "tell me more about him" or "provide full background", find the entity
+    // STEP 3.5: Resolve context references in current message
+    // Detect short follow-up messages like "1st semester", "2nd year", "yes", "continue"
+    // and combine with previously discussed program/topic from conversation history
+    
+    let resolvedMessage = message;
+    const lowerMessage = message.toLowerCase().trim();
+    
+    // Extract program context from conversation history
+    let sessionProgramContext: string | null = null;
+    const programPatterns = [
+      /Bachelor of Science in ([A-Za-z\s]+)/i,
+      /BS\s+([A-Za-z\s]+)/i,
+      /\b(Biology|Computer Science|Food Technology|Environmental Science|Medical Technology|Statistics|Business Applications)\b/i
+    ];
+    
+    for (const msg of conversationHistory) {
+      for (const pattern of programPatterns) {
+        const match = msg.content.match(pattern);
+        if (match) {
+          sessionProgramContext = match[1]?.trim() || match[0]?.trim();
+          break;
+        }
+      }
+      if (sessionProgramContext) break;
+    }
+    
+    // Detect short follow-up messages that need context enrichment
+    const isShortFollowUp = lowerMessage.length < 30 && (
+      /^(1st|2nd|3rd|4th|first|second|third|fourth)\s*(semester|sem|year)?$/i.test(lowerMessage) ||
+      /^(yes|oo|continue|go on|more|show me|tell me|okay|ok|yes please|oo naman|sige|sure)$/i.test(lowerMessage) ||
+      /^(semester|year)\s*(1|2|3|4|one|two|three|four)$/i.test(lowerMessage)
+    );
+    
+    // Detect affirmative responses that need context from last AI message
+    const isAffirmativeResponse = /^(yes|oo|yes please|oo naman|sige|sure|okay|ok|go ahead|please|pls)$/i.test(lowerMessage);
+    
+    // Extract what the AI last offered/asked from conversation history
+    let lastAIQuestion: string | null = null;
+    let lastAIOffer: string | null = null;
+    
+    if (isAffirmativeResponse && conversationHistory.length > 0) {
+      // Find the last AI message
+      const lastAIMsg = [...conversationHistory].reverse().find(m => m.role === 'ai');
+      if (lastAIMsg) {
+        // Extract what the AI offered (e.g., "office hours", "contact", "more details")
+        const offerPatterns = [
+          /would you like to know (?:more )?about (.*?)\?/i,
+          /do you want (?:me to show you |to know )?(.*?)\?/i,
+          /shall i (?:provide|show|tell you about) (.*?)\?/i,
+          /\*\*([A-Z][a-z]+ [A-Z][a-z]+)\*\*/g, // Extract bold names (faculty)
+        ];
+        
+        for (const pattern of offerPatterns) {
+          const match = lastAIMsg.content.match(pattern);
+          if (match) {
+            lastAIOffer = match[1]?.trim();
+            break;
+          }
+        }
+        
+        // Also extract any faculty name mentioned
+        const facultyMatch = lastAIMsg.content.match(/\*\*([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?[A-Z]?[a-z]+)\*\*/);
+        if (facultyMatch) {
+          lastAIQuestion = facultyMatch[1];
+        }
+        
+        // Check for specific offers in the AI response
+        if (lastAIMsg.content.includes('office hours') || lastAIMsg.content.includes('contact')) {
+          lastAIOffer = 'office hours and contact information';
+        }
+      }
+    }
+    
+    // Enrich affirmative responses with context
+    if (isAffirmativeResponse && (lastAIQuestion || lastAIOffer || extractedEntities.length > 0)) {
+      const contextEntity = lastAIQuestion || extractedEntities[extractedEntities.length - 1] || '';
+      const contextOffer = lastAIOffer || 'more details';
+      
+      if (contextEntity) {
+        resolvedMessage = `Tell me about ${contextOffer} for ${contextEntity}`;
+        console.log(`[AI Context] Affirmative follow-up: "${message}" → "${resolvedMessage}"`);
+      }
+    }
+    
+    if (isShortFollowUp && sessionProgramContext && !isAffirmativeResponse) {
+      // Enrich the message with program context from session
+      const yearMatch = lowerMessage.match(/(1st|2nd|3rd|4th|first|second|third|fourth)/i);
+      const semMatch = lowerMessage.match(/(semester|sem)/i);
+      
+      if (yearMatch || semMatch) {
+        resolvedMessage = `${sessionProgramContext} ${message}`;
+        console.log(`[AI Context] Enriched follow-up: "${message}" → "${resolvedMessage}"`);
+      }
+    }
+    
+    // Also resolve pronoun references (him, her, them, etc.)
     const pronounPatterns = /\b(him|her|them|it|that person|that faculty|this person|about them|more about|full background|tell me more)\b/i;
     const hasPronounReference = pronounPatterns.test(message);
     
-    let resolvedMessage = message;
     if (hasPronounReference && extractedEntities.length > 0) {
       // Use the most recently mentioned entity
       const lastEntity = extractedEntities[extractedEntities.length - 1];
       console.log(`[AI Context] Resolving pronoun reference to: ${lastEntity}`);
       
       // Append context to the message for RAG retrieval
-      resolvedMessage = `${message} (referring to ${lastEntity})`;
+      resolvedMessage = `${resolvedMessage} (referring to ${lastEntity})`;
     }
 
     // STEP 4: Check for cached AI response (for frequently asked questions)
@@ -1910,7 +1888,434 @@ You can ask me:
     let usedCache = false;
     let ragContext: RAGContext | null = null;
     
-    if (!isPersonalizedQuery) {
+    // STEP 4.3: Direct curriculum response for affirmative follow-ups after program recommendation
+    // When user says "yes" after AI asks "Would you like to see the full curriculum?"
+    if (!usedCache && isAffirmativeResponse && conversationHistory.length > 0) {
+      const lastAIMsg = [...conversationHistory].reverse().find(m => m.role === 'ai');
+      
+      if (lastAIMsg && (lastAIMsg.content.includes('curriculum') || lastAIMsg.content.includes('Curriculum'))) {
+        // Extract program name from the last AI message
+        const programMatch = lastAIMsg.content.match(/\*\*([^*]+)\*\*\s*\(([A-Z\s]+)\)/);
+        
+        if (programMatch) {
+          const programTitle = programMatch[1];
+          const programAbbr = programMatch[2];
+          console.log(`[AI Direct] Curriculum follow-up detected for: ${programTitle} (${programAbbr})`);
+          
+          // Find the program in database
+          const program = await prisma.universityProgram.findFirst({
+            where: {
+              OR: [
+                { title: { contains: programTitle.substring(0, 30), mode: 'insensitive' } },
+                { abbreviation: { equals: programAbbr, mode: 'insensitive' } }
+              ],
+              college: 'College of Science'
+            }
+          });
+          
+          if (program) {
+            // Fetch FULL curriculum for this specific program only
+            const curriculum = await prisma.curriculumEntry.findMany({
+              where: { programId: program.id },
+              orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }, { courseCode: 'asc' }]
+            });
+            
+            if (curriculum.length > 0) {
+              let directResponse = userLanguage === 'fil'
+                ? `📚 **Buong Curriculum ng ${program.title}** (${program.abbreviation})\n\n`
+                : `📚 **Full Curriculum for ${program.title}** (${program.abbreviation})\n\n`;
+              
+              // Group by year and semester
+              const grouped: Record<string, typeof curriculum> = {};
+              for (const c of curriculum) {
+                const key = `Year ${c.yearLevel}, Semester ${c.semester}`;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(c);
+              }
+              
+              for (const [key, subjects] of Object.entries(grouped)) {
+                directResponse += `**${key}:**\n`;
+                let totalUnits = 0;
+                for (const s of subjects) {
+                  directResponse += `• ${s.courseCode}: ${s.subjectName} (${s.totalUnits} units)\n`;
+                  totalUnits += s.totalUnits;
+                }
+                directResponse += `*Total: ${totalUnits} units*\n\n`;
+              }
+              
+              directResponse += userLanguage === 'fil'
+                ? `---\n\n**May iba ka pa bang tanong tungkol sa ${program.abbreviation}?**`
+                : `---\n\n**Do you have any other questions about ${program.abbreviation}?**`;
+              
+              aiResponse = directResponse;
+              usedCache = true;
+              console.log(`[AI Direct] Served full curriculum for ${program.abbreviation} (${curriculum.length} subjects)`);
+            }
+          }
+        }
+      }
+    }
+    
+    // STEP 4.4: Direct faculty response for affirmative follow-ups (bypasses AI API)
+    // When user says "yes please" after asking about a faculty member
+    if (!usedCache && isAffirmativeResponse && (lastAIQuestion || extractedEntities.length > 0)) {
+      const facultyName = lastAIQuestion || extractedEntities[extractedEntities.length - 1];
+      console.log(`[AI Direct] Faculty follow-up detected for: ${facultyName}`);
+      
+      // Query faculty directly from database
+      const nameParts = facultyName.split(/\s+/);
+      const faculty = await prisma.faculty.findFirst({
+        where: {
+          AND: [
+            { college: { contains: 'College of Science', mode: 'insensitive' } },
+            {
+              OR: nameParts.map(part => ({
+                OR: [
+                  { firstName: { contains: part, mode: 'insensitive' } },
+                  { lastName: { contains: part, mode: 'insensitive' } }
+                ]
+              }))
+            }
+          ]
+        },
+        include: {
+          FacultySubject: {
+            include: { Subject: true }
+          }
+        }
+      });
+      
+      if (faculty) {
+        const fullName = `${faculty.firstName}${faculty.middleName ? ' ' + faculty.middleName : ''} ${faculty.lastName}`;
+        const subjects = faculty.FacultySubject.map((fs: any) => fs.Subject.name).join(', ');
+        
+        let directResponse = `📋 **${fullName}** - Full Details\n\n`;
+        directResponse += `**Position:** ${faculty.position || 'Faculty Member'}\n`;
+        directResponse += `**College:** ${faculty.college}\n`;
+        if (faculty.email) directResponse += `**Email:** ${faculty.email}\n`;
+        if (faculty.officeHours) directResponse += `**Office Hours:** ${faculty.officeHours}\n`;
+        if (faculty.consultationDays) directResponse += `**Consultation Days:** ${faculty.consultationDays}\n`;
+        if (subjects) directResponse += `**Subjects:** ${subjects}\n`;
+        
+        directResponse += userLanguage === 'fil'
+          ? `\n---\n\n**May iba ka pa bang tanong tungkol kay ${faculty.firstName}?**`
+          : `\n---\n\n**Do you have any other questions about ${faculty.firstName}?**`;
+        
+        aiResponse = directResponse;
+        usedCache = true;
+        console.log(`[AI Direct] Served faculty details directly for: ${fullName}`);
+      }
+    }
+    
+    // STEP 4.5: Direct curriculum response for semester/year follow-ups (bypasses AI API)
+    // This saves API calls when user asks "1st semester" after discussing a program
+    if (!usedCache) {
+      const isCurriculumFollowUp = isShortFollowUp && sessionProgramContext && 
+        /\b(1st|2nd|3rd|4th|first|second|third|fourth|semester|sem|year)\b/i.test(lowerMessage);
+      
+      if (isCurriculumFollowUp && sessionProgramContext) {
+      console.log(`[AI Direct] Curriculum follow-up detected for: ${sessionProgramContext}`);
+      
+      // Parse year and semester from message
+      const yearMatch = lowerMessage.match(/(1st|2nd|3rd|4th|first|second|third|fourth)/i);
+      const semMatch = lowerMessage.match(/(semester|sem)/i);
+      
+      let yearLevel: number | null = null;
+      let semester: number | null = null;
+      
+      if (yearMatch) {
+        const yearMap: Record<string, number> = { '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, 'first': 1, 'second': 2, 'third': 3, 'fourth': 4 };
+        const matchedYear = yearMatch[1].toLowerCase();
+        yearLevel = yearMap[matchedYear] || null;
+        
+        // If "1st semester" vs "1st year" - check if semester is mentioned
+        if (semMatch) {
+          semester = yearLevel;
+          yearLevel = null; // Reset - this was semester, not year
+        }
+      }
+      
+      // Query curriculum directly from database
+      const program = await prisma.universityProgram.findFirst({
+        where: {
+          OR: [
+            { title: { contains: sessionProgramContext, mode: 'insensitive' } },
+            { abbreviation: { contains: sessionProgramContext, mode: 'insensitive' } }
+          ],
+          college: 'College of Science'
+        }
+      });
+      
+      if (program) {
+        const whereClause: any = { programId: program.id };
+        if (yearLevel) whereClause.yearLevel = yearLevel;
+        if (semester) whereClause.semester = semester;
+        
+        const curriculum = await prisma.curriculumEntry.findMany({
+          where: whereClause,
+          orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }, { courseCode: 'asc' }],
+          take: 20
+        });
+        
+        if (curriculum.length > 0) {
+          // Format direct response without calling AI
+          const semesterLabel = semester ? `Semester ${semester}` : '';
+          const yearLabel = yearLevel ? `Year ${yearLevel}` : '';
+          const contextLabel = [yearLabel, semesterLabel].filter(Boolean).join(', ') || 'All semesters';
+          
+          let directResponse = `📚 **${program.title}** - ${contextLabel}\n\n`;
+          
+          // Group by year and semester
+          const grouped: Record<string, typeof curriculum> = {};
+          for (const c of curriculum) {
+            const key = `Year ${c.yearLevel}, Semester ${c.semester}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(c);
+          }
+          
+          for (const [key, subjects] of Object.entries(grouped)) {
+            directResponse += `**${key}:**\n`;
+            let totalUnits = 0;
+            for (const s of subjects) {
+              directResponse += `• ${s.courseCode}: ${s.subjectName} (${s.totalUnits} units)\n`;
+              totalUnits += s.totalUnits;
+            }
+            directResponse += `*Total: ${totalUnits} units*\n\n`;
+          }
+          
+          directResponse += userLanguage === 'fil' 
+            ? `\n---\n\n**Gusto mo bang malaman ang ibang taon o semester?**`
+            : `\n---\n\n**Would you like to know about another year or semester?**`;
+          
+          aiResponse = directResponse;
+          usedCache = true; // Mark as handled (skip AI call)
+          console.log(`[AI Direct] Served curriculum directly (${curriculum.length} subjects)`);
+        }
+      }
+      }
+    }
+    
+    // STEP 4.6: Direct career response for career queries (bypasses AI API)
+    // Uses ONLY database careerPaths field from UniversityProgram table
+    if (!usedCache) {
+      const isCareerQuery = /\b(want(?:ed)? to be|become|work(?:ed)? as|career in|job as|future|program.*for|course.*for|should i take|what program|which program|data analyst|software|engineer|developer|biologist|technologist|scientist|statistician|consultant)\b/i.test(lowerMessage);
+      
+      if (isCareerQuery) {
+        console.log(`[AI Direct] Career query detected for: "${lowerMessage.substring(0, 60)}"`);
+        
+        // Fetch all programs with career paths from database
+        const programs = await prisma.universityProgram.findMany({
+          where: { college: 'College of Science', isActive: true },
+          orderBy: { order: 'asc' }
+        });
+        
+        // Extract meaningful words from user message for matching
+        const stopWords = ['i', 'a', 'an', 'the', 'to', 'be', 'in', 'of', 'for', 'and', 'or', 'my', 'me', 
+          'want', 'wanted', 'would', 'like', 'what', 'which', 'program', 'course', 'should', 'take',
+          'future', 'become', 'career', 'job', 'work', 'as'];
+        const queryWords = lowerMessage.split(/\s+/).filter((w: string) => w.length > 2 && !stopWords.includes(w));
+        
+        // Check for tech/IT/security keywords that should ALWAYS map to BSM CS
+        const techKeywords = ['cyber', 'security', 'hacker', 'hacking', 'network', 'it', 'tech', 'computer', 
+          'programming', 'coding', 'software', 'web', 'app', 'developer', 'engineer', 'ai', 'machine learning',
+          'data science', 'devops', 'cloud', 'database', 'system'];
+        const hasTechKeyword = techKeywords.some(kw => lowerMessage.includes(kw));
+        
+        // Match programs and score by relevance (exact career match = higher score)
+        const scoredPrograms = programs.map(p => {
+          const careerPaths: string[] = Array.isArray(p.careerPaths) ? p.careerPaths : [];
+          if (careerPaths.length === 0) return { program: p, score: 0, matchedCareers: [] as string[] };
+          
+          let score = 0;
+          const matchedCareers: string[] = [];
+          
+          // Boost BSM CS score if tech keywords are present
+          if (hasTechKeyword && p.abbreviation === 'BSM CS') {
+            score += 15; // High priority for tech careers
+          }
+          
+          for (const career of careerPaths) {
+            const careerLower = career.toLowerCase();
+            // Exact match in message (e.g., "data analyst" in "i wanted to be data analyst")
+            if (lowerMessage.includes(careerLower)) {
+              score += 10;
+              matchedCareers.push(career);
+            }
+            // Partial word match - but skip generic words like 'analyst' if tech keyword present
+            else if (queryWords.some((word: string) => {
+              // Skip generic 'analyst' match if we have tech keywords (should go to CS, not BA)
+              if (word === 'analyst' && hasTechKeyword) return false;
+              return careerLower.includes(word) && word.length > 3;
+            })) {
+              score += 3;
+              if (matchedCareers.length < 3) matchedCareers.push(career);
+            }
+          }
+          return { program: p, score, matchedCareers };
+        }).filter(p => p.score > 0).sort((a, b) => b.score - a.score);
+        
+        console.log(`[AI Direct] Found ${scoredPrograms.length} matching programs, top score: ${scoredPrograms[0]?.score || 0}`);
+        
+        if (scoredPrograms.length > 0) {
+          // Get the best matching program (highest score)
+          const bestMatch = scoredPrograms[0];
+          const hasExactMatch = bestMatch.score >= 10;
+          
+          // If exact match found, show only that program. Otherwise show top 2.
+          const programsToShow = hasExactMatch ? [bestMatch] : scoredPrograms.slice(0, 2);
+          
+          let directResponse = '';
+          
+          if (hasExactMatch) {
+            // Focused response for exact career match
+            const p = bestMatch.program;
+            const matchedCareer = bestMatch.matchedCareers[0] || 'your desired career';
+            
+            directResponse = userLanguage === 'fil'
+              ? `🎯 **Rekomendasyon para sa ${matchedCareer}**\n\n`
+              : `🎯 **Recommended Program for ${matchedCareer}**\n\n`;
+            
+            directResponse += `**${p.title}** (${p.abbreviation})\n\n`;
+            
+            // Show only top 5 related careers
+            const topCareers = bestMatch.matchedCareers.slice(0, 5);
+            if (topCareers.length > 0) {
+              directResponse += userLanguage === 'fil'
+                ? `📋 **Mga Kaugnay na Karera:**\n`
+                : `📋 **Related Career Paths:**\n`;
+              for (const career of topCareers) {
+                directResponse += `• ${career}\n`;
+              }
+            }
+            
+            // Fetch curriculum preview for this program
+            const curriculum = await prisma.curriculumEntry.findMany({
+              where: { programId: p.id, yearLevel: 1, semester: 1 },
+              orderBy: { courseCode: 'asc' },
+              take: 5
+            });
+            
+            if (curriculum.length > 0) {
+              directResponse += userLanguage === 'fil'
+                ? `\n📚 **Curriculum Preview (1st Year, 1st Sem):**\n`
+                : `\n📚 **Curriculum Preview (1st Year, 1st Sem):**\n`;
+              for (const c of curriculum) {
+                directResponse += `• ${c.courseCode}: ${c.subjectName}\n`;
+              }
+            }
+            
+            directResponse += userLanguage === 'fil'
+              ? `\n---\n\n**Gusto mo bang makita ang buong curriculum?**`
+              : `\n---\n\n**Would you like to see the full curriculum?**`;
+          } else {
+            // Multiple partial matches - show top 2 programs briefly
+            directResponse = userLanguage === 'fil'
+              ? `🎓 **Mga Programa na Maaaring Angkop sa Iyo**\n\n`
+              : `🎓 **Programs That May Suit Your Goals**\n\n`;
+            
+            for (const { program: p, matchedCareers } of programsToShow) {
+              directResponse += `**${p.title}** (${p.abbreviation})\n`;
+              const topCareers = matchedCareers.slice(0, 3);
+              if (topCareers.length > 0) {
+                directResponse += `• ${topCareers.join(' • ')}\n`;
+              }
+              directResponse += '\n';
+            }
+            
+            directResponse += userLanguage === 'fil'
+              ? `---\n\n**Alin sa mga ito ang gusto mong malaman pa?**`
+              : `---\n\n**Which of these would you like to learn more about?**`;
+          }
+          
+          aiResponse = directResponse;
+          usedCache = true;
+          console.log(`[AI Direct] Served focused career response (exact: ${hasExactMatch}, programs: ${programsToShow.length})`);
+        } else {
+          // NO MATCH FOUND - Provide intelligent fallback recommendation
+          // Analyze the career type and recommend the most relevant program
+          console.log(`[AI Direct] No career match found, providing fallback recommendation`);
+          
+          // Career type mapping to programs (for careers not in DB)
+          const careerTypeMapping: Record<string, { program: string, abbr: string, reason: string }> = {
+            // Creative/Design careers → BSM CS (closest to tech/creative)
+            'design': { program: 'Bachelor of Science in Mathematics With Specialization in Computer Science', abbr: 'BSM CS', reason: 'combines technical skills with creative problem-solving' },
+            'graphic': { program: 'Bachelor of Science in Mathematics With Specialization in Computer Science', abbr: 'BSM CS', reason: 'provides foundation in computing and visual technologies' },
+            'artist': { program: 'Bachelor of Science in Mathematics With Specialization in Computer Science', abbr: 'BSM CS', reason: 'offers skills in digital tools and creative computing' },
+            'animator': { program: 'Bachelor of Science in Mathematics With Specialization in Computer Science', abbr: 'BSM CS', reason: 'teaches programming for animation and game development' },
+            // Healthcare careers → BS Biology or Medical Tech
+            'doctor': { program: 'Bachelor of Science in Biology', abbr: 'BS Biology', reason: 'provides pre-med foundation for medical school' },
+            'nurse': { program: 'Bachelor of Science in Biology', abbr: 'BS Biology', reason: 'offers biological sciences foundation for healthcare' },
+            'pharmacist': { program: 'Bachelor of Science in Biology', abbr: 'BS Biology', reason: 'covers biochemistry and life sciences' },
+            // Business/Finance → BSM BA
+            'accountant': { program: 'Bachelor of Science in Mathematics With Specialization in Business Applications', abbr: 'BSM BA', reason: 'focuses on mathematical analysis for business' },
+            'entrepreneur': { program: 'Bachelor of Science in Mathematics With Specialization in Business Applications', abbr: 'BSM BA', reason: 'provides analytical skills for business management' },
+            // Teaching → Any science program
+            'teacher': { program: 'Bachelor of Science in Biology', abbr: 'BS Biology', reason: 'prepares you for science education careers' },
+          };
+          
+          // Find best fallback match
+          let fallbackMatch: { program: string, abbr: string, reason: string } | null = null;
+          const careerLower = lowerMessage;
+          
+          for (const [keyword, mapping] of Object.entries(careerTypeMapping)) {
+            if (careerLower.includes(keyword)) {
+              fallbackMatch = mapping;
+              break;
+            }
+          }
+          
+          // Default fallback to BSM CS (most versatile)
+          if (!fallbackMatch) {
+            fallbackMatch = {
+              program: 'Bachelor of Science in Mathematics With Specialization in Computer Science',
+              abbr: 'BSM CS',
+              reason: 'offers versatile skills applicable to many modern careers'
+            };
+          }
+          
+          // Find the program in DB to get its career paths
+          const fallbackProgram = programs.find(p => p.abbreviation === fallbackMatch!.abbr);
+          const fallbackCareers: string[] = fallbackProgram && Array.isArray(fallbackProgram.careerPaths) 
+            ? (fallbackProgram.careerPaths as string[]).slice(0, 5) 
+            : [];
+          
+          // Extract the career user mentioned
+          const mentionedCareer = queryWords.filter((w: string) => w.length > 4).join(' ') || 'your desired career';
+          
+          let directResponse = userLanguage === 'fil'
+            ? `🤔 **Hindi ko nakita ang "${mentionedCareer}" sa aming database ng karera.**\n\n`
+            : `🤔 **"${mentionedCareer}" is not in our career database.**\n\n`;
+          
+          directResponse += userLanguage === 'fil'
+            ? `Ngunit, batay sa iyong interes, inirerekomenda ko ang:\n\n`
+            : `However, based on your interest, I recommend:\n\n`;
+          
+          directResponse += `**${fallbackMatch.program}** (${fallbackMatch.abbr})\n\n`;
+          directResponse += userLanguage === 'fil'
+            ? `💡 **Bakit ito?** Ang programang ito ay ${fallbackMatch.reason}.\n\n`
+            : `💡 **Why this program?** This program ${fallbackMatch.reason}.\n\n`;
+          
+          if (fallbackCareers.length > 0) {
+            directResponse += userLanguage === 'fil'
+              ? `📋 **Mga Karera na Pwede Mong Pasukan:**\n`
+              : `📋 **Career Paths You Can Pursue:**\n`;
+            for (const career of fallbackCareers) {
+              directResponse += `• ${career}\n`;
+            }
+          }
+          
+          directResponse += userLanguage === 'fil'
+            ? `\n---\n\n**Gusto mo bang makita ang curriculum ng programang ito?**`
+            : `\n---\n\n**Would you like to see the curriculum for this program?**`;
+          
+          aiResponse = directResponse;
+          usedCache = true;
+          console.log(`[AI Direct] Served fallback recommendation: ${fallbackMatch.abbr}`);
+        }
+      }
+    }
+    
+    if (!usedCache && !isPersonalizedQuery) {
       const cachedResponse = await FAQCacheService.getCachedAIResponse(message);
       if (cachedResponse) {
         console.log(`[AI Cache] Using cached response (hit #${cachedResponse.hitCount})`);
@@ -1977,9 +2382,9 @@ You can ask me:
       },
     });
 
-    // STEP 9: Generate AI-powered title for new conversations
+    // STEP 9: Generate AI-powered title only for first message (saves API calls)
     let generatedTitle: string | undefined;
-    if (message && aiResponse) {
+    if (message && aiResponse && conversationHistory.length === 0) {
       try {
         generatedTitle = await generateChatTitle(message, aiResponse, userLanguage);
       } catch (error) {
@@ -2098,8 +2503,8 @@ Generate a JSON array of quiz questions in this exact format:
 
 Make questions educational and relevant to BSU College of Science curriculum. Return ONLY the JSON array, no other text.`;
 
-    if (!openai) {
-      // Fallback quiz if OpenAI not configured
+    if (!geminiModel) {
+      // Fallback quiz if Gemini not configured
       const fallbackQuiz = [
         {
           question: "What does BSU COS stand for?",
@@ -2117,17 +2522,9 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
       return res.json({ quiz: fallbackQuiz, source: 'fallback' });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You are a quiz generator for educational purposes. Generate clear, educational multiple choice questions.' },
-        { role: 'user', content: quizPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-
-    const responseText = completion.choices[0]?.message?.content || '[]';
+    const result = await geminiModel.generateContent(quizPrompt);
+    const response = await result.response;
+    const responseText = response.text() || '[]';
     
     // Parse the JSON response and normalize correctAnswer to number index (0-3)
     let quiz: any[];

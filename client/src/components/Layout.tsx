@@ -87,6 +87,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const adminNavigation = [
     { name: t.programs.title, href: '/AdminCOSPrograms', icon: GraduationCap },
     { name: t.faculty.title, href: '/AdminFaculty', icon: Users },
+    { name: accessibilitySettings.language === 'fil' ? 'Faculty Accounts' : 'Faculty Accounts', href: '/AdminFacultyAccounts', icon: Shield },
     { name: t.curriculum.title, href: '/AdminCurriculum', icon: BookMarked },
     { name: accessibilitySettings.language === 'fil' ? 'Mga Silid' : 'Rooms & Schedules', href: '/AdminRooms', icon: Building2 },
     { name: accessibilitySettings.language === 'fil' ? 'Konsultasyon' : 'Consultations', href: '/AdminConsultations', icon: CalendarDays },
