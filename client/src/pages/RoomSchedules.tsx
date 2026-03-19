@@ -333,11 +333,11 @@ export default function RoomSchedules() {
             {/* Program/Department */}
             <div className="relative">
               <select value={filterProgram} onChange={e => setFilterProgram(e.target.value)}
-                className="appearance-none px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[140px] [&::-ms-expand]:hidden">
+                className="appearance-none  px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[140px] [&::-ms-expand]:hidden">
                 <option value="">{fil ? 'Lahat ng Programa' : 'All Programs'}</option>
                 {programs.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              
             </div>
 
             {/* Building */}
@@ -347,7 +347,7 @@ export default function RoomSchedules() {
                 <option value="">{fil ? 'Lahat ng Building' : 'All Buildings'}</option>
                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              
             </div>
 
             {/* Type */}
@@ -357,7 +357,7 @@ export default function RoomSchedules() {
                 <option value="">{fil ? 'Lahat ng Uri' : 'All Types'}</option>
                 {roomTypes.map(t => <option key={t} value={t}>{ROOM_TYPE_LABELS[t] || t}</option>)}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+             
             </div>
 
             {/* View Toggle */}

@@ -15,10 +15,13 @@
     "seed:all": "ts-node prisma/seed-all.ts",
     "seed:faqs": "ts-node prisma/seed-faqs.ts",
     "seed:faculty": "ts-node prisma/seed-faculty.ts",
-    "seed:curriculum": "ts-node prisma/seed-bsm-cs-curriculum.ts && ts-node prisma/seed-bsm-as-curriculum.ts && ts-node prisma/seed-bsm-ba-curriculum.ts && ts-node prisma/seed-bs-biology-curriculum.ts"
+    "seed:knowledge": "ts-node prisma/seed-knowledge.ts",
+    "seed:curriculum": "ts-node prisma/seed-bsm-cs-curriculum.ts && ts-node prisma/seed-bsm-as-curriculum.ts && ts-node prisma/seed-bsm-ba-curriculum.ts && ts-node prisma/seed-bs-biology-curriculum.ts",
+    "seed:everything": "ts-node prisma/seed-curriculum.ts && ts-node prisma/seed-knowledge.ts && ts-node prisma/seed-faculty.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@cerebras/cerebras_cloud_sdk": "^1.64.1",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/inference": "^4.13.12",
     "@prisma/client": "^5.22.0",
@@ -32,6 +35,7 @@
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.0.1",
     "googleapis": "^170.1.0",
+    "groq-sdk": "^1.1.1",
     "helmet": "^8.1.0",
     "ioredis": "^5.9.2",
     "jsonwebtoken": "^9.0.2",

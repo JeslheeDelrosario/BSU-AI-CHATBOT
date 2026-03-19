@@ -96,7 +96,7 @@ export default function LessonViewer() {
       setStartTime(Date.now());
 
       const saved = localStorage.getItem(`quiz-state-${id}`);
-      if (saved) {
+      if (saved && progress && !progress.completed) {
         try {
           const s = JSON.parse(saved);
           setSelectedAnswers(s.selectedAnswers || {});

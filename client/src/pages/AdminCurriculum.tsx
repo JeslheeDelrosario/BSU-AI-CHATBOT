@@ -311,7 +311,7 @@ export default function AdminCurriculum() {
 
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-3">
+          <h1 className="text-5xl lg:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-3 pb-3">
             {t.curriculum.title}
           </h1>
           <p className="text-xl text-muted-foreground">

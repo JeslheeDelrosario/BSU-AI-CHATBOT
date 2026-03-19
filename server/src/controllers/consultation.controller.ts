@@ -35,7 +35,9 @@ export const bookConsultation = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Topic must be between 5 and 500 characters' });
     }
 
-    const bookingDate = new Date(date);
+    // Parse date in LOCAL timezone (not UTC) to match client-side parsing
+    const [year, month, day] = (date as string).split('-').map(Number);
+    const bookingDate = new Date(year, month - 1, day);
     
     // Use comprehensive validation service
     const validation = await validateBookingRequest(
@@ -413,7 +415,9 @@ export const getFacultyCalendar = async (req: AuthRequest, res: Response) => {
 
     if (!faculty) return res.status(404).json({ error: 'Faculty not found' });
 
-    const start = new Date(weekStart as string);
+    // Parse date in LOCAL timezone to ensure consistency
+    const startParts = (weekStart as string).split('-').map(Number);
+    const start = new Date(startParts[0], startParts[1] - 1, startParts[2]);
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -569,7 +573,9 @@ export const getAvailableSlots = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Faculty not found' });
     }
 
-    const bookingDate = new Date(date as string);
+    // Parse date in LOCAL timezone (not UTC) to match client-side parsing
+    const [year, month, day] = (date as string).split('-').map(Number);
+    const bookingDate = new Date(year, month - 1, day);
     const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][bookingDate.getDay()];
 
     if (!faculty.consultationDays.includes(dayName)) {

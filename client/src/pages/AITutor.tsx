@@ -897,7 +897,7 @@ export default function AITutor() {
 
       {/* ===== REDESIGNED SIDEBAR (LEFT SIDE) ===== */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-slate-900 border-r border-slate-800
+        fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800
         shadow-2xl transform transition-transform duration-300 ease-out flex flex-col
         ${chatHistoryOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>

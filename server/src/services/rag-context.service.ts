@@ -222,6 +222,74 @@ function generateProgramDescription(title: string): string {
  * Fetch faculty members with their subjects
  */
 async function fetchFaculty(msg: string, queryType: string): Promise<FacultyContext[]> {
+  console.log(`🔍 Faculty search - original message: "${msg}"`);
+  
+  // Check for position mentions FIRST - before name extraction
+  const positionKeywords = [
+    { keyword: 'dean', position: 'Dean' },
+    { keyword: 'associate dean', position: 'Associate Dean' },
+    { keyword: 'chairperson', position: 'Chairperson' },
+    { keyword: 'chair', position: 'Chairperson' },
+    { keyword: 'department head', position: 'Department Head' },
+    { keyword: 'program chair', position: 'Program Chair' },
+    { keyword: 'faculty', position: 'Faculty' },
+    { keyword: 'professor', position: 'Professor' },
+    { keyword: 'instructor', position: 'Instructor' }
+  ];
+
+  let positionFilter: any = {};
+  let foundPosition = false;
+  
+  for (const { keyword, position } of positionKeywords) {
+    if (msg.toLowerCase().includes(keyword)) {
+      positionFilter = { position: { contains: position, mode: 'insensitive' as const } };
+      foundPosition = true;
+      console.log(`🔍 Position detected: ${position} (keyword: ${keyword})`);
+      break;
+    }
+  }
+
+  // If we found a position keyword, skip name extraction and prioritize position search
+  if (foundPosition) {
+    console.log(`🔍 Prioritizing position search over name search`);
+    
+    const whereClause = {
+      college: { contains: 'College of Science', mode: 'insensitive' as const },
+      ...positionFilter
+    };
+    
+    console.log(`🔍 Faculty search - where clause:`, JSON.stringify(whereClause, null, 2));
+
+    const faculty = await prisma.faculty.findMany({
+      where: whereClause,
+      include: {
+        FacultySubject: {
+          include: {
+            Subject: true
+          }
+        }
+      },
+      orderBy: [
+        { position: 'asc' },
+        { lastName: 'asc' }
+      ]
+    });
+
+    return faculty.map(f => ({
+      id: f.id,
+      fullName: `${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}`,
+      firstName: f.firstName,
+      lastName: f.lastName,
+      position: f.position,
+      college: f.college,
+      email: f.email,
+      officeHours: f.officeHours,
+      consultationDays: f.consultationDays,
+      subjects: f.FacultySubject.map((s: any) => s.Subject.name)
+    }));
+  }
+
+  // Only proceed with name extraction if no position was found
   // Extract potential name from message - improved patterns
   const namePatterns = [
     /who\s+is\s+([a-z]+(?:\s+[a-z]+)*)/i,
@@ -240,14 +308,20 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
     const match = msg.match(pattern);
     if (match) {
       searchName = match[1]?.trim() || '';
+      console.log(`🔍 Pattern matched: "${pattern.source}" -> extracted: "${searchName}"`);
+      console.log(`🔍 Name before filtering: "${searchName}"`);
       
-      // Filter out common words that aren't names
+      // Filter out common words that aren't names (including position titles)
       const excludeWords = ['who', 'what', 'where', 'when', 'why', 'how', 'the', 'is', 'are', 'was', 'were', 
-                            'faculty', 'professor', 'teacher', 'instructor', 'dean', 'chair', 'head', 'about'];
+                            'faculty', 'professor', 'teacher', 'instructor', 'chair', 'head', 'about',
+                            'associate', 'department', 'program', 'college', 'science', 'cs', 'of'];
+      
+      console.log(`Ã°Å¸â€Â Exclude words: [${excludeWords.join(', ')}]`);
       
       if (searchName && searchName.length > 2 && !excludeWords.includes(searchName.toLowerCase())) {
         // Split the name into parts (first name, last name, etc.)
         const nameParts = searchName.split(/\s+/).filter(p => p.length > 2 && !excludeWords.includes(p.toLowerCase()));
+        console.log(`Ã°Å¸â€Â Name parts after filtering: [${nameParts.join(', ')}]`);
         
         if (nameParts.length === 1) {
           // Single word - could be first or last name (fuzzy match)
@@ -286,29 +360,21 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
     }
   }
 
-  // Check for position mentions
-  const positionKeywords = [
-    { keyword: 'dean', position: 'Dean' },
-    { keyword: 'associate dean', position: 'Associate Dean' },
-    { keyword: 'chairperson', position: 'Chairperson' },
-    { keyword: 'department head', position: 'Department Head' },
-    { keyword: 'program chair', position: 'Program Chair' }
-  ];
-
-  let positionFilter: any = {};
-  for (const { keyword, position } of positionKeywords) {
-    if (msg.includes(keyword)) {
-      positionFilter = { position: { contains: position, mode: 'insensitive' as const } };
-      break;
-    }
+  // If no position was found and no name was extracted, return empty results
+  if (!nameFilter || Object.keys(nameFilter).length === 0) {
+    console.log(`🔍 No valid name or position found, returning empty results`);
+    return [];
   }
 
+  const whereClause = {
+    college: { contains: 'College of Science', mode: 'insensitive' as const },
+    ...nameFilter
+  };
+  
+  console.log(`ðŸ” Faculty search - where clause:`, JSON.stringify(whereClause, null, 2));
+
   const faculty = await prisma.faculty.findMany({
-    where: {
-      college: { contains: 'College of Science', mode: 'insensitive' as const },
-      ...nameFilter,
-      ...positionFilter
-    },
+    where: whereClause,
     include: {
       FacultySubject: {
         include: {
@@ -340,6 +406,8 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
  * Fetch curriculum entries
  */
 async function fetchCurriculum(msg: string, queryType: string): Promise<CurriculumContext[]> {
+  console.log(`[fetchCurriculum] Starting - message: "${msg.substring(0, 60)}..."`);
+
   // Detect program from message
   const programKeywords: Record<string, string[]> = {
     'computer science': ['computer science', 'cs', 'bsm cs', 'programming', 'software'],
@@ -355,12 +423,13 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
   for (const [program, keywords] of Object.entries(programKeywords)) {
     if (keywords.some(k => msg.includes(k))) {
       programFilter = program;
+      console.log(`[fetchCurriculum] Program filter detected: ${programFilter}`);
       break;
     }
   }
 
   // Detect year level
-  const yearMatch = msg.match(/(\d+)(?:st|nd|rd|th)?\s*year/i) || 
+  const yearMatch = msg.match(/(\d+)(?:st|nd|rd|th)?\s*year/i) ||
                     msg.match(/(first|second|third|fourth)\s*year/i);
   let yearLevel: number | null = null;
   if (yearMatch) {
@@ -377,9 +446,69 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     semester = semMap[semMatch[1].toLowerCase()] || parseInt(semMatch[1]);
   }
 
+  // Detect subject name for specific course searches (e.g., "Thesis 1", "Calculus")
+  let subjectFilter: string | null = null;
+
+  // Check for common course names in queries about prerequisites
+  if (msg.toLowerCase().includes('prerequisite') || msg.toLowerCase().includes('prerequisites')) {
+    // Try to extract course code first (e.g., "MAT 102", "MCS 205")
+    const courseCodeMatch = msg.match(/\b([A-Z]{2,4}\s*\d{3}[a-z]?)\b/i);
+    if (courseCodeMatch) {
+      // Don't use course code for subject search, let the regular query handle it
+      // Instead, extract subject name
+      const subjectNameMatch = msg.match(/(?:prerequisites|prerequisite)?\s+(?:of|for)?\s+(?:the\s+)?(?:course\s+)?([a-zA-Z0-9\s]+?)(?:\s+in\s+|\s+course|$)/i);
+      if (subjectNameMatch) {
+        subjectFilter = subjectNameMatch[1]?.trim() || null;
+      }
+    } else {
+      // Try common patterns like quoted strings or names after "of", "for"
+      const patterns = [
+        /'([^']+)'/,
+        /"([^"]+)"/,
+        /(?:of|for)\s+(?:the\s+)?([a-zA-Z0-9\s]+?)(?:\s+(?:in|for|course)|$)/i
+      ];
+
+      for (const pattern of patterns) {
+        const match = msg.match(pattern);
+        if (match && match[1]) {
+          subjectFilter = match[1].trim();
+          break;
+        }
+      }
+    }
+  }
+
+  // Fallback: if no subject filter yet and message mentions thesis
+  if (!subjectFilter && msg.toLowerCase().includes('thesis')) {
+    subjectFilter = 'Thesis';
+  }
+
+  // Normalize subject names: convert numbers to Roman numerals for Thesis courses
+  if (subjectFilter) {
+    console.log(`[fetchCurriculum] Subject filter before normalization: "${subjectFilter}"`);
+    const numberToRoman: Record<string, string> = {
+      'Thesis 1': 'Thesis I',
+      'Thesis 2': 'Thesis II',
+      'Thesis 3': 'Thesis III',
+      'Thesis 4': 'Thesis IV',
+      'thesis 1': 'Thesis I',
+      'thesis 2': 'Thesis II',
+      'thesis 3': 'Thesis III',
+      'thesis 4': 'Thesis IV'
+    };
+
+    for (const [numForm, romanForm] of Object.entries(numberToRoman)) {
+      if (subjectFilter.toLowerCase() === numForm.toLowerCase()) {
+        subjectFilter = romanForm;
+        console.log(`[fetchCurriculum] Normalized subject filter to: "${subjectFilter}"`);
+        break;
+      }
+    }
+  }
+
   // Build query
   const whereClause: any = {};
-  
+
   if (programFilter) {
     const program = await prisma.universityProgram.findFirst({
       where: {
@@ -400,6 +529,12 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     whereClause.semester = semester;
   }
 
+  if (subjectFilter) {
+    whereClause.subjectName = { contains: subjectFilter, mode: 'insensitive' };
+  }
+
+  console.log(`[fetchCurriculum] Final whereClause:`, JSON.stringify(whereClause, null, 2));
+
   const curriculum = await prisma.curriculumEntry.findMany({
     where: whereClause,
     include: {
@@ -412,6 +547,11 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     ],
     take: 30 // Limit to reduce token usage and avoid rate limits
   });
+
+  console.log(`[fetchCurriculum] Found ${curriculum.length} curriculum entries`);
+  if (curriculum.length > 0) {
+    console.log(`[fetchCurriculum] First result: ${curriculum[0].subjectName} (${curriculum[0].courseCode})`);
+  }
 
   return curriculum.map(c => ({
     programTitle: c.UniversityProgram.title,
@@ -600,6 +740,12 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
     formatted += `\n**NO SPECIFIC DATA FOUND FOR THIS QUERY**\n`;
     formatted += `The database does not contain information directly related to this question.\n`;
     formatted += `You should politely inform the user that this topic is outside your knowledge scope.\n`;
+    formatted += `\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n`;
+    formatted += `- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n`;
+    formatted += `- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n`;
+    formatted += `- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n`;
+    formatted += `- BSU Official Website: https://www.bulsu.edu.ph/\n`;
+    formatted += `\nPlease visit these official pages for the most current information and announcements.\n`;
   }
 
   return formatted;

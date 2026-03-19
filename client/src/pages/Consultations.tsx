@@ -98,7 +98,7 @@ export default function Consultations() {
 
   const fetchFaculty = async () => {
     try {
-      const res = await api.get('/admin/faculty');
+      const res = await api.get('/consultations/faculty-list');
       const facultyData = res.data.filter((f: Faculty) => 
         f.consultationDays && f.consultationDays.length > 0
       );

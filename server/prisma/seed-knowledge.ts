@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 async function seedFAQs() {
   console.log('🔄 Seeding FAQs...');
-  
+
   const faqs = [
     // Grading System FAQs
     {
@@ -379,13 +379,13 @@ Start your application journey there by selecting your program classification.`,
 
   let created = 0;
   let updated = 0;
-  
+
   for (const faq of faqs) {
     // Check if FAQ with this question already exists
     const existing = await prisma.fAQ.findFirst({
       where: { question: faq.question }
     });
-    
+
     if (existing) {
       await prisma.fAQ.update({
         where: { id: existing.id },
@@ -416,7 +416,7 @@ Start your application journey there by selecting your program classification.`,
 
 async function seedRoomSchedules() {
   console.log('🔄 Seeding Room Schedules...');
-  
+
   // Check if RoomSchedule model exists
   const roomSchedules = [
     // FH 106
@@ -426,54 +426,54 @@ async function seedRoomSchedules() {
     { room: 'FH 106', day: 'Thursday', timeSlot: '7am-10am', subject: 'ZOO 103L', section: 'ZOO 103Lab', instructor: 'Vitug, Lawrence V.' },
     { room: 'FH 106', day: 'Friday', timeSlot: '7am-10am', subject: 'CHE 207/207L', section: 'BSFT 2B', instructor: 'BASILIO, Eleonor' },
     { room: 'FH 106', day: 'Saturday', timeSlot: '7am-10am', subject: 'NSTP 11', section: 'BSB 1A', instructor: 'BERNARDINO, Emil' },
-    
+
     // FH 107 (Physics lab)
     { room: 'FH 107', day: 'Monday', timeSlot: '7am-10am', subject: 'EVO 303', section: 'BSB 3B', instructor: 'CLEMENTE, RICHARD FRANC' },
     { room: 'FH 107', day: 'Tuesday', timeSlot: '7am-10am', subject: 'PHY 202a', section: 'BSM AS 2B', instructor: 'Peñado, Rosario' },
     { room: 'FH 107', day: 'Wednesday', timeSlot: '7am-10am', subject: 'CHE 105/105L', section: 'BSFT 1A', instructor: 'TUAZON, Debbie Ann S.' },
     { room: 'FH 107', day: 'Thursday', timeSlot: '7am-10am', subject: 'CHE 306/306L', section: 'BSFT 2A', instructor: 'BARRE, Atheena Cammara T.' },
     { room: 'FH 107', day: 'Friday', timeSlot: '7am-9am', subject: 'MAT 103', section: '', instructor: 'REYES, Jo Ann' },
-    
+
     // FH 108
     { room: 'FH 108', day: 'Monday', timeSlot: '8am-10am', subject: 'MAT 204', section: '', instructor: 'ARELLANO, Ma C.' },
     { room: 'FH 108', day: 'Tuesday', timeSlot: '8:30am-10am', subject: 'THE 301', section: '', instructor: 'TUAZON, Debbie Ann S.' },
     { room: 'FH 108', day: 'Wednesday', timeSlot: '7am-10am', subject: 'FCH 208/208L', section: 'BSFT 2B', instructor: 'BARRE, Atheena Cammara T.' },
     { room: 'FH 108', day: 'Thursday', timeSlot: '8:30am-10am', subject: 'TCW 101', section: '', instructor: 'JOSE, Denmark Q.' },
     { room: 'FH 108', day: 'Friday', timeSlot: '7am-10am', subject: 'FES 408', section: 'BSFT 4B', instructor: 'De Guzman, Maricel' },
-    
+
     // FH 110
     { room: 'FH 110', day: 'Monday', timeSlot: '7am-10am', subject: 'INV 204', section: 'BSB 3A', instructor: 'Lee, Mary Ylane S.' },
     { room: 'FH 110', day: 'Tuesday', timeSlot: '7am-10am', subject: 'PAR 404 L', section: 'BSB 4A', instructor: 'Tan, Judith Clarisse' },
     { room: 'FH 110', day: 'Wednesday', timeSlot: '7am-10am', subject: 'STS 101', section: 'BSB 1A', instructor: 'CARPIO, ALFREDO' },
     { room: 'FH 110', day: 'Thursday', timeSlot: '7am-10am', subject: 'EVO 303 L', section: 'BSB 3A', instructor: 'CLEMENTE, RICHARD FRANC' },
     { room: 'FH 110', day: 'Friday', timeSlot: '7am-10am', subject: 'ECO 105L', section: 'BSB 1A', instructor: 'CARPIO, ALFREDO' },
-    
+
     // CS-AR
     { room: 'FH CS-AR', day: 'Monday', timeSlot: '7am-10am', subject: 'BSM C 107', section: '', instructor: 'Michael Santos' },
     { room: 'FH CS-AR', day: 'Tuesday', timeSlot: '7am-10am', subject: 'BSM BA 2A', section: '', instructor: 'CAMARA, Evelyn' },
     { room: 'FH CS-AR', day: 'Wednesday', timeSlot: '7am-10am', subject: 'MAT 302', section: 'Petition class', instructor: 'Geronimo, Paul' },
     { room: 'FH CS-AR', day: 'Thursday', timeSlot: '7am-10am', subject: 'BSM AS 3A', section: '', instructor: 'CARCOSIA, IMELDA' },
     { room: 'FH CS-AR', day: 'Friday', timeSlot: '7am-10am', subject: 'ELEC II', section: 'BSB 4B', instructor: 'CARCOSIA, IMELDA' },
-    
+
     // AVR A
     { room: 'FH AVR A', day: 'Monday', timeSlot: '7am-10am', subject: 'BSM AS 2A', section: '', instructor: 'Macalisang, Aaron' },
     { room: 'FH AVR A', day: 'Tuesday', timeSlot: '7am-10am', subject: 'BSM AS 2B-G', section: '', instructor: 'CAMARA, Evelyn' },
     { room: 'FH AVR A', day: 'Wednesday', timeSlot: '7am-10am', subject: 'BSM AS 3B', section: '', instructor: 'Morales, Imelda' },
     { room: 'FH AVR A', day: 'Friday', timeSlot: '7am-10am', subject: 'BSM CS 1B G2', section: '', instructor: 'VIOLA, Joselito' },
-    
+
     // FH 205
     { room: 'FH 205', day: 'Monday', timeSlot: '10am-1pm', subject: 'MCS 206', section: 'BSM CS 2A G1', instructor: 'GALVEZ, ARCEL F' },
     { room: 'FH 205', day: 'Tuesday', timeSlot: '10am-1pm', subject: 'MCS 206', section: 'BSM CS 2A G2', instructor: 'GALVEZ, ARCEL F' },
     { room: 'FH 205', day: 'Wednesday', timeSlot: '10am-1pm', subject: 'MCS 206', section: 'BSM CS 2A G1', instructor: 'GALVEZ, ARCEL F' },
     { room: 'FH 205', day: 'Thursday', timeSlot: '1pm-4pm', subject: 'MCS 206', section: 'BSM CS 2B G1', instructor: 'GALVEZ, ARCEL F' },
     { room: 'FH 205', day: 'Friday', timeSlot: '2pm-5pm', subject: 'BST 305L', section: 'BSB 3B', instructor: 'Mandap, Marco' },
-    
+
     // FH 206
     { room: 'FH 206', day: 'Monday', timeSlot: '7am-8:30am', subject: 'BSM AS 4B', section: '', instructor: 'Valeroso, Joshua' },
     { room: 'FH 206', day: 'Tuesday', timeSlot: '8:30am-10am', subject: 'AAH 101a', section: '', instructor: 'De Leon, Shiela' },
     { room: 'FH 206', day: 'Wednesday', timeSlot: '8:30am-10am', subject: 'MAT 306', section: '', instructor: 'Dela Cruz, Harris' },
     { room: 'FH 206', day: 'Friday', timeSlot: '10am-11:30am', subject: 'MAT 307', section: '', instructor: 'Santos, Dr. Edgardo' },
-    
+
     // FH 207
     { room: 'FH 207', day: 'Monday', timeSlot: '7am-9am', subject: 'MCS 103a', section: 'BSM CS 1A G2', instructor: 'Angeles, Deo Stephanie' },
     { room: 'FH 207', day: 'Tuesday', timeSlot: '7am-10am', subject: 'MCS 103a', section: 'BSM CS 1B G1', instructor: 'Angeles, Deo Stephanie' },
@@ -482,11 +482,12 @@ async function seedRoomSchedules() {
     { room: 'FH 207', day: 'Friday', timeSlot: '7am-8:30am', subject: 'BSM AS 3A', section: '', instructor: 'Dela Cruz, Aarhus' }
   ];
 
-  // Store room schedules as FAQs for AI to access
-  const roomScheduleFAQ = {
-    category: 'Room Schedules',
-    question: 'What are the room schedules in Federizo Hall?',
-    answer: `**Federizo Hall Room Schedules (College of Science)**
+  // Store room schedules as FAQs for AI to access - create individual FAQs for better matching
+  const roomScheduleFAQs = [
+    {
+      category: 'Room Schedules',
+      question: 'What are the room schedules in Federizo Hall?',
+      answer: `**Federizo Hall Room Schedules (College of Science)**
 
 **FH 106:**
 • Monday 7am-10am: ECO 105 (BSB 1A) - CARPIO, ALFREDO
@@ -511,31 +512,82 @@ async function seedRoomSchedules() {
 • Wednesday 7am-10am: STS 101 (BSB 1A) - CARPIO, ALFREDO
 
 For complete schedules, please contact the COS office.`,
-    keywords: ['room', 'schedule', 'federizo', 'hall', 'fh', 'classroom', 'where'],
-    isPublished: true
-  };
+      keywords: ['room', 'schedule', 'federizo', 'hall', 'fh', 'classroom', 'where', 'avr', 'cs-ar', 'fh 106', 'fh 107', 'fh 108', 'fh 110', 'fh 205', 'fh 206', 'fh 207'],
+      isPublished: true
+    },
+    {
+      category: 'Room Schedules',
+      question: 'What is the schedule for AVR A room?',
+      answer: `**FH AVR A (Audio-Visual Room A) Schedule**
 
-  const existingRoomFAQ = await prisma.fAQ.findFirst({
-    where: { question: roomScheduleFAQ.question }
-  });
-  
-  if (existingRoomFAQ) {
-    await prisma.fAQ.update({
-      where: { id: existingRoomFAQ.id },
-      data: roomScheduleFAQ
+**Monday:**
+• 7am-10am: BSM AS 2A - Macalisang, Aaron
+
+**Tuesday:**
+• 7am-10am: BSM AS 2B-G - CAMARA, Evelyn
+
+**Wednesday:**
+• 7am-10am: BSM AS 3B - Morales, Imelda
+
+**Friday:**
+• 7am-10am: BSM CS 1B G2 - VIOLA, Joselito
+• 3pm-5pm: MAS 307 (BSM AS 3B) - GALVEZ, ARCEL F
+• 5pm-8pm: MAT 205 (BSM CS 2A G2) - VIOLA, Joselito`,
+      keywords: ['avr', 'avr a', 'audio visual', 'room', 'schedule', 'classroom', 'audiovisual'],
+      isPublished: true
+    },
+    {
+      category: 'Room Schedules',
+      question: 'What is the schedule for CS-AR (Computer Science Classroom)?',
+      answer: `**FH CS-AR (Computer Science Classroom) Schedule**
+
+**Monday:**
+• 7am-10am: BSM C 107 - Michael Santos
+
+**Tuesday:**
+• 7am-10am: BSM BA 2A - CAMARA, Evelyn
+
+**Wednesday:**
+• 7am-10am: MAT 302 (Petition class) - Geronimo, Paul
+
+**Thursday:**
+• 7am-10am: BSM AS 3A - CARCOSIA, IMELDA
+
+**Friday:**
+• 7am-10am: ELEC II (BSB 4B) - CARCOSIA, IMELDA`,
+      keywords: ['cs-ar', 'computer science', 'classroom', 'room', 'schedule', 'csar', 'cs ar'],
+      isPublished: true
+    }
+  ];
+
+  let created = 0;
+  let updated = 0;
+
+  for (const faq of roomScheduleFAQs) {
+    const existing = await prisma.fAQ.findFirst({
+      where: { question: faq.question }
     });
-  } else {
-    await prisma.fAQ.create({
-      data: roomScheduleFAQ
-    });
+
+    if (existing) {
+      await prisma.fAQ.update({
+        where: { id: existing.id },
+        data: faq
+      });
+      updated++;
+    } else {
+      await prisma.fAQ.create({
+        data: faq
+      });
+      created++;
+    }
   }
 
-  console.log(`✅ Seeded room schedule FAQ`);
+  console.log(`✅ Seeded room schedule FAQs: ${created} created, ${updated} updated`);
 }
 
 async function seedFacultySchedules() {
   console.log('🔄 Seeding Faculty Schedules...');
-  
+
   // Store faculty schedules as FAQs
   const facultyScheduleFAQs = [
     {
@@ -697,12 +749,12 @@ async function seedFacultySchedules() {
 
   let created = 0;
   let updated = 0;
-  
+
   for (const faq of facultyScheduleFAQs) {
     const existing = await prisma.fAQ.findFirst({
       where: { question: faq.question }
     });
-    
+
     if (existing) {
       await prisma.fAQ.update({
         where: { id: existing.id },
@@ -722,12 +774,12 @@ async function seedFacultySchedules() {
 
 async function main() {
   console.log('🚀 Starting knowledge seed...\n');
-  
+
   try {
     await seedFAQs();
     await seedRoomSchedules();
     await seedFacultySchedules();
-    
+
     console.log('\n✅ Knowledge seed completed successfully!');
   } catch (error) {
     console.error('❌ Error seeding knowledge:', error);

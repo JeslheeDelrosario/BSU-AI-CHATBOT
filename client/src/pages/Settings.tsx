@@ -147,7 +147,6 @@ export default function Settings() {
       {/* Main Settings Card */}
       <div className="max-w-5xl mx-auto px-6">
         <div className="bg-card/80 backdrop-blur-3xl rounded-3xl border border-border shadow-2xl overflow-hidden">
-
           {/* Tabs */}
           <div className="border-b border-border">
             <nav className="flex flex-wrap justify-center gap-3 sm:gap-5 p-5 sm:p-6">
@@ -159,16 +158,19 @@ export default function Settings() {
                     flex items-center gap-3 px-5 sm:px-7 py-3.5 sm:py-4 
                     rounded-2xl text-base sm:text-lg font-medium 
                     transition-all duration-300 group
-                    ${activeTab === tab.id
-                      ? 'bg-gradient-to-r from-cyan-500/20 to-purple-600/20 border border-cyan-500/50 shadow-lg shadow-cyan-500/20 text-cyan-300'
-                      : 'text-muted-foreground hover:text-cyan-400 hover:bg-card/60 border border-transparent'
+                    ${
+                      activeTab === tab.id
+                        ? "bg-gradient-to-r from-cyan-500/20 to-purple-600/20 border border-cyan-500/50 shadow-lg shadow-cyan-500/20 text-cyan-300"
+                        : "text-muted-foreground hover:text-cyan-400 hover:bg-card/60 border border-transparent"
                     }
                   `}
                 >
-                  <tab.icon className={`
+                  <tab.icon
+                    className={`
                     w-5 h-5 sm:w-6 sm:h-6 transition-colors
-                    ${activeTab === tab.id ? 'text-cyan-400' : 'text-muted-foreground group-hover:text-cyan-400'}
-                  `} />
+                    ${activeTab === tab.id ? "text-cyan-400" : "text-muted-foreground group-hover:text-cyan-400"}
+                  `}
+                  />
                   <span>{tab.label}</span>
                 </button>
               ))}
@@ -177,66 +179,126 @@ export default function Settings() {
 
           {/* Scrollable Content with Custom Scrollbar */}
           <div className="p-6 sm:p-8 lg:p-10 max-h-[65vh] overflow-y-auto settings-cyberpunk-scrollbar space-y-12">
-            
             {/* Profile Tab */}
-            {activeTab === 'profile' && (
+            {activeTab === "profile" && (
               <div className="space-y-12">
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.profile.title}</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
+                    {t.settings.profile.title}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.profile.firstName}</label>
+                      <label className="block text-lg font-semibold text-foreground mb-3">
+                        {t.settings.profile.firstName}
+                      </label>
                       <input
                         type="text"
                         value={profileSettings.firstName}
-                        onChange={(e) => setProfileSettings({ ...profileSettings, firstName: e.target.value })}
+                        onChange={(e) =>
+                          setProfileSettings({
+                            ...profileSettings,
+                            firstName: e.target.value,
+                          })
+                        }
                         className="w-full px-5 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.profile.lastName}</label>
+                      <label className="block text-lg font-semibold text-foreground mb-3">
+                        {t.settings.profile.lastName}
+                      </label>
                       <input
                         type="text"
                         value={profileSettings.lastName}
-                        onChange={(e) => setProfileSettings({ ...profileSettings, lastName: e.target.value })}
+                        onChange={(e) =>
+                          setProfileSettings({
+                            ...profileSettings,
+                            lastName: e.target.value,
+                          })
+                        }
                         className="w-full px-5 py-4 bg-card/60 border border-border rounded-2xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.profile.email}</label>
+                      <label className="block text-lg font-semibold text-foreground mb-3">
+                        {t.settings.profile.email}
+                      </label>
                       <input
                         type="email"
                         value={profileSettings.email}
                         disabled
                         className="w-full px-5 py-4 bg-card/40 border border-border/50 rounded-2xl text-muted-foreground cursor-not-allowed"
                       />
-                      <p className="text-sm text-muted-foreground mt-3">{t.settings.profile.emailDescription}</p>
+                      <p className="text-sm text-muted-foreground mt-3">
+                        {t.settings.profile.emailDescription}
+                      </p>
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.notifications.title}</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
+                    {t.settings.notifications.title}
+                  </h3>
                   <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                       <div>
-                        <p className="text-xl sm:text-2xl font-bold text-foreground">{t.settings.notifications.learningStyle}</p>
-                        <p className="text-muted-foreground mt-1">{t.settings.notifications.learningStyleDescription}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">
+                          {t.settings.notifications.learningStyle}
+                        </p>
+                        <p className="text-muted-foreground mt-1">
+                          {t.settings.notifications.learningStyleDescription}
+                        </p>
                       </div>
                       <div className="relative">
                         <select
                           value={notificationSettings.learningStyle}
-                          onChange={(e) => setNotificationSettings({ ...notificationSettings, learningStyle: e.target.value })}
-                          className="appearance-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all"
+                          onChange={(e) =>
+                            setNotificationSettings({
+                              ...notificationSettings,
+                              learningStyle: e.target.value,
+                            })
+                          }
+                          className="appearance-none bg-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-16 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all"
                         >
-                          <option value="visual">{t.settings.notifications.learningStyleOptions.visual}</option>
-                          <option value="auditory">{t.settings.notifications.learningStyleOptions.auditory}</option>
-                          <option value="kinesthetic">{t.settings.notifications.learningStyleOptions.kinesthetic}</option>
-                          <option value="mixed">{t.settings.notifications.learningStyleOptions.mixed}</option>
+                          <option value="visual">
+                            {
+                              t.settings.notifications.learningStyleOptions
+                                .visual
+                            }
+                          </option>
+                          <option value="auditory">
+                            {
+                              t.settings.notifications.learningStyleOptions
+                                .auditory
+                            }
+                          </option>
+                          <option value="kinesthetic">
+                            {
+                              t.settings.notifications.learningStyleOptions
+                                .kinesthetic
+                            }
+                          </option>
+                          <option value="mixed">
+                            {
+                              t.settings.notifications.learningStyleOptions
+                                .mixed
+                            }
+                          </option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
-                          <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                          <svg
+                            className="w-5 h-5 text-cyan-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </div>
                       </div>
@@ -247,60 +309,101 @@ export default function Settings() {
             )}
 
             {/* Accessibility Tab */}
-            {activeTab === 'accessibility' && (
+            {activeTab === "accessibility" && (
               <div className="space-y-12">
                 {/* Language Section */}
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.accessibility.language.title}</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
+                    {t.settings.accessibility.language.title}
+                  </h3>
                   <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                       <div className="flex items-center gap-5">
                         <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
                         <div>
-                          <p className="text-xl sm:text-2xl font-bold text-foreground">{t.settings.accessibility.language.systemLanguage}</p>
-                          <p className="text-muted-foreground">{t.settings.accessibility.language.description}</p>
+                          <p className="text-xl sm:text-2xl font-bold text-foreground">
+                            {t.settings.accessibility.language.systemLanguage}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {t.settings.accessibility.language.description}
+                          </p>
                         </div>
                       </div>
                       <div className="relative">
-                        <select 
+                        <select
                           value={pendingAccessibilitySettings.language}
-                          onChange={(e) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, language: e.target.value as 'en' | 'fil' })}
-                          className="appearance-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all min-w-[180px]"
+                          onChange={(e) =>
+                            setPendingAccessibilitySettings({
+                              ...pendingAccessibilitySettings,
+                              language: e.target.value as "en" | "fil",
+                            })
+                          }
+                          className="appearance-none bg-none px-6 py-4 bg-card/80 border border-border rounded-2xl text-foreground text-base sm:text-lg font-medium pr-12 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 hover:bg-card/90 transition-all min-w-[180px]"
                         >
-                          <option value="en">{t.settings.accessibility.language.english}</option>
-                          <option value="fil">{t.settings.accessibility.language.filipino}</option>
+                          <option value="en">
+                            {t.settings.accessibility.language.english}
+                          </option>
+                          <option value="fil">
+                            {t.settings.accessibility.language.filipino}
+                          </option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
-                          <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                          <svg
+                            className="w-5 h-5 text-cyan-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </div>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-4">
-                      {pendingAccessibilitySettings.language === 'fil' 
-                        ? '🇵🇭 Ang TISA AI ay sasagot sa Filipino/Tagalog pagkatapos i-save.' 
-                        : '🇺🇸 TISA AI will respond in English after saving.'}
+                      {pendingAccessibilitySettings.language === "fil"
+                        ? "🇵🇭 Ang TISA AI ay sasagot sa Filipino/Tagalog pagkatapos i-save."
+                        : "🇺🇸 TISA AI will respond in English after saving."}
                     </p>
                   </div>
                 </section>
 
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.accessibility.visual.title}</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
+                    {t.settings.accessibility.visual.title}
+                  </h3>
                   <div className="space-y-6">
                     <SettingCard
                       icon={Eye}
                       title={t.settings.accessibility.visual.highContrast.title}
-                      description={t.settings.accessibility.visual.highContrast.description}
+                      description={
+                        t.settings.accessibility.visual.highContrast.description
+                      }
                       checked={pendingAccessibilitySettings.highContrast}
-                      onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, highContrast: v })}
+                      onChange={(v) =>
+                        setPendingAccessibilitySettings({
+                          ...pendingAccessibilitySettings,
+                          highContrast: v,
+                        })
+                      }
                     />
                     <SettingCard
                       icon={Type}
                       title={t.settings.accessibility.visual.dyslexiaFont.title}
-                      description={t.settings.accessibility.visual.dyslexiaFont.description}
+                      description={
+                        t.settings.accessibility.visual.dyslexiaFont.description
+                      }
                       checked={pendingAccessibilitySettings.dyslexiaFont}
-                      onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, dyslexiaFont: v })}
+                      onChange={(v) =>
+                        setPendingAccessibilitySettings({
+                          ...pendingAccessibilitySettings,
+                          dyslexiaFont: v,
+                        })
+                      }
                     />
 
                     <div className="bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
@@ -308,21 +411,35 @@ export default function Settings() {
                         <div className="flex items-center gap-5">
                           <Type className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
                           <div>
-                            <label className="block text-lg font-semibold text-foreground mb-3">{t.settings.accessibility.visual.fontSize.title}</label>
-                            <p className="text-muted-foreground mb-4">{t.settings.accessibility.visual.fontSize.description}</p>
+                            <label className="block text-lg font-semibold text-foreground mb-3">
+                              {t.settings.accessibility.visual.fontSize.title}
+                            </label>
+                            <p className="text-muted-foreground mb-4">
+                              {
+                                t.settings.accessibility.visual.fontSize
+                                  .description
+                              }
+                            </p>
                           </div>
                         </div>
-                        <span className="text-xl sm:text-2xl font-bold text-cyan-400">{pendingAccessibilitySettings.fontSize}px</span>
+                        <span className="text-xl sm:text-2xl font-bold text-cyan-400">
+                          {pendingAccessibilitySettings.fontSize}px
+                        </span>
                       </div>
                       <input
                         type="range"
                         min="12"
                         max="28"
                         value={pendingAccessibilitySettings.fontSize}
-                        onChange={(e) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, fontSize: parseInt(e.target.value) })}
+                        onChange={(e) =>
+                          setPendingAccessibilitySettings({
+                            ...pendingAccessibilitySettings,
+                            fontSize: parseInt(e.target.value),
+                          })
+                        }
                         className="w-full h-3 bg-muted/40 rounded-full appearance-none cursor-pointer"
                         style={{
-                          background: `linear-gradient(to right, #06b6d4 ${((pendingAccessibilitySettings.fontSize - 12) / 16) * 100}%, #475569 ${((pendingAccessibilitySettings.fontSize - 12) / 16) * 100}%)`
+                          background: `linear-gradient(to right, #06b6d4 ${((pendingAccessibilitySettings.fontSize - 12) / 16) * 100}%, #475569 ${((pendingAccessibilitySettings.fontSize - 12) / 16) * 100}%)`,
                         }}
                       />
                     </div>
@@ -330,24 +447,103 @@ export default function Settings() {
                 </section>
 
                 <section>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.accessibility.audio.title}</h3>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
+                    {t.settings.accessibility.audio.title}
+                  </h3>
                   <div className="space-y-6">
-                    <SettingCard icon={Volume2} title={t.settings.accessibility.audio.textToSpeech.title} description={t.settings.accessibility.audio.textToSpeech.description} checked={pendingAccessibilitySettings.textToSpeech} onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, textToSpeech: v })} />
-                    <SettingCard icon={Volume2} title={t.settings.accessibility.audio.speechToText.title} description={t.settings.accessibility.audio.speechToText.description} checked={pendingAccessibilitySettings.speechToText} onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, speechToText: v })} />
-                    <SettingCard icon={Volume2} title={t.settings.accessibility.audio.captions.title} description={t.settings.accessibility.audio.captions.description} checked={pendingAccessibilitySettings.captionsEnabled} onChange={(v) => setPendingAccessibilitySettings({ ...pendingAccessibilitySettings, captionsEnabled: v })} />
+                    <SettingCard
+                      icon={Volume2}
+                      title={t.settings.accessibility.audio.textToSpeech.title}
+                      description={
+                        t.settings.accessibility.audio.textToSpeech.description
+                      }
+                      checked={pendingAccessibilitySettings.textToSpeech}
+                      onChange={(v) =>
+                        setPendingAccessibilitySettings({
+                          ...pendingAccessibilitySettings,
+                          textToSpeech: v,
+                        })
+                      }
+                    />
+                    <SettingCard
+                      icon={Volume2}
+                      title={t.settings.accessibility.audio.speechToText.title}
+                      description={
+                        t.settings.accessibility.audio.speechToText.description
+                      }
+                      checked={pendingAccessibilitySettings.speechToText}
+                      onChange={(v) =>
+                        setPendingAccessibilitySettings({
+                          ...pendingAccessibilitySettings,
+                          speechToText: v,
+                        })
+                      }
+                    />
+                    <SettingCard
+                      icon={Volume2}
+                      title={t.settings.accessibility.audio.captions.title}
+                      description={
+                        t.settings.accessibility.audio.captions.description
+                      }
+                      checked={pendingAccessibilitySettings.captionsEnabled}
+                      onChange={(v) =>
+                        setPendingAccessibilitySettings({
+                          ...pendingAccessibilitySettings,
+                          captionsEnabled: v,
+                        })
+                      }
+                    />
                   </div>
                 </section>
               </div>
             )}
 
             {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
+            {activeTab === "notifications" && (
               <div className="space-y-8">
-                <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">{t.settings.notifications.title}</h3>
+                <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
+                  {t.settings.notifications.title}
+                </h3>
                 <div className="space-y-6">
-                  <SettingCard title={t.settings.notifications.courseUpdates.title} description={t.settings.notifications.courseUpdates.description} checked={notificationSettings.courseUpdates} onChange={(v) => setNotificationSettings({ ...notificationSettings, courseUpdates: v })} />
-                  <SettingCard title={t.settings.notifications.achievements.title} description={t.settings.notifications.achievements.description} checked={notificationSettings.achievements} onChange={(v) => setNotificationSettings({ ...notificationSettings, achievements: v })} />
-                  <SettingCard title={t.settings.notifications.weeklyReport.title} description={t.settings.notifications.weeklyReport.description} checked={notificationSettings.weeklyReport} onChange={(v) => setNotificationSettings({ ...notificationSettings, weeklyReport: v })} />
+                  <SettingCard
+                    title={t.settings.notifications.courseUpdates.title}
+                    description={
+                      t.settings.notifications.courseUpdates.description
+                    }
+                    checked={notificationSettings.courseUpdates}
+                    onChange={(v) =>
+                      setNotificationSettings({
+                        ...notificationSettings,
+                        courseUpdates: v,
+                      })
+                    }
+                  />
+                  <SettingCard
+                    title={t.settings.notifications.achievements.title}
+                    description={
+                      t.settings.notifications.achievements.description
+                    }
+                    checked={notificationSettings.achievements}
+                    onChange={(v) =>
+                      setNotificationSettings({
+                        ...notificationSettings,
+                        achievements: v,
+                      })
+                    }
+                  />
+                  <SettingCard
+                    title={t.settings.notifications.weeklyReport.title}
+                    description={
+                      t.settings.notifications.weeklyReport.description
+                    }
+                    checked={notificationSettings.weeklyReport}
+                    onChange={(v) =>
+                      setNotificationSettings({
+                        ...notificationSettings,
+                        weeklyReport: v,
+                      })
+                    }
+                  />
                 </div>
               </div>
             )}
@@ -362,9 +558,13 @@ export default function Settings() {
                 className="flex items-center gap-3 px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-lg sm:text-xl rounded-2xl shadow-xl hover:shadow-cyan-500/50 transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <Save className="w-6 h-6 sm:w-7 sm:h-7" />
-                {saving 
-                  ? (accessibilitySettings.language === 'fil' ? 'Sine-save...' : 'Saving...') 
-                  : (accessibilitySettings.language === 'fil' ? 'I-save ang mga Pagbabago' : 'Save Changes')}
+                {saving
+                  ? accessibilitySettings.language === "fil"
+                    ? "Sine-save..."
+                    : "Saving..."
+                  : accessibilitySettings.language === "fil"
+                    ? "I-save ang mga Pagbabago"
+                    : "Save Changes"}
               </button>
             </div>
           </div>

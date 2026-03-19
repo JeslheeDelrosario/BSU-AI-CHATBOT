@@ -120,7 +120,7 @@ export default function Signup() {
             TISA
           </h1>
           <p className="text-gray-400 mt-2 text-lg font-light tracking-wider">
-            Towards Intelligence Student Assistant
+            Towards Intelligent Student Assistance
           </p>
         </div>
 

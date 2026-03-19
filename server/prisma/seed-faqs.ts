@@ -141,6 +141,7 @@ const faqData = [
     keywords: ['freshmen', 'requirements', 'SHS', 'diploma', 'application'],
     order: 3
   },
+  
   {
     category: 'Admission',
     question: 'What are the requirements for transfer students?',

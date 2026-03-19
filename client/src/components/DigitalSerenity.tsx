@@ -980,23 +980,38 @@ const DigitalSerenityWithSummary: React.FC = () => {
                       <ul className="space-y-3">
                         <li className="flex items-start gap-2">
                           <span className="text-yellow-400">•</span>
-                          <span>Create & organize course modules, lessons, and resources</span>
+                          <span>
+                            Create & organize course modules, lessons, and
+                            resources
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-yellow-400">•</span>
-                          <span>Publish announcements, moderate discussions, and pin resources</span>
+                          <span>
+                            Publish announcements, moderate discussions, and pin
+                            resources
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-yellow-400">•</span>
-                          <span>Create assignments/quizzes, set rubrics, and grade submissions</span>
+                          <span>
+                            Create assignments/quizzes, set rubrics, and grade
+                            submissions
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-yellow-400">•</span>
-                          <span>Schedule consultations and sync meetings with Google Calendar</span>
+                          <span>
+                            Schedule consultations and sync meetings with Google
+                            Calendar
+                          </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-yellow-400">•</span>
-                          <span>Access student analytics, export reports, and provide personalized recommendations</span>
+                          <span>
+                            Access student analytics, export reports, and
+                            provide personalized recommendations
+                          </span>
                         </li>
                       </ul>
                     </div>
@@ -1078,11 +1093,10 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 Personalized Dashboard
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Shows your enrolled courses, upcoming
-                                meetings and consultations, unread
-                                notifications, quick access to the AI Tutor,
-                                and recent activity so you can pick up where
-                                you left off.
+                                Shows your enrolled courses, upcoming meetings
+                                and consultations, unread notifications, quick
+                                access to the AI Tutor, and recent activity so
+                                you can pick up where you left off.
                               </p>
                             </div>
                           </li>
@@ -1093,8 +1107,9 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 Courses, Lessons & Materials
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Browse and enrolled many courses, view lesson pages with multimedia
-                                content and submit quizzes from the course page.
+                                Browse and enrolled many courses, view lesson
+                                pages with multimedia content and submit quizzes
+                                from the course page.
                               </p>
                             </div>
                           </li>
@@ -1107,8 +1122,8 @@ const DigitalSerenityWithSummary: React.FC = () => {
                               <p className="text-gray-300 mt-1">
                                 Participate in classroom posts and threads,
                                 comment, upload attachments, request to join
-                                classes, and consult the classroom calendar
-                                for schedules and announcements.
+                                classes, and consult the classroom calendar for
+                                schedules and announcements.
                               </p>
                             </div>
                           </li>
@@ -1119,11 +1134,10 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 AI Tutor & Assessments
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Context-aware AI Tutor (English & Filipino)
-                                that provides step-by-step explanations,
-                                generates practice quizzes, and supports
-                                auto-graded assessments with actionable
-                                feedback.
+                                Context-aware AI Tutor (English & Filipino) that
+                                provides step-by-step explanations, generates
+                                practice quizzes, and supports auto-graded
+                                assessments with actionable feedback.
                               </p>
                             </div>
                           </li>
@@ -1134,10 +1148,10 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 Calendar, Consultations & Meetings
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Personal calendar showing classes, meetings,
-                                and booked consultations. Create or join
-                                meetings and enable optional Google Calendar
-                                two-way sync for reminders.
+                                Personal calendar showing classes, meetings, and
+                                booked consultations. Create or join meetings
+                                and enable optional Google Calendar two-way sync
+                                for reminders.
                               </p>
                             </div>
                           </li>
@@ -1149,9 +1163,9 @@ const DigitalSerenityWithSummary: React.FC = () => {
                               </h4>
                               <p className="text-gray-300 mt-1">
                                 In-app real-time and optional email
-                                notifications for new posts, mentions,
-                                meeting changes, approvals, and assignment
-                                feedback so you don't miss important items.
+                                notifications for new posts, mentions, meeting
+                                changes, approvals, and assignment feedback so
+                                you don't miss important items.
                               </p>
                             </div>
                           </li>
@@ -1162,10 +1176,10 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 Progress Tracking & Analytics
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Track module completion, quiz and
-                                assignment scores, and performance insights.
-                                Instructors can export reports; students get
-                                personalized recommendations to improve.
+                                Track module completion, quiz and assignment
+                                scores, and performance insights. Instructors
+                                can export reports; students get personalized
+                                recommendations to improve.
                               </p>
                             </div>
                           </li>
@@ -1434,8 +1448,8 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 Courses, Lessons & Materials
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Manage courses, lessons, modules and quizzes
-                                at scale.
+                                Manage courses, lessons, modules and quizzes at
+                                scale.
                               </p>
                             </div>
                           </li>
@@ -1446,8 +1460,8 @@ const DigitalSerenityWithSummary: React.FC = () => {
                                 Programs & Curriculum Management
                               </h4>
                               <p className="text-gray-300 mt-1">
-                                Define programs, map curricula, and maintain
-                                COS program mappings.
+                                Define programs, map curricula, and maintain COS
+                                program mappings.
                               </p>
                             </div>
                           </li>
@@ -1699,8 +1713,8 @@ const DigitalSerenityWithSummary: React.FC = () => {
               <footer className="border-t border-gray-800/50 mt-20 pt-8 pb-6">
                 <div className="text-center text-gray-500 text-sm">
                   <p>
-                    © {new Date().getFullYear()} TISA - Towards Intelligence
-                    Student Assistant
+                    © {new Date().getFullYear()} TISA - Towards Intelligent
+                    Student Assistance
                   </p>
                   <p className="mt-2">
                     Bulacan State University | AI-Powered Learning Platform

@@ -107,7 +107,7 @@ export default function Login() {
             TISA
           </h1>
           <p className="text-gray-400 mt-3 text-lg font-light tracking-wider">
-            Towards Intelligence Student Assistant
+            Towards Intelligent Student Assistance
           </p>
         </div>
 

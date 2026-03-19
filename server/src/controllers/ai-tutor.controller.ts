@@ -21,28 +21,35 @@ import {
 import { quizGeneratorService } from '../services/quiz-generator.service';
 import * as FacultyConsultationService from '../services/faculty-consultation.service';
 import { FAQCacheService } from '../services/faq-cache.service';
+import Groq from 'groq-sdk';
+import { Cerebras } from '@cerebras/cerebras_cloud_sdk';
 
-// Initialize Gemini AI client (FREE!)
-let geminiAI: GoogleGenerativeAI | null = null;
+// Initialize Groq client (FREE tier)
+let groqClient: Groq | null = null;
+// Keep geminiModel null to avoid compile errors where it's referenced later
 let geminiModel: any = null;
 try {
-  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here') {
-    geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Use gemini-2.0-flash (1500 req/day free tier)
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-    geminiModel = geminiAI.getGenerativeModel({ 
-      model: modelName,
-      generationConfig: {
-        maxOutputTokens: 2000,
-        temperature: 0.7,
-      }
-    });
-    console.log(`✓ Gemini AI enabled (FREE tier) - Model: ${modelName}`);
+  if (process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'your-groq-api-key-here') {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    console.log(`✓ Groq AI enabled (FREE tier) - Model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
   } else {
-    console.warn('⚠ Gemini API key not configured');
+    console.warn('⚠ Groq API key not configured');
   }
 } catch (error) {
-  console.error('Failed to initialize Gemini client:', error);
+  console.error('Failed to initialize Groq client:', error);
+}
+
+// Initialize Cerebras client (fallback)
+let cerebrasClient: Cerebras | null = null;
+try {
+  if (process.env.CEREBRAS_API_KEY && process.env.CEREBRAS_API_KEY !== 'your-cerebras-api-key-here') {
+    cerebrasClient = new Cerebras({ apiKey: process.env.CEREBRAS_API_KEY });
+    console.log(`✓ Cerebras fallback enabled - Model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
+  } else {
+    console.warn('⚠ Cerebras API key not configured (fallback disabled)');
+  }
+} catch (error) {
+  console.error('Failed to initialize Cerebras client:', error);
 }
 
 // OpenAI removed - using only Gemini AI (free and reliable)
@@ -85,7 +92,11 @@ ${languageInstruction}
 
 ## RULES:
 - ONLY answer from the DATABASE KNOWLEDGE below. Never use general knowledge.
-- If info is NOT in database, say so and suggest contacting COS office.
+- If info is NOT in database, say so and provide official BSU/COS links for updated information:
+  * College of Science Facebook: https://www.facebook.com/BulSUCSOfficial
+  * BSU Admissions: https://www.facebook.com/BulSUAdmissionsOffice
+  * BSU Official Facebook: https://www.facebook.com/bulsuofficial
+  * BSU Official Website: https://www.bulsu.edu.ph/
 - If question is unrelated to BSU COS, politely decline.
 - For policies/grading/admission questions, prioritize FAQ data.
 - For career queries, list career paths from the program data.
@@ -159,8 +170,8 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
 
       if (allFaculty.length === 0) {
         return language === 'fil'
-          ? `Paumanhin, wala pa akong impormasyon tungkol sa faculty members ng College of Science sa aking database. Maaari mong kontakin ang COS office para sa updated faculty list.`
-          : `I apologize, but I don't have information about faculty members in the College of Science in my database yet. Please contact the COS office for an updated faculty list.`;
+          ? `Paumanhin, wala pa akong impormasyon tungkol sa faculty members ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
+          : `I apologize, but I don't have information about faculty members in the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
       }
 
       // Deduplicate faculty by full name (keep entry with most complete email)
@@ -195,8 +206,8 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
       if (isDepartmentQuery) {
         const deptName = lowerMsg.match(/(mathematics|math|computer\s+science|biology|food\s+tech|environmental|medical\s+tech)/i)?.[0] || 'the department';
         response = language === 'fil'
-          ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring kontakin ang COS office.*\n\n`
-          : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please contact the COS office.*\n\n`;
+          ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring bisitahin ang mga opisyal na pahina sa ibaba.*\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`
+          : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please visit the official pages below.*\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`;
       } else {
         response = language === 'fil'
           ? `📚 **Faculty Members ng College of Science**\n\n`
@@ -272,10 +283,10 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
     const isProgramQuery = programKeywords.some(keyword => lowerMsg.includes(keyword));
     
     const nameQueryPatterns = [
-      /who\s+is\s+([a-z\s\.]+)/i,
-      /sino\s+si\s+([a-z\s\.]+)/i,
-      /about\s+([a-z\s\.]+)/i,
-      /tungkol\s+kay\s+([a-z\s\.]+)/i
+      /who\s+is\s+([\w\s\.'’\-]+)/i,
+      /sino\s+si\s+([\w\s\.'’\-]+)/i,
+      /about\s+([\w\s\.'’\-]+)/i,
+      /tungkol\s+kay\s+([\w\s\.'’\-]+)/i
     ];
 
     // Only search for faculty if this is NOT a program query
@@ -283,10 +294,36 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
       for (const pattern of nameQueryPatterns) {
         const match = userMessage.match(pattern);
         if (match && match[1]) {
-          const searchName = match[1].trim();
-        
-        // Split name into parts for multi-word names (e.g., "arcel galvez" -> ["arcel", "galvez"])
-        const nameParts = searchName.split(/\s+/).filter(part => part.length > 0);
+          const rawSearchName = match[1].trim();
+
+          // Normalize search name by stripping common honorifics (e.g., "sir", "ma'am")
+          const stripHonorifics = (s: string) => {
+            const re = /^(sir|ma'am|maam|mam|mr|mrs|ms|dr|prof(essor)?|teacher)\b[\s,\.]*/i;
+            let normalized = s.trim();
+            while (re.test(normalized)) {
+              normalized = normalized.replace(re, '').trim();
+            }
+            return normalized;
+          };
+
+          const searchName = stripHonorifics(rawSearchName);
+
+          // Further clean common honorific tokens in case the regex didn't strip them (e.g., "sir ben" -> "ben")
+          const honorificTokens = ['sir', "ma'am", 'maam', 'mam', 'mr', 'mrs', 'ms', 'dr', 'prof', 'professor', 'teacher'];
+          const cleanedName = searchName
+            .split(/\s+/)
+            .filter(token => token && !honorificTokens.includes(token.toLowerCase()))
+            .join(' ');
+
+          // Debug logging for troubleshooting
+          console.log('🔍 Faculty search debug:');
+          console.log('  rawSearchName:', rawSearchName);
+          console.log('  searchName after stripHonorifics:', searchName);
+          console.log('  cleanedName after token filtering:', cleanedName);
+          console.log('  honorificTokens:', honorificTokens);
+
+          // Split name into parts for multi-word names (e.g., "arcel galvez" -> ["arcel", "galvez"])
+          const nameParts = cleanedName.split(/\s+/).filter(part => part.length > 0);
         
         // Build search conditions
         let searchConditions: any[] = [];
@@ -385,8 +422,8 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
             : `I found ${facultyMatches.length} faculty members with the name "${searchName}":\n\n${namesList}\n\nWhich one are you referring to?`;
         } else {
           return language === 'fil'
-            ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\nMaaari mong kontakin ang COS office para sa mas tumpak na impormasyon.`
-            : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\nPlease contact the COS office for more accurate information.`;
+            ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
+            : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
         }
       }
     }
@@ -441,6 +478,10 @@ Would you like to know more about their office hours or how to contact them?`;
     // Detect if user is asking about careers/jobs - these should NOT trigger program disambiguation
     // Let the AI answer career questions directly using RAG context
     const isCareerQuery = /career|job|work|employment|profession|occupation|salary|hire|industry|graduate|after finishing|after graduation|what can i (do|be|become)|where can i work/i.test(lowerMsg);
+
+    // Detect curriculum/prerequisite queries - these should also SKIP disambiguation
+    // Users asking about specific courses, subjects, or prerequisites know what they want
+    const isCurriculumQuery = /prerequisite|prerequisites|subject|course|curriculum|thesis|year|semester|requirement/i.test(lowerMsg);
     
     // Detect curriculum inquiries with context awareness, robust matching and disambiguation
     // SKIP disambiguation for career queries - let AI answer directly
@@ -456,6 +497,7 @@ Would you like to know more about their office hours or how to contact them?`;
       'bs envi sci': 'environmental science',
       'bs envisci': 'environmental science',
       'bs ft': 'food technology',
+      'bs as': 'applied statistics',
       'bsm as': 'applied statistics',
       'bsm cs': 'computer science',
       'bsm ba': 'business applications',
@@ -516,8 +558,8 @@ Would you like to know more about their office hours or how to contact them?`;
     }
 
     // If multiple candidates, ask a clarifying question listing options
-    // BUT skip this for career queries - let AI answer career questions directly
-    if (candidates.length > 1 && !isCareerQuery) {
+    // BUT skip this for career queries OR curriculum queries - let AI answer directly
+    if (candidates.length > 1 && !isCareerQuery && !isCurriculumQuery) {
       const options = candidates.map((c, i) => `${i+1}. ${c.title}${c.abbreviation ? ` (${c.abbreviation})` : ''}`).join('\n');
       return `I found a few programs that might match your question:\n${options}\n\nWhich one do you mean? Please reply with the number or program name (for example, "1" or "${candidates[0].title}").`;
     }
@@ -551,8 +593,8 @@ Would you like to know more about their office hours or how to contact them?`;
     else if (semWordMatch) targetSem = wordToNumber[semWordMatch[1].toLowerCase()];
 
     // If we found exactly one program but no year specified, ask a clarifying question
-    // BUT skip this for career queries - let AI answer career questions directly
-    if (programMatch && !targetYear && !isCareerQuery) {
+    // BUT skip this for career queries or curriculum queries - let AI answer directly
+    if (programMatch && !targetYear && !isCareerQuery && !isCurriculumQuery) {
       return `Do you want curriculum details for **${programMatch.title}**? Which year level are you asking about — 1st, 2nd, 3rd, or 4th year? You can also specify a semester (e.g., "2nd semester").`;
     }
 
@@ -643,68 +685,71 @@ Each program offers unique opportunities and career paths!
       console.log(`[AI Context] First FAQ: ${ragContext.faqs[0].question.substring(0, 50)}...`);
     }
 
-    // Try Gemini first (FREE), fallback to OpenAI if needed
-    if (geminiModel) {
+    // Primary: Groq, Fallback: Cerebras
+    const buildMessages = () => ([
+      { role: 'system' as const, content: TISA_SYSTEM_PROMPT },
+      ...(lastInteraction ? [
+        { role: 'user' as const, content: lastInteraction.userMessage },
+        { role: 'assistant' as const, content: lastInteraction.aiResponse }
+      ] : []),
+      { role: 'user' as const, content: userMessage }
+    ]);
+
+    // Try Groq first
+    if (groqClient) {
       try {
-        // Convert messages to Gemini format (system prompt already includes conversation context)
-        let geminiPrompt = TISA_SYSTEM_PROMPT + '\n\n';
-        
-        // Add current user message
-        geminiPrompt += `User: ${userMessage}\nAssistant:`;
-        
-        console.log('[Gemini] Generating response...');
-        
-        // Retry logic for rate limits
-        let retries = 0;
-        const maxRetries = 3;
-        let lastError: any = null;
-        
-        while (retries < maxRetries) {
-          try {
-            const result = await geminiModel.generateContent(geminiPrompt);
-            const response = await result.response;
-            const text = response.text();
-            
-            console.log('✓ Gemini AI response generated successfully');
-            return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
-          } catch (retryError: any) {
-            lastError = retryError;
-            const errorMessage = retryError?.message || '';
-            const isRateLimit = errorMessage.includes('429') || 
-                               errorMessage.includes('RESOURCE_EXHAUSTED') ||
-                               errorMessage.includes('rate') ||
-                               errorMessage.includes('quota') ||
-                               retryError?.status === 429;
-            
-            if (isRateLimit && retries < maxRetries - 1) {
-              const waitTime = Math.pow(2, retries + 1) * 1000; // 2s, 4s, 8s
-              console.log(`[Gemini] Rate limited, waiting ${waitTime/1000}s before retry ${retries + 1}/${maxRetries}...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-              retries++;
-            } else {
-              break;
-            }
-          }
+        console.log(`[Groq] Generating response... Model=${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'} | lang=${language} | msgLen=${userMessage.length}`);
+        console.time('[Groq] latency');
+        const completion = await groqClient.chat.completions.create({
+          model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+          messages: buildMessages(),
+          max_tokens: 2000,
+          temperature: 0.7,
+        });
+        console.timeEnd('[Groq] latency');
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log('[Groq] OK preview:', (text || '').replace(/\s+/g, ' ').slice(0, 120));
+        console.log('✓ Groq AI response generated successfully');
+        return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+      } catch (groqError: any) {
+        console.error('[Groq][ERROR]:', groqError?.status, groqError?.code, groqError?.message || groqError);
+        try { console.error('[Groq][ERROR] raw:', JSON.stringify(groqError, null, 2)); } catch {}
+        // Only short-circuit on explicit rate limit; otherwise try fallback
+        if (groqError?.status === 429) {
+          return language === 'fil'
+            ? `Paumanhin, maraming requests ngayon. Subukan ulit pagkatapos ng ilang segundo. 🔄`
+            : `I'm receiving too many requests right now. Please wait a moment and try again. 🔄`;
         }
-        
-        // If we exhausted retries or got a non-rate-limit error
-        console.error('❌ Gemini API Error:', lastError?.message);
-        console.error('Gemini Error Details:', JSON.stringify(lastError, null, 2));
-        
-        // Return user-friendly error instead of falling back to exhausted OpenAI
-        const errorMessage = lastError?.message || '';
-        if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
-          return `I'm experiencing high demand right now. 🔄\n\nPlease wait a moment and try again. If the issue persists, contact support.`;
-        }
-        return `I'm having trouble connecting to my AI service right now. 🔧\n\nPlease try again in a moment. If this continues, contact support.`;
-      } catch (geminiError: any) {
-        console.error('❌ Gemini API Error (outer):', geminiError.message);
-        return `I'm experiencing technical difficulties. 🔧\n\nPlease try again in a moment. If this continues, contact support.`;
+        console.log('[Fallback] Groq failed, trying Cerebras...');
       }
-    } else {
-      console.error('[AI] Gemini not configured - AI service unavailable');
-      return `I apologize, but the AI service is not properly configured. 🔧\n\nPlease contact support to enable the AI assistant.`;
     }
+
+    // Fallback to Cerebras if available
+    if (cerebrasClient) {
+      try {
+        console.log(`[Cerebras] Generating response... Model=${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'} | lang=${language} | msgLen=${userMessage.length}`);
+        console.time('[Cerebras] latency');
+        const completion = await cerebrasClient.chat.completions.create({
+          model: process.env.CEREBRAS_MODEL || 'llama-3.3-70b',
+          messages: buildMessages(),
+          max_tokens: 2000,
+          temperature: 0.7,
+        } as any);
+        console.timeEnd('[Cerebras] latency');
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log('[Cerebras] OK preview:', (text || '').replace(/\s+/g, ' ').slice(0, 120));
+        console.log('✓ Cerebras AI response generated successfully (fallback)');
+        return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+      } catch (cerebrasError: any) {
+        console.error('[Cerebras][ERROR]:', cerebrasError?.status, cerebrasError?.code, cerebrasError?.message || cerebrasError);
+        try { console.error('[Cerebras][ERROR] raw:', JSON.stringify(cerebrasError, null, 2)); } catch {}
+      }
+    }
+
+    // If neither provider worked
+    return `I'm having trouble connecting right now. 🔧 Please try again in a moment.`;
 
   } catch (error: any) {
     console.error('AI API Error:', error?.message || error);
@@ -1043,7 +1088,7 @@ You can ask me:
 
     // STEP 0.5: Check if user is requesting a consultation/appointment with faculty
     const consultationIntent = FacultyConsultationService.detectConsultationIntent(message);
-    const consultationKeywords = /consult|consultation|appointment|book|schedule|meet|meeting|talk to|speak with|available|office hours|professor|faculty|instructor|teacher|advisor|advising/i;
+    const consultationKeywords = /consult|consultation|appointment|book|schedule|meet|meeting|talk to|speak with|office hours|professor|faculty|instructor|teacher|advisor|advising/i;
     
     // Check if this is a SCHEDULE INQUIRY (not a booking request) - should use FAQ instead
     const isScheduleInquiry = /(?:what|when|where).*schedule|schedule\s+of|class\s+schedule|teaching\s+schedule|room\s+schedule/i.test(message);

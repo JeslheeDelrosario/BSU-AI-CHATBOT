@@ -509,8 +509,8 @@ export function detectConsultationIntent(message: string): {
   // View schedule patterns
   const viewPatterns = [
     /consultation\s+(schedule|hours|days|time)/i,
-    /when\s+(is|are)\s+(he|she|they)\s+available/i,
-    /availability/i,
+    /when\s+(is|are)\s+(he|she|they|professor|faculty|teacher)\s+available/i,
+    /professor.*availability|faculty.*availability|teacher.*availability/i,
     /office\s+hours/i,
     /vacant\s+time/i,
     /free\s+(time|slot)/i,

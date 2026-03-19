@@ -82,6 +82,18 @@ export default function MyCourses() {
         await api.post("/courses/enroll", {
           courseId: selectedEnrollment.courseId,
         });
+        
+        // Clear any cached quiz states for this course's lessons
+        // This prevents old quiz answers/scores from showing after re-enrollment
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('quiz-state-')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
         showToast({
           type: "success",
           title:
@@ -219,7 +231,7 @@ export default function MyCourses() {
                 {/* Card content – clickable area */}
                 <Link
                   to={`/courses/${enrollment.Course?.id}`}
-                  state={{ from: '/my-courses' }}
+                  state={{ from: "/my-courses" }}
                   className="block flex-1"
                 >
                   {/* Header */}
@@ -289,10 +301,14 @@ export default function MyCourses() {
                     {/* Progress bar */}
                     <div className="space-y-2 mb-6">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">Progress</span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Progress
+                        </span>
                         <span
                           className={
-                            isDropped ? "text-gray-500" : "text-cyan-600 dark:text-cyan-400"
+                            isDropped
+                              ? "text-gray-500"
+                              : "text-cyan-600 dark:text-cyan-400"
                           }
                         >
                           {progress}%
@@ -337,7 +353,9 @@ export default function MyCourses() {
                         className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-medium rounded-xl transition flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                       >
                         <RefreshCw className="w-5 h-5" />
-                        Re-enroll
+                        {accessibilitySettings.language === "fil"
+                          ? "I-Re-enroll ang Kurso"
+                          : "Re-enroll"}
                       </button>
                     ) : (
                       <button
@@ -348,7 +366,9 @@ export default function MyCourses() {
                         className="w-full py-3 bg-red-600/80 hover:bg-red-700 text-white font-medium rounded-xl transition flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                       >
                         <XCircle className="w-5 h-5" />
-                        Drop Course
+                        {accessibilitySettings.language === "fil"
+                          ? "I-Drop ang Kurso"
+                          : "Drop course"}
                       </button>
                     )}
                   </div>
