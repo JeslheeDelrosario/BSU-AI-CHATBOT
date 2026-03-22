@@ -3200,7 +3200,7 @@ You can ask me:
           const targetNormalized = normaliseCourseName(targetCourseRaw);
           const failedNormalized = normaliseCourseName(failedCourseRaw);
 
-          // Fetch all curriculum entries
+          // Fetch all curriculum entries for matching
           const curriculumEntries = await prisma.curriculumEntry.findMany({
             where: {
               UniversityProgram: {
@@ -3208,12 +3208,9 @@ You can ask me:
                 isActive: true,
               },
             },
-            include: {
-              UniversityProgram: true
-            }
           });
 
-          // Find target course with enhanced fuzzy matching
+          // 1. Find the Target Course Entry (Course A)
           let targetEntry = null;
           const targetRawLower = targetCourseRaw.toLowerCase();
           const targetNormLower = targetNormalized.toLowerCase();
@@ -3226,14 +3223,10 @@ You can ask me:
             const entryNameNoSpaces = entryNameLower.replace(/\s+/g, '');
             const entryCodeNoSpaces = entryCodeLower.replace(/\s+/g, '');
 
-            if (entryNameLower.includes(targetNormLower) ||
-                entryNameLower.includes(targetRawLower) ||
-                entryCodeLower.includes(targetNormLower) ||
-                entryCodeLower.includes(targetRawLower) ||
-                entryNameNoSpaces.includes(targetNormNoSpaces) ||
-                entryNameNoSpaces.includes(targetNoSpaces) ||
-                entryCodeNoSpaces.includes(targetNormNoSpaces) ||
-                entryCodeNoSpaces.includes(targetNoSpaces)) {
+            if (entryNameLower === targetNormLower || entryCodeLower === targetNormLower ||
+                entryNameLower === targetRawLower || entryCodeLower === targetRawLower ||
+                entryNameLower.includes(targetNormLower) || entryCodeLower.includes(targetNormLower) ||
+                entryNameNoSpaces.includes(targetNormNoSpaces) || entryCodeNoSpaces.includes(targetNormNoSpaces)) {
               targetEntry = entry;
               break;
             }
@@ -3244,42 +3237,60 @@ You can ask me:
               ? `Paumanhin, hindi ko makita ang kursong "${targetCourseRaw}" sa aming database ng curriculum. Pakisuri ang tamang pangalan o code ng kursong ito.`
               : `Sorry, I could not find a course matching "${targetCourseRaw}" in the current curriculum data. Please verify the exact course name or code and try again.`;
           } else {
-            const prerequisites = targetEntry.prerequisites || [];
-            let isPrerequisite = false;
-
-            // Check if failed course is in prerequisites with fuzzy matching
+            // 2. Resolve the Failed Course to its Course Code (Course B)
+            let failedEntry = null;
             const failedRawLower = failedCourseRaw.toLowerCase();
             const failedNormLower = failedNormalized.toLowerCase();
+            const failedNoSpaces = failedCourseRaw.replace(/\s+/g, '').toLowerCase();
+            const failedNormNoSpaces = failedNormalized.replace(/\s+/g, '').toLowerCase();
 
-            for (const prereq of prerequisites) {
-              const prereqLower = prereq.toLowerCase();
-              const prereqParts = prereq.split(' – ');
-              const prereqName = prereqParts[1] || prereq;
-              const prereqCode = prereqParts[0] || '';
-              const prereqNameLower = prereqName.toLowerCase();
-              const prereqCodeLower = prereqCode.toLowerCase();
+            for (const entry of curriculumEntries) {
+              const entryNameLower = entry.subjectName.toLowerCase();
+              const entryCodeLower = entry.courseCode.toLowerCase();
+              const entryNameNoSpaces = entryNameLower.replace(/\s+/g, '');
+              const entryCodeNoSpaces = entryCodeLower.replace(/\s+/g, '');
 
-              if (prereqNameLower.includes(failedNormLower) ||
-                  prereqNameLower.includes(failedRawLower) ||
-                  prereqCodeLower.includes(failedNormLower) ||
-                  prereqCodeLower.includes(failedRawLower) ||
-                  prereqLower.includes(failedNormLower) ||
-                  prereqLower.includes(failedRawLower)) {
-                isPrerequisite = true;
+              if (entryNameLower === failedNormLower || entryCodeLower === failedNormLower ||
+                  entryNameLower === failedRawLower || entryCodeLower === failedRawLower ||
+                  entryNameLower.includes(failedNormLower) || entryCodeLower.includes(failedNormLower) ||
+                  entryNameNoSpaces.includes(failedNormNoSpaces) || entryCodeNoSpaces.includes(failedNormNoSpaces)) {
+                failedEntry = entry;
                 break;
               }
             }
 
-            let response = '';
+            const prerequisites = targetEntry.prerequisites || [];
+            let isPrerequisite = false;
+            let displayFailedName = failedEntry 
+              ? `${failedEntry.courseCode} – ${failedEntry.subjectName}` 
+              : failedCourseRaw;
 
+            // 3. Check if failed course is in prerequisites
+            if (failedEntry) {
+              const failedCode = failedEntry.courseCode.toLowerCase();
+              isPrerequisite = prerequisites.some(p => p.toLowerCase() === failedCode);
+            }
+
+            // Fallback: name matching in prerequisites list (in case DB stores names or mixed)
+            if (!isPrerequisite) {
+              for (const prereq of prerequisites) {
+                const prereqLower = prereq.toLowerCase();
+                if (prereqLower.includes(failedNormLower) || prereqLower.includes(failedRawLower)) {
+                  isPrerequisite = true;
+                  break;
+                }
+              }
+            }
+
+            let response = '';
             if (isPrerequisite) {
               response = userLanguage === 'fil'
-                ? `❌ **Hindi**, hindi ka maaaring kumuha ng **${targetEntry.subjectName}** kung bumagsak ka sa **${failedCourseRaw}**.\n\nIto ay dahil ang **${failedCourseRaw}** ay isa sa mga kinakailangang prerequisite para sa **${targetEntry.subjectName}**. Kailangan mong pumasa sa lahat ng prerequisite subjects bago mag-enroll.\n\n`
-                : `❌ **No**, you cannot take **${targetEntry.subjectName}** if you failed **${failedCourseRaw}**.\n\nThis is because **${failedCourseRaw}** is one of the required prerequisites for **${targetEntry.subjectName}**. You must pass all prerequisite subjects before enrolling.\n\n`;
+                ? `❌ **Hindi**, hindi ka maaaring kumuha ng **${targetEntry.subjectName}** kung bumagsak ka sa **${displayFailedName}**.\n\nIto ay dahil ang **${displayFailedName}** ay isa sa mga kinakailangang prerequisite para sa **${targetEntry.subjectName}**. Kailangan mong pumasa sa lahat ng prerequisite subjects bago mag-enroll.\n\n`
+                : `❌ **No**, you cannot take **${targetEntry.subjectName}** if you failed **${displayFailedName}**.\n\nThis is because **${displayFailedName}** is one of the required prerequisites for **${targetEntry.subjectName}**. You must pass all prerequisite subjects before enrolling.\n\n`;
             } else {
               response = userLanguage === 'fil'
-                ? `✅ **Oo**, maaari kang kumuha ng **${targetEntry.subjectName}** kahit bumagsak ka sa **${failedCourseRaw}**.\n\nAng **${failedCourseRaw}** ay **hindi** kasama sa mga prerequisites ng **${targetEntry.subjectName}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.\n\n`
-                : `✅ **Yes**, you can take **${targetEntry.subjectName}** even if you failed **${failedCourseRaw}**.\n\n**${failedCourseRaw}** is **not** among the prerequisites for **${targetEntry.subjectName}**, so failing it does not block you from enrolling.\n\n`;
+                ? `✅ **Oo**, maaari kang kumuha ng **${targetEntry.subjectName}** kahit bumagsak ka sa **${displayFailedName}**.\n\nAng **${displayFailedName}** ay **hindi** kasama sa mga prerequisites ng **${targetEntry.subjectName}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.\n\n`
+                : `✅ **Yes**, you can take **${targetEntry.subjectName}** even if you failed **${displayFailedName}**.\n\n**${displayFailedName}** is **not** among the prerequisites for **${targetEntry.subjectName}**, so failing it does not block you from enrolling.\n\n`;
             }
 
             if (prerequisites.length > 0) {
