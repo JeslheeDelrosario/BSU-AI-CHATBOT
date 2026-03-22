@@ -3173,6 +3173,17 @@ You can ask me:
             'vector calculus': 'Vector Calculus',
             'partial differential equations': 'Partial Differential Equations',
             'ordinary differential equations': 'Ordinary Differential Equations',
+            // BSU specific mappings
+            'ths 101': 'Thesis I',
+            'ths 102': 'Thesis II',
+            'ths 103': 'Thesis III',
+            'ths 104': 'Thesis IV',
+            'mat 204a': 'Linear Algebra',
+            'mat 207': 'Abstract Algebra',
+            'mcs 102a': 'Programming I',
+            'mcs 103a': 'Programming II',
+            'mcs 104a': 'Data Structures',
+            'mcs 201a': 'Algorithms',
           };
           return map[s.toLowerCase()] ?? s;
         }
@@ -3263,20 +3274,35 @@ You can ask me:
 
             if (isPrerequisite) {
               response = userLanguage === 'fil'
-                ? `Hindi, hindi ka maaaring kumuha ng ${targetEntry.subjectName} kung bumagsak ka sa ${failedCourseRaw}.\n\nIto ay dahil ang ${failedCourseRaw} ay isa sa mga kinakailangang prerequisite para sa ${targetEntry.subjectName}. Dapat mong pasahan ang lahat ng prerequisite subjects bago mag-enroll.\n\n`
-                : `No, you cannot take ${targetEntry.subjectName} if you failed ${failedCourseRaw}.\n\nThis is because ${failedCourseRaw} is one of the required prerequisites for ${targetEntry.subjectName}. You must pass all prerequisite subjects before enrolling.\n\n`;
+                ? `❌ **Hindi**, hindi ka maaaring kumuha ng **${targetEntry.subjectName}** kung bumagsak ka sa **${failedCourseRaw}**.\n\nIto ay dahil ang **${failedCourseRaw}** ay isa sa mga kinakailangang prerequisite para sa **${targetEntry.subjectName}**. Kailangan mong pumasa sa lahat ng prerequisite subjects bago mag-enroll.\n\n`
+                : `❌ **No**, you cannot take **${targetEntry.subjectName}** if you failed **${failedCourseRaw}**.\n\nThis is because **${failedCourseRaw}** is one of the required prerequisites for **${targetEntry.subjectName}**. You must pass all prerequisite subjects before enrolling.\n\n`;
             } else {
               response = userLanguage === 'fil'
-                ? `Oo, maaari kang kumuha ng ${targetEntry.subjectName} kahit bumagsak ka sa ${failedCourseRaw}.\n\nAng ${failedCourseRaw} ay hindi prerequisite ng ${targetEntry.subjectName}.\n\n`
-                : `Yes, you can take ${targetEntry.subjectName} even if you failed ${failedCourseRaw}.\n\n${failedCourseRaw} is not a prerequisite for ${targetEntry.subjectName}.\n\n`;
+                ? `✅ **Oo**, maaari kang kumuha ng **${targetEntry.subjectName}** kahit bumagsak ka sa **${failedCourseRaw}**.\n\nAng **${failedCourseRaw}** ay **hindi** kasama sa mga prerequisites ng **${targetEntry.subjectName}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.\n\n`
+                : `✅ **Yes**, you can take **${targetEntry.subjectName}** even if you failed **${failedCourseRaw}**.\n\n**${failedCourseRaw}** is **not** among the prerequisites for **${targetEntry.subjectName}**, so failing it does not block you from enrolling.\n\n`;
             }
 
             if (prerequisites.length > 0) {
+              // Bulk-fetch names for all prereq codes in one query for better display
+              const prereqEntries = await prisma.curriculumEntry.findMany({
+                where: {
+                  courseCode: { in: prerequisites },
+                },
+                select: { courseCode: true, subjectName: true },
+                distinct: ["courseCode"],
+              });
+
+              const codeToName = new Map(
+                prereqEntries.map((e) => [e.courseCode, e.subjectName]),
+              );
+
               response += userLanguage === 'fil'
-                ? `Narito ang mga prerequisites para sa ${targetEntry.subjectName}:\n\n`
-                : `Here are the prerequisites for ${targetEntry.subjectName}:\n\n`;
-              for (const prereq of prerequisites) {
-                response += `• ${prereq}\n`;
+                ? `**Mga Prerequisites ng ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n`
+                : `**Prerequisites for ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n`;
+              
+              for (const code of prerequisites) {
+                const name = codeToName.get(code) || "";
+                response += name ? `• ${code} – ${name}\n` : `• ${code}\n`;
               }
             } else {
               response += userLanguage === 'fil'
