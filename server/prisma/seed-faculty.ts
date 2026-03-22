@@ -4,6 +4,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const facultyData = [
+  // Leadership Positions
+  { surname: 'Del Rosario', firstName: 'Maria Cristina', middleInitial: 'D.', position: 'Dean', department: 'College of Science' },
+  { surname: 'Santos', firstName: 'Juan Carlos', middleInitial: 'M.', position: 'Associate Dean', department: 'College of Science' },
+  { surname: 'Reyes', firstName: 'Carmelita', middleInitial: 'A.', position: 'Chairperson, Mathematics Department', department: 'Mathematics' },
+  { surname: 'Garcia', firstName: 'Roberto', middleInitial: 'P.', position: 'Chairperson, Science Department', department: 'Science' },
+  { surname: 'Lim', firstName: 'Teresita', middleInitial: 'V.', position: 'Program Chair, BS Mathematics', department: 'Mathematics' },
+  { surname: 'Mendoza', firstName: 'Eduardo', middleInitial: 'S.', position: 'Program Chair, BS Biology', department: 'Science' },
+  
   // Mathematics Faculty
   { surname: 'Amores', firstName: 'Minerva', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },
   { surname: 'Angeles', firstName: 'Deo Stephanie', middleInitial: 'R.', position: 'Faculty', department: 'Mathematics' },

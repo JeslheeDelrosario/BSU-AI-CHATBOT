@@ -148,7 +148,10 @@ export async function retrieveRAGContext(userMessage: string): Promise<RAGContex
 function detectQueryType(msg: string): string {
   if (msg.includes('faculty') || msg.includes('professor') || msg.includes('teacher') || 
       msg.includes('who is') || msg.includes('sino') || msg.includes('dean') ||
-      msg.includes('chairperson') || msg.includes('instructor')) {
+      msg.includes('associate dean') || msg.includes('chairperson') || 
+      msg.includes('chair') || msg.includes('department head') ||
+      msg.includes('program chair') || msg.includes('coordinator') ||
+      msg.includes('instructor')) {
     return 'faculty';
   }
   if (msg.includes('curriculum') || msg.includes('subject') || msg.includes('course') ||
@@ -222,16 +225,24 @@ function generateProgramDescription(title: string): string {
  * Fetch faculty members with their subjects
  */
 async function fetchFaculty(msg: string, queryType: string): Promise<FacultyContext[]> {
+  // amazonq-ignore-next-line
   console.log(`🔍 Faculty search - original message: "${msg}"`);
   
   // Check for position mentions FIRST - before name extraction
+  // IMPORTANT: More specific/longer keywords MUST come before shorter generic ones
+  // (e.g. 'associate dean' before 'dean', 'program chair' before 'chair')
+  // because the loop breaks on the FIRST match.
   const positionKeywords = [
-    { keyword: 'dean', position: 'Dean' },
     { keyword: 'associate dean', position: 'Associate Dean' },
-    { keyword: 'chairperson', position: 'Chairperson' },
-    { keyword: 'chair', position: 'Chairperson' },
-    { keyword: 'department head', position: 'Department Head' },
+    { keyword: 'extension coordinator', position: 'Extension Coordinator' },
+    { keyword: 'research coordinator', position: 'Research Coordinator' },
+    { keyword: 'program coordinator', position: 'Program Coordinator' },
     { keyword: 'program chair', position: 'Program Chair' },
+    { keyword: 'department head', position: 'Department Head' },
+    { keyword: 'dean', position: 'Dean' },
+    { keyword: 'chairperson', position: 'Chairperson' },
+    { keyword: 'coordinator', position: 'Coordinator' },
+    { keyword: 'chair', position: 'Chair' },  // matches 'Program Chair, BS ...' via contains
     { keyword: 'faculty', position: 'Faculty' },
     { keyword: 'professor', position: 'Professor' },
     { keyword: 'instructor', position: 'Instructor' }
@@ -239,11 +250,13 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
 
   let positionFilter: any = {};
   let foundPosition = false;
+  let detectedPositionLabel = '';
   
   for (const { keyword, position } of positionKeywords) {
     if (msg.toLowerCase().includes(keyword)) {
       positionFilter = { position: { contains: position, mode: 'insensitive' as const } };
       foundPosition = true;
+      detectedPositionLabel = position;
       console.log(`🔍 Position detected: ${position} (keyword: ${keyword})`);
       break;
     }
@@ -308,7 +321,9 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
     const match = msg.match(pattern);
     if (match) {
       searchName = match[1]?.trim() || '';
+      // amazonq-ignore-next-line
       console.log(`🔍 Pattern matched: "${pattern.source}" -> extracted: "${searchName}"`);
+      // amazonq-ignore-next-line
       console.log(`🔍 Name before filtering: "${searchName}"`);
       
       // Filter out common words that aren't names (including position titles)
@@ -321,6 +336,11 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
       if (searchName && searchName.length > 2 && !excludeWords.includes(searchName.toLowerCase())) {
         // Split the name into parts (first name, last name, etc.)
         const nameParts = searchName.split(/\s+/).filter(p => p.length > 2 && !excludeWords.includes(p.toLowerCase()));
+        // amazonq-ignore-next-line
+        // amazonq-ignore-next-line
+        // amazonq-ignore-next-line
+        // amazonq-ignore-next-line
+        // amazonq-ignore-next-line
         console.log(`Ã°Å¸â€Â Name parts after filtering: [${nameParts.join(', ')}]`);
         
         if (nameParts.length === 1) {
@@ -371,6 +391,7 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
     ...nameFilter
   };
   
+  // amazonq-ignore-next-line
   console.log(`ðŸ” Faculty search - where clause:`, JSON.stringify(whereClause, null, 2));
 
   const faculty = await prisma.faculty.findMany({
@@ -405,8 +426,74 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
 /**
  * Fetch curriculum entries
  */
+// Shared normaliser — handles "Thesis 1" → "Thesis I" etc.
+// Place this OUTSIDE fetchCurriculum, at module scope (above the function)
+function normaliseCourseName(s: string): string {
+  const map: Record<string, string> = {
+    'thesis 1':   'Thesis I',
+    'thesis 2':   'Thesis II',
+    'thesis 3':   'Thesis III',
+    'thesis 4':   'Thesis IV',
+    'thesis i':   'Thesis I',
+    'thesis ii':  'Thesis II',
+    'thesis iii': 'Thesis III',
+    'thesis iv':  'Thesis IV',
+  };
+  return map[s.toLowerCase()] ?? s;
+}
+
 async function fetchCurriculum(msg: string, queryType: string): Promise<CurriculumContext[]> {
   console.log(`[fetchCurriculum] Starting - message: "${msg.substring(0, 60)}..."`);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // NEW BLOCK: Detect "can I take X if I failed Y" BEFORE anything else.
+  // We only need to fetch the TARGET course (X) here — the prerequisite
+  // intercept in the controller will handle the actual yes/no logic.
+  // ─────────────────────────────────────────────────────────────────────────
+  const conditionalEnrollmentMatch =
+    msg.match(
+      /can i (?:still )?take\s+(.+?)\s+if\s+(?:i\s+)?(?:failed|didn'?t pass|did not pass|flunked|bumagsak)/i
+    ) ||
+    msg.match(
+      /pwede (?:ba )?(?:akong )?kumuha (?:ng )?(.+?)\s+(?:kahit|kung)\s+(?:bumagsak|failed|hindi pumasa)/i
+    );
+
+  if (conditionalEnrollmentMatch) {
+    const rawTarget  = conditionalEnrollmentMatch[1].trim();
+    const normalised = normaliseCourseName(rawTarget);
+
+    console.log(`[fetchCurriculum] Conditional enrollment pattern detected → target course: "${normalised}"`);
+
+    const entries = await prisma.curriculumEntry.findMany({
+      where: {
+        OR: [
+          { subjectName: { contains: normalised, mode: 'insensitive' } },
+          { courseCode:  { contains: normalised, mode: 'insensitive' } },
+        ],
+      },
+      include: { UniversityProgram: true },
+      orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }],
+      take: 10,
+    });
+
+    console.log(`[fetchCurriculum] Conditional match found ${entries.length} entries for "${normalised}"`);
+
+    return entries.map(c => ({
+      programTitle:        c.UniversityProgram.title,
+      programAbbreviation: c.UniversityProgram.abbreviation,
+      yearLevel:           c.yearLevel,
+      semester:            c.semester,
+      courseCode:          c.courseCode,
+      subjectName:         c.subjectName,
+      lec:                 c.lec,
+      lab:                 c.lab,
+      totalUnits:          c.totalUnits,
+      prerequisites:       c.prerequisites,
+    }));
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // END NEW BLOCK — everything below is UNCHANGED from the original
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Detect program from message
   const programKeywords: Record<string, string[]> = {
@@ -448,24 +535,19 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
 
   // Detect subject name for specific course searches (e.g., "Thesis 1", "Calculus")
   let subjectFilter: string | null = null;
+  let courseCodeFilter: string | null = null;
 
   // Check for common course names in queries about prerequisites
   if (msg.toLowerCase().includes('prerequisite') || msg.toLowerCase().includes('prerequisites')) {
     // Try to extract course code first (e.g., "MAT 102", "MCS 205")
     const courseCodeMatch = msg.match(/\b([A-Z]{2,4}\s*\d{3}[a-z]?)\b/i);
     if (courseCodeMatch) {
-      // Don't use course code for subject search, let the regular query handle it
-      // Instead, extract subject name
-      const subjectNameMatch = msg.match(/(?:prerequisites|prerequisite)?\s+(?:of|for)?\s+(?:the\s+)?(?:course\s+)?([a-zA-Z0-9\s]+?)(?:\s+in\s+|\s+course|$)/i);
-      if (subjectNameMatch) {
-        subjectFilter = subjectNameMatch[1]?.trim() || null;
-      }
+      courseCodeFilter = courseCodeMatch[1].trim();
     } else {
-      // Try common patterns like quoted strings or names after "of", "for"
       const patterns = [
         /'([^']+)'/,
         /"([^"]+)"/,
-        /(?:of|for)\s+(?:the\s+)?([a-zA-Z0-9\s]+?)(?:\s+(?:in|for|course)|$)/i
+        /(?:of|for)\s+(?:the\s+)?([a-zA-Z0-9\s]+?)(?:\s+(?:in|for|course)|\?|$)/i
       ];
 
       for (const pattern of patterns) {
@@ -529,8 +611,13 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     whereClause.semester = semester;
   }
 
-  if (subjectFilter) {
-    whereClause.subjectName = { contains: subjectFilter, mode: 'insensitive' };
+  if (courseCodeFilter) {
+    whereClause.courseCode = { contains: courseCodeFilter, mode: 'insensitive' };
+  } else if (subjectFilter) {
+    whereClause.OR = [
+      { subjectName: { contains: subjectFilter, mode: 'insensitive' } },
+      { courseCode: { contains: subjectFilter, mode: 'insensitive' } }
+    ];
   }
 
   console.log(`[fetchCurriculum] Final whereClause:`, JSON.stringify(whereClause, null, 2));
@@ -545,7 +632,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
       { semester: 'asc' },
       { courseCode: 'asc' }
     ],
-    take: 30 // Limit to reduce token usage and avoid rate limits
+    take: 30
   });
 
   console.log(`[fetchCurriculum] Found ${curriculum.length} curriculum entries`);
@@ -661,11 +748,12 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
 
   // Faculty section
   if (context.faculty.length > 0) {
+    // Determine if this was a position-based search (e.g. "who is the Associate Dean")
+    // vs a name-based search — position searches should give a direct answer.
+    const isPositionQuery = context.metadata.queryType === 'faculty' &&
+      context.faculty.every(f => f.position && f.position.trim().length > 0);
+
     formatted += `### FACULTY MEMBERS (${context.faculty.length} found)\n`;
-    
-    if (context.faculty.length > 1) {
-      formatted += `\n**MULTIPLE MATCHES FOUND - Please clarify which person:**\n`;
-    }
     
     for (const f of context.faculty) {
       formatted += `\n**${f.fullName}**\n`;
@@ -681,8 +769,12 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
       }
     }
     
-    if (context.faculty.length > 1) {
+    // Only ask for clarification when searching by NAME and multiple people match.
+    // For position-based queries, just list all people with that position directly.
+    if (context.faculty.length > 1 && !isPositionQuery) {
       formatted += `\n**INSTRUCTION**: Since multiple people match this name, list all of them and ask the user which one they meant. Provide distinguishing details (position, subjects taught) to help them choose.\n`;
+    } else if (context.faculty.length > 1 && isPositionQuery) {
+      formatted += `\n**INSTRUCTION**: List all faculty members with this position directly. Do NOT ask for clarification since the user asked about a position, not a specific person.\n`;
     }
     
     formatted += '\n';

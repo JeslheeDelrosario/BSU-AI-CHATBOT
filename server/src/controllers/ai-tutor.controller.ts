@@ -1,14 +1,14 @@
-// server/src/controllers/ai-tutor.controller.ts
+﻿// server/src/controllers/ai-tutor.controller.ts
 // STRICT RAG-BASED AI TUTOR - Only answers from database knowledge
 import { Response } from 'express';
 import { AIInteractionType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../lib/prisma';
-import { 
-  generateSmartSuggestions, 
-  generateGreeting, 
-  getDefaultSuggestions 
+import {
+  generateSmartSuggestions,
+  generateGreeting,
+  getDefaultSuggestions
 } from '../services/markov-suggestions.service';
 import { generateChatTitle } from '../services/title-generator.service';
 import {
@@ -54,30 +54,35 @@ try {
 
 // OpenAI removed - using only Gemini AI (free and reliable)
 
+// Sanitize user input before logging to prevent CWE-117 log injection
+const sanitizeLog = (value: string, maxLen = 120): string =>
+  String(value).replace(/[\r\n\t]/g, ' ').substring(0, maxLen);
+
 // STRICT RAG-BASED AI Response Generator
 // CRITICAL: AI must ONLY answer based on database context provided
 const generateAIResponse = async (
-  userMessage: string, 
+  userMessage: string,
   ragContext: RAGContext,
-  lastInteraction?: {userMessage: string; aiResponse: string} | null,
+  lastInteraction?: { userMessage: string; aiResponse: string } | null,
   language: string = 'en',
-  conversationHistory: Array<{role: string; content: string}> = []
+  conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<string> => {
-  console.log('[generateAIResponse] Starting with message:', userMessage.substring(0, 100));
+  console.log('[generateAIResponse] Starting with message:', sanitizeLog(userMessage));
   console.log('[generateAIResponse] RAG context programs:', ragContext?.programs?.length || 0);
   console.log('[generateAIResponse] Language:', language);
-  
+
   try {
     // Language instruction based on user preference
-    const languageInstruction = language === 'fil' 
-      ? `
+    const languageInstruction =
+      language === "fil"
+        ? `
 ## CRITICAL LANGUAGE REQUIREMENT
 You MUST respond ENTIRELY in Filipino (Tagalog). All your responses, explanations, questions, and information must be in Filipino.
 - Use natural, conversational Filipino
 - Technical terms can remain in English but explain them in Filipino
 - Be warm and friendly using Filipino expressions
 `
-      : `
+        : `
 ## LANGUAGE REQUIREMENT
 Respond in clear, professional English.
 `;
@@ -106,22 +111,47 @@ ${languageInstruction}
 
 ${databaseContext}
 
-${conversationHistory.length > 0 ? `## CONVERSATION CONTEXT:
-${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.substring(0, 300)}`).join('\n')}
-` : ''}`.trim();
+${
+  conversationHistory.length > 0
+    ? `## CONVERSATION CONTEXT:
+${conversationHistory
+  .slice(-4)
+  .map(
+    (m) =>
+      `${m.role === "user" ? "User" : "AI"}: ${m.content.substring(0, 300)}`,
+  )
+  .join("\n")}
+`
+    : ""
+}`.trim();
 
     const lowerMsg = userMessage.toLowerCase();
 
     // Detect simple greetings and respond appropriately
-    const simpleGreetings = ['hi', 'hello', 'hey', 'kumusta', 'kamusta', 'musta', 'good morning', 'good afternoon', 'good evening', 'magandang umaga', 'magandang hapon', 'magandang gabi'];
-    const isSimpleGreeting = simpleGreetings.some(greeting => {
+    const simpleGreetings = [
+      "hi",
+      "hello",
+      "hey",
+      "kumusta",
+      "kamusta",
+      "musta",
+      "good morning",
+      "good afternoon",
+      "good evening",
+      "magandang umaga",
+      "magandang hapon",
+      "magandang gabi",
+    ];
+    const isSimpleGreeting = simpleGreetings.some((greeting) => {
       const msg = lowerMsg.trim();
-      return msg === greeting || msg === greeting + '!' || msg === greeting + '?';
+      return (
+        msg === greeting || msg === greeting + "!" || msg === greeting + "?"
+      );
     });
 
     if (isSimpleGreeting && !lastInteraction) {
       // First message is a simple greeting - respond warmly
-      if (language === 'fil') {
+      if (language === "fil") {
         return `Kumusta! 👋 Ako si **TISA**, ang iyong AI tutor para sa Bulacan State University – College of Science.\n\n**Paano kita matutulungan ngayong araw?** Maaari akong magbigay ng impormasyon tungkol sa:\n• Mga programa at kurikulum\n• Faculty members\n• Admission requirements\n• Career opportunities\n• At marami pang iba!\n\nMagtanong lang! 😊`;
       } else {
         return `Hello! 👋 I'm **TISA**, your AI tutor for Bulacan State University – College of Science.\n\n**How can I help you today?** I can provide information about:\n• Programs and curriculum\n• Faculty members\n• Admission requirements\n• Career opportunities\n• And much more!\n\nFeel free to ask me anything! 😊`;
@@ -129,18 +159,18 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
     }
 
     // Build messages for OpenAI
-    const messages: Array<{role: 'user' | 'assistant', content: string}> = [
-      { role: 'system' as any, content: TISA_SYSTEM_PROMPT }
+    const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+      { role: "system" as any, content: TISA_SYSTEM_PROMPT },
     ];
 
     // Add only the last interaction if available
     if (lastInteraction) {
-      messages.push({ role: 'user', content: lastInteraction.userMessage });
-      messages.push({ role: 'assistant', content: lastInteraction.aiResponse });
+      messages.push({ role: "user", content: lastInteraction.userMessage });
+      messages.push({ role: "assistant", content: lastInteraction.aiResponse });
     }
 
     // Add current user message
-    messages.push({ role: 'user', content: userMessage });
+    messages.push({ role: "user", content: userMessage });
 
     // Detect GENERAL faculty list queries (e.g., "who are the faculty members?", "show me faculty", "list faculty")
     const generalFacultyPatterns = [
@@ -150,40 +180,51 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
       /faculty\s+(members|list)/i,
       /all\s+faculty/i,
       /sino\s+ang\s+mga\s+faculty/i,
-      /mga\s+faculty\s+members/i
+      /mga\s+faculty\s+members/i,
     ];
 
-    const isDepartmentQuery = /mathematics|math|computer\s+science|cs|biology|bio|food\s+tech|environmental|medical\s+tech|science\s+department/i.test(lowerMsg);
-    const isGeneralFacultyQuery = generalFacultyPatterns.some(pattern => pattern.test(lowerMsg));
+    const isDepartmentQuery =
+      /mathematics|math|computer\s+science|cs|biology|bio|food\s+tech|environmental|medical\s+tech|science\s+department/i.test(
+        lowerMsg,
+      );
+    const isGeneralFacultyQuery = generalFacultyPatterns.some((pattern) =>
+      pattern.test(lowerMsg),
+    );
 
-    if (isGeneralFacultyQuery || (isDepartmentQuery && /faculty|professor|instructor|teacher/i.test(lowerMsg))) {
+    if (
+      isGeneralFacultyQuery ||
+      (isDepartmentQuery &&
+        /faculty|professor|instructor|teacher/i.test(lowerMsg))
+    ) {
       // Get all COS faculty
       const allFaculty = await prisma.faculty.findMany({
         where: {
-          college: { startsWith: 'College of Science', mode: 'insensitive' }
+          college: { startsWith: "College of Science", mode: "insensitive" },
         },
-        orderBy: [
-          { position: 'asc' },
-          { lastName: 'asc' }
-        ]
+        orderBy: [{ position: "asc" }, { lastName: "asc" }],
       });
 
       if (allFaculty.length === 0) {
-        return language === 'fil'
+        return language === "fil"
           ? `Paumanhin, wala pa akong impormasyon tungkol sa faculty members ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
           : `I apologize, but I don't have information about faculty members in the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
       }
 
       // Deduplicate faculty by full name (keep entry with most complete email)
-      const facultyMap = new Map<string, typeof allFaculty[0]>();
-      allFaculty.forEach(f => {
-        const fullName = `${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}`.toLowerCase().trim();
+      const facultyMap = new Map<string, (typeof allFaculty)[0]>();
+      allFaculty.forEach((f) => {
+        const fullName =
+          `${f.firstName}${f.middleName ? " " + f.middleName : ""} ${f.lastName}`
+            .toLowerCase()
+            .trim();
         const existing = facultyMap.get(fullName);
-        
+
         // Keep the entry with the more complete/standard email format
-        if (!existing || 
-            (f.email && !existing.email) || 
-            (f.email && existing.email && f.email.length < existing.email.length)) {
+        if (
+          !existing ||
+          (f.email && !existing.email) ||
+          (f.email && existing.email && f.email.length < existing.email.length)
+        ) {
           facultyMap.set(fullName, f);
         }
       });
@@ -192,37 +233,42 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
 
       // Group faculty by position/role
       const groupedFaculty: { [key: string]: typeof facultyList } = {};
-      facultyList.forEach(f => {
-        const role = f.position || 'Faculty';
+      facultyList.forEach((f) => {
+        const role = f.position || "Faculty";
         if (!groupedFaculty[role]) {
           groupedFaculty[role] = [];
         }
         groupedFaculty[role].push(f);
       });
 
-      let response = '';
-      
+      let response = "";
+
       // Add department-specific note if mentioned
       if (isDepartmentQuery) {
-        const deptName = lowerMsg.match(/(mathematics|math|computer\s+science|biology|food\s+tech|environmental|medical\s+tech)/i)?.[0] || 'the department';
-        response = language === 'fil'
-          ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring bisitahin ang mga opisyal na pahina sa ibaba.*\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`
-          : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please visit the official pages below.*\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`;
+        const deptName =
+          lowerMsg.match(
+            /(mathematics|math|computer\s+science|biology|food\s+tech|environmental|medical\s+tech)/i,
+          )?.[0] || "the department";
+        response =
+          language === "fil"
+            ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring bisitahin ang mga opisyal na pahina sa ibaba.*\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`
+            : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please visit the official pages below.*\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`;
       } else {
-        response = language === 'fil'
-          ? `📚 **Faculty Members ng College of Science**\n\n`
-          : `📚 **College of Science Faculty Members**\n\n`;
+        response =
+          language === "fil"
+            ? `📚 **Faculty Members ng College of Science**\n\n`
+            : `📚 **College of Science Faculty Members**\n\n`;
       }
 
       // Display faculty grouped by role with optimized formatting
       const sortedRoles = Object.keys(groupedFaculty).sort((a, b) => {
         // Dean first, then Program Coordinators, then Research Coordinator, then Faculty
-        if (a === 'Dean') return -1;
-        if (b === 'Dean') return 1;
-        if (a.includes('Program Coordinator')) return -1;
-        if (b.includes('Program Coordinator')) return 1;
-        if (a.includes('Research Coordinator')) return -1;
-        if (b.includes('Research Coordinator')) return 1;
+        if (a === "Dean") return -1;
+        if (b === "Dean") return 1;
+        if (a.includes("Program Coordinator")) return -1;
+        if (b.includes("Program Coordinator")) return 1;
+        if (a.includes("Research Coordinator")) return -1;
+        if (b.includes("Research Coordinator")) return 1;
         return a.localeCompare(b);
       });
 
@@ -231,29 +277,29 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
       let displayedCount = 0;
       let hasMore = false;
 
-      sortedRoles.forEach(role => {
+      sortedRoles.forEach((role) => {
         const facultyInRole = groupedFaculty[role];
-        
+
         // Always show leadership roles (Dean, Coordinators)
-        const isLeadership = role === 'Dean' || role.includes('Coordinator');
-        
+        const isLeadership = role === "Dean" || role.includes("Coordinator");
+
         if (isLeadership || displayedCount < MAX_DISPLAY) {
           response += `\n**${role}** (${facultyInRole.length}):\n`;
-          
+
           facultyInRole.forEach((f, idx) => {
             if (!isLeadership && displayedCount >= MAX_DISPLAY) {
               hasMore = true;
               return;
             }
-            
-            const fullName = `${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}`;
+
+            const fullName = `${f.firstName}${f.middleName ? " " + f.middleName : ""} ${f.lastName}`;
             response += `${idx + 1}. **${fullName}**\n`;
-            
+
             // Show email on separate line for better readability
             if (f.email) {
               response += `   📧 ${f.email}\n`;
             }
-            
+
             displayedCount++;
           });
         } else {
@@ -263,34 +309,243 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
 
       // Summary section
       response += `\n---\n📊 **Total Faculty**: ${facultyList.length} members`;
-      
+
       if (hasMore) {
-        response += language === 'fil'
-          ? `\n\n*Showing ${displayedCount} of ${facultyList.length} faculty members. Sabihin ang specific na pangalan para sa mas detalyadong impormasyon.*`
-          : `\n\n*Showing ${displayedCount} of ${facultyList.length} faculty members. Ask about a specific faculty member by name for detailed information.*`;
+        response +=
+          language === "fil"
+            ? `\n\n*Showing ${displayedCount} of ${facultyList.length} faculty members. Sabihin ang specific na pangalan para sa mas detalyadong impormasyon.*`
+            : `\n\n*Showing ${displayedCount} of ${facultyList.length} faculty members. Ask about a specific faculty member by name for detailed information.*`;
       }
 
-      response += language === 'fil'
-        ? `\n\n💡 **Tip**: Sabihin "who is [name]" para sa contact details at consultation schedule, o "book consultation with [name]" para mag-schedule.`
-        : `\n\n💡 **Tip**: Say "who is [name]" for contact details and consultation schedule, or "book consultation with [name]" to schedule an appointment.`;
+      response +=
+        language === "fil"
+          ? `\n\n💡 **Tip**: Sabihin "who is [name]" para sa contact details at consultation schedule, o "book consultation with [name]" para mag-schedule.`
+          : `\n\n💡 **Tip**: Say "who is [name]" for contact details and consultation schedule, or "book consultation with [name]" to schedule an appointment.`;
+
+      return response;
+    }
+
+    // Handle specific position queries dynamically using the exact list provided
+    const facultyRoles = [
+      "Dean",
+      "Associate Dean",
+      "Chairperson",
+      "Department Head, Science Department",
+      "Department Head, Mathematics Department",
+      "Program Chair, BS Mathematics",
+      "Program Chair, BS Biology",
+      "Program Chair, BS Food Technology",
+      "Program Chair, BS Environmental Science",
+      "Program Chair, BS Medical Technology",
+      "Program Coordinator, BS Food Technology",
+      "College Extension and Services Unit (CESU) Head",
+      "College Extension and Services Unit (CESU)",
+      "College Research Development Unit (CRDU) Head",
+      "College Research Development Unit (CRDU)",
+      "Extension Coordinator",
+      "Research Coordinator",
+      "Science Laboratory Technician",
+      "Student Internship Program Coordinator (SIP Coordinator)",
+      "College Clerk",
+      "Laboratory Technician",
+      "Medical Laboratory Technician",
+      "Computer Laboratory Technician",
+      "Professor, Science",
+      "Professor, Mathematics",
+      "Faculty",
+      "Faculty (Part-Time), Science",
+      "Faculty (Part-Time), Mathematics",
+      "Assistant Professor",
+      "Instructor",
+      "Lecturer",
+      "Guest Lecturer",
+    ];
+
+    // Synonyms and abbreviation normalization
+    let expandedMsg = lowerMsg;
+    const positionReplacements = [
+      { p: /\b(sip)\b/g, r: "student internship program" },
+      { p: /\b(cesu)\b/g, r: "college extension and services unit" },
+      { p: /\b(crdu)\b/g, r: "college research development unit" },
+      { p: /\b(bs bio|bio)\b/g, r: "bs biology" },
+      { p: /\b(bs mt|med tech|medical tech)\b/g, r: "bs medical technology" },
+      { p: /\b(bs ft|food tech)\b/g, r: "bs food technology" },
+      {
+        p: /\b(bs envi sci|envi sci|environmental)\b/g,
+        r: "bs environmental science",
+      },
+      { p: /\b(bs math|math)\b/g, r: "bs mathematics" },
+      { p: /\b(dept)\b/g, r: "department" },
+      { p: /\b(coord)\b/g, r: "coordinator" },
+      { p: /\b(lab)\b/g, r: "laboratory" },
+      { p: /\b(tech)\b/g, r: "technician" },
+      { p: /\b(prof)\b/g, r: "professor" },
+      { p: /\b(asst)\b/g, r: "assistant" },
+    ];
+    for (const rx of positionReplacements) {
+      expandedMsg = expandedMsg.replace(rx.p, rx.r);
+    }
+
+    const tokenize = (s: string) =>
+      Array.from(
+        new Set(
+          s
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, " ")
+            .split(/\s+/)
+            .filter((w) => w.length > 1),
+        ),
+      );
+    const msgTokens = tokenize(expandedMsg);
+    // Ignore generic tokens that might falsely trigger positions if matched alone
+    const ignoreMsgTokens = new Set([
+      "science",
+      "mathematics",
+      "college",
+      "bs",
+      "program",
+      "unit",
+      "head",
+    ]);
+
+    let bestRole = null;
+    let bestScore = 0;
+    let bestMatchCount = 0;
+
+    for (const role of facultyRoles) {
+      if (role === "Faculty") continue; // Too generic for isolated query interception
+
+      const roleTokens = tokenize(role);
+      const filteredRoleTokens = roleTokens.filter(
+        (t) => t !== "and" && t !== "of",
+      );
+      if (filteredRoleTokens.length === 0) continue;
+
+      let matchCount = 0;
+      for (const t of filteredRoleTokens) {
+        if (msgTokens.includes(t)) {
+          matchCount++;
+        }
+      }
+
+      const score = matchCount / filteredRoleTokens.length;
+
+      // Validation: match must contain non-generic tokens and be a strong overlap
+      const isMeaningfulMatch =
+        matchCount > 0 &&
+        filteredRoleTokens.some(
+          (t) => msgTokens.includes(t) && !ignoreMsgTokens.has(t),
+        );
+
+      if (
+        isMeaningfulMatch &&
+        ((filteredRoleTokens.length <= 2 && score === 1.0) || score >= 0.65)
+      ) {
+        if (
+          score > bestScore ||
+          (score === bestScore && matchCount > bestMatchCount)
+        ) {
+          bestScore = score;
+          bestMatchCount = matchCount;
+          bestRole = role;
+        }
+      }
+    }
+
+    if (bestRole) {
+      // We found a strong position match! Fetch from DB exactly for this role
+      const positionFaculty = await prisma.faculty.findMany({
+        where: {
+          college: { startsWith: "College of Science", mode: "insensitive" },
+          position: bestRole, // Exact match is preferred since we already resolved the alias conceptually
+        },
+        orderBy: [{ position: "asc" }, { lastName: "asc" }],
+      });
+
+      if (positionFaculty.length === 0) {
+        return language === "fil"
+          ? `Paumanhin, wala pa akong impormasyon tungkol sa ${bestRole} ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Website: https://www.bulsu.edu.ph/`
+          : `I apologize, but I don't have information about the ${bestRole} of the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Website: https://www.bulsu.edu.ph/`;
+      }
+
+      // Format response for position-specific query
+      let response =
+        language === "fil"
+          ? `👥 **${bestRole.toUpperCase()} ng College of Science**\n\n`
+          : `👥 **${bestRole.toUpperCase()} of the College of Science**\n\n`;
+
+      positionFaculty.forEach((f, index) => {
+        const fullName = `${f.firstName}${f.middleName ? " " + f.middleName : ""} ${f.lastName}`;
+        response += `${index + 1}. **${fullName}**\n`;
+        if (f.email) response += `   📧 Email: ${f.email}\n`;
+        if (f.officeHours) response += `   🕐 Office Hours: ${f.officeHours}\n`;
+        if (f.consultationDays && f.consultationDays.length > 0) {
+          response += `   📅 Consultation Days: ${f.consultationDays.join(", ")}\n`;
+        }
+        response += "\n";
+      });
+
+      // Add helpful tip
+      response +=
+        language === "fil"
+          ? `💡 **Tip**: Sabihin "book consultation with [name]" para mag-schedule ng consultation.`
+          : `💡 **Tip**: Say "book consultation with [name]" to schedule a consultation appointment.`;
 
       return response;
     }
 
     // Detect faculty name inquiries (e.g., "who is [name]?")
     // IMPORTANT: Exclude program-related queries to avoid false positives
-    const programKeywords = ['program', 'course', 'degree', 'curriculum', 'bs ', 'bsm ', 'bachelor', 'major', 'specialization'];
-    const isProgramQuery = programKeywords.some(keyword => lowerMsg.includes(keyword));
-    
+    const programKeywords = [
+      "program",
+      "course",
+      "degree",
+      "curriculum",
+      "bs ",
+      "bsm ",
+      "bachelor",
+      "major",
+      "specialization",
+    ];
+    const isProgramQuery = programKeywords.some((keyword) =>
+      lowerMsg.includes(keyword),
+    );
+
+    // IMPORTANT: Exclude position-title queries to avoid treating them as name searches
+    // e.g. "who is the sip coordinator" should NOT be treated as a name search
+    const positionKeywordsGuard = [
+      "dean",
+      "associate dean",
+      "chairperson",
+      "department head",
+      "program chair",
+      "program coordinator",
+      "sip coordinator",
+      "student internship",
+      "research coordinator",
+      "extension coordinator",
+      "cesu",
+      "crdu",
+      "laboratory technician",
+      "college clerk",
+      "guest lecturer",
+      "assistant professor",
+      "lecturer",
+      "instructor",
+    ];
+    const isPositionQuery = positionKeywordsGuard.some((kw) =>
+      lowerMsg.includes(kw),
+    );
+
     const nameQueryPatterns = [
       /who\s+is\s+([\w\s\.'’\-]+)/i,
       /sino\s+si\s+([\w\s\.'’\-]+)/i,
       /about\s+([\w\s\.'’\-]+)/i,
-      /tungkol\s+kay\s+([\w\s\.'’\-]+)/i
+      /tungkol\s+kay\s+([\w\s\.'’\-]+)/i,
     ];
 
-    // Only search for faculty if this is NOT a program query
-    if (!isProgramQuery) {
+    // Only search for faculty if this is NOT a program query AND NOT a position query
+    if (!isProgramQuery && !isPositionQuery) {
       for (const pattern of nameQueryPatterns) {
         const match = userMessage.match(pattern);
         if (match && match[1]) {
@@ -298,10 +553,11 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
 
           // Normalize search name by stripping common honorifics (e.g., "sir", "ma'am")
           const stripHonorifics = (s: string) => {
-            const re = /^(sir|ma'am|maam|mam|mr|mrs|ms|dr|prof(essor)?|teacher)\b[\s,\.]*/i;
+            const re =
+              /^(sir|ma'am|maam|mam|mr|mrs|ms|dr|prof(essor)?|teacher)\b[\s,\.]*/i;
             let normalized = s.trim();
             while (re.test(normalized)) {
-              normalized = normalized.replace(re, '').trim();
+              normalized = normalized.replace(re, "").trim();
             }
             return normalized;
           };
@@ -309,200 +565,599 @@ ${conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'AI'}: 
           const searchName = stripHonorifics(rawSearchName);
 
           // Further clean common honorific tokens in case the regex didn't strip them (e.g., "sir ben" -> "ben")
-          const honorificTokens = ['sir', "ma'am", 'maam', 'mam', 'mr', 'mrs', 'ms', 'dr', 'prof', 'professor', 'teacher'];
+          const honorificTokens = [
+            "sir",
+            "ma'am",
+            "maam",
+            "mam",
+            "mr",
+            "mrs",
+            "ms",
+            "dr",
+            "prof",
+            "professor",
+            "teacher",
+          ];
           const cleanedName = searchName
             .split(/\s+/)
-            .filter(token => token && !honorificTokens.includes(token.toLowerCase()))
-            .join(' ');
+            .filter(
+              (token) =>
+                token && !honorificTokens.includes(token.toLowerCase()),
+            )
+            .join(" ");
 
           // Debug logging for troubleshooting
-          console.log('🔍 Faculty search debug:');
-          console.log('  rawSearchName:', rawSearchName);
-          console.log('  searchName after stripHonorifics:', searchName);
-          console.log('  cleanedName after token filtering:', cleanedName);
-          console.log('  honorificTokens:', honorificTokens);
+          console.log("🔍 Faculty search debug:");
+          console.log("  rawSearchName:", sanitizeLog(rawSearchName));
+          console.log("  searchName after stripHonorifics:", searchName);
+          console.log("  cleanedName after token filtering:", cleanedName);
+          console.log("  honorificTokens:", honorificTokens);
 
           // Split name into parts for multi-word names (e.g., "arcel galvez" -> ["arcel", "galvez"])
-          const nameParts = cleanedName.split(/\s+/).filter(part => part.length > 0);
-        
-        // Build search conditions
-        let searchConditions: any[] = [];
-        
-        if (nameParts.length === 1) {
-          // Single word - search in firstName, lastName, or middleName
-          const singleName = nameParts[0];
-          searchConditions = [
-            { firstName: { contains: singleName, mode: 'insensitive' } },
-            { lastName: { contains: singleName, mode: 'insensitive' } },
-            { middleName: { contains: singleName, mode: 'insensitive' } }
-          ];
-        } else if (nameParts.length >= 2) {
-          // Multiple words - assume first word is firstName, last word is lastName
-          searchConditions.push({
-            AND: [
-              { firstName: { equals: nameParts[0], mode: 'insensitive' } },
-              { lastName: { equals: nameParts[nameParts.length - 1], mode: 'insensitive' } }
-            ]
-          });
-          
-          // Also try with contains for partial matches
-          searchConditions.push({
-            AND: [
-              { firstName: { contains: nameParts[0], mode: 'insensitive' } },
-              { lastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' } }
-            ]
-          });
-          
-          // Try full name in firstName or lastName (for compound names)
-          searchConditions.push({
-            firstName: { contains: searchName, mode: 'insensitive' }
-          });
-          searchConditions.push({
-            lastName: { contains: searchName, mode: 'insensitive' }
-          });
-        }
-        
-        // Search faculty by name
-        const facultyMatches = await prisma.faculty.findMany({
-          where: {
-            college: { startsWith: 'College of Science', mode: 'insensitive' },
-            OR: searchConditions
-          },
-          orderBy: { lastName: 'asc' }
-        });
+          const nameParts = cleanedName
+            .split(/\s+/)
+            .filter((part) => part.length > 0);
 
-        if (facultyMatches.length === 1) {
-          const faculty = facultyMatches[0];
-          const fullName = `${faculty.firstName}${faculty.middleName ? ' ' + faculty.middleName : ''} ${faculty.lastName}`;
-          
-          let response = language === 'fil'
-            ? `**${fullName}** ay ${faculty.position} sa College of Science, Bulacan State University.`
-            : `**${fullName}** is a ${faculty.position} at the College of Science, Bulacan State University.`;
+          // Build search conditions
+          let searchConditions: any[] = [];
 
-          if (faculty.email) {
-            response += language === 'fil'
-              ? `\n\n📧 **Email**: ${faculty.email}`
-              : `\n\n📧 **Email**: ${faculty.email}`;
+          if (nameParts.length === 1) {
+            // Single word - search in firstName, lastName, or middleName
+            const singleName = nameParts[0];
+            searchConditions = [
+              { firstName: { contains: singleName, mode: "insensitive" } },
+              { lastName: { contains: singleName, mode: "insensitive" } },
+              { middleName: { contains: singleName, mode: "insensitive" } },
+            ];
+          } else if (nameParts.length >= 2) {
+            // Multiple words - assume first word is firstName, last word is lastName
+            searchConditions.push({
+              AND: [
+                { firstName: { equals: nameParts[0], mode: "insensitive" } },
+                {
+                  lastName: {
+                    equals: nameParts[nameParts.length - 1],
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            });
+
+            // Also try with contains for partial matches
+            searchConditions.push({
+              AND: [
+                { firstName: { contains: nameParts[0], mode: "insensitive" } },
+                {
+                  lastName: {
+                    contains: nameParts[nameParts.length - 1],
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            });
+
+            // Try full name in firstName or lastName (for compound names)
+            searchConditions.push({
+              firstName: { contains: searchName, mode: "insensitive" },
+            });
+            searchConditions.push({
+              lastName: { contains: searchName, mode: "insensitive" },
+            });
           }
 
-          if (faculty.officeHours) {
-            response += language === 'fil'
-              ? `\n🕐 **Office Hours**: ${faculty.officeHours}`
-              : `\n🕐 **Office Hours**: ${faculty.officeHours}`;
-          }
+          // Search faculty by name
+          const facultyMatches = await prisma.faculty.findMany({
+            where: {
+              college: {
+                startsWith: "College of Science",
+                mode: "insensitive",
+              },
+              OR: searchConditions,
+            },
+            orderBy: { lastName: "asc" },
+          });
 
-          if (faculty.consultationDays && faculty.consultationDays.length > 0) {
-            response += language === 'fil'
-              ? `\n📅 **Consultation Days**: ${faculty.consultationDays.join(', ')}`
-              : `\n📅 **Consultation Days**: ${faculty.consultationDays.join(', ')}`;
-            
-            // Add consultation time if available
-            if (faculty.consultationStart && faculty.consultationEnd) {
-              response += ` (${faculty.consultationStart} - ${faculty.consultationEnd})`;
+          if (facultyMatches.length === 1) {
+            const faculty = facultyMatches[0];
+            const fullName = `${faculty.firstName}${faculty.middleName ? " " + faculty.middleName : ""} ${faculty.lastName}`;
+
+            let response =
+              language === "fil"
+                ? `**${fullName}** ay ${faculty.position} sa College of Science, Bulacan State University.`
+                : `**${fullName}** is a ${faculty.position} at the College of Science, Bulacan State University.`;
+
+            if (faculty.email) {
+              response +=
+                language === "fil"
+                  ? `\n\n📧 **Email**: ${faculty.email}`
+                  : `\n\n📧 **Email**: ${faculty.email}`;
             }
-            
-            // Add booking prompt
-            response += language === 'fil'
-              ? `\n\n💡 **Tip**: Sabihin mo lang "book consultation with ${faculty.firstName}" para mag-schedule ng appointment!`
-              : `\n\n💡 **Tip**: Just say "book consultation with ${faculty.firstName}" to schedule an appointment!`;
+
+            if (faculty.officeHours) {
+              response +=
+                language === "fil"
+                  ? `\n🕐 **Office Hours**: ${faculty.officeHours}`
+                  : `\n🕐 **Office Hours**: ${faculty.officeHours}`;
+            }
+
+            if (
+              faculty.consultationDays &&
+              faculty.consultationDays.length > 0
+            ) {
+              response +=
+                language === "fil"
+                  ? `\n📅 **Consultation Days**: ${faculty.consultationDays.join(", ")}`
+                  : `\n📅 **Consultation Days**: ${faculty.consultationDays.join(", ")}`;
+
+              // Add consultation time if available
+              if (faculty.consultationStart && faculty.consultationEnd) {
+                response += ` (${faculty.consultationStart} - ${faculty.consultationEnd})`;
+              }
+
+              // Add booking prompt
+              response +=
+                language === "fil"
+                  ? `\n\n💡 **Tip**: Sabihin mo lang "book consultation with ${faculty.firstName}" para mag-schedule ng appointment!`
+                  : `\n\n💡 **Tip**: Just say "book consultation with ${faculty.firstName}" to schedule an appointment!`;
+            }
+
+            response +=
+              language === "fil"
+                ? `\n\nMay iba ka pa bang gustong malaman tungkol kay ${faculty.firstName}? Maaari mo ring sabihin "book him/her" para mag-book ng consultation.`
+                : `\n\nWould you like to know more about ${faculty.firstName}? You can also say "book him/her" to schedule a consultation.`;
+
+            return response;
+          } else if (facultyMatches.length > 1) {
+            const namesList = facultyMatches
+              .map(
+                (f) =>
+                  `• **${f.firstName}${f.middleName ? " " + f.middleName : ""} ${f.lastName}** - ${f.position}`,
+              )
+              .join("\n");
+
+            return language === "fil"
+              ? `Nakahanap ako ng ${facultyMatches.length} faculty members na may pangalang "${searchName}":\n\n${namesList}\n\nAlin sa kanila ang iyong tinutukoy?`
+              : `I found ${facultyMatches.length} faculty members with the name "${searchName}":\n\n${namesList}\n\nWhich one are you referring to?`;
+          } else {
+            return language === "fil"
+              ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
+              : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
           }
-
-          response += language === 'fil'
-            ? `\n\nMay iba ka pa bang gustong malaman tungkol kay ${faculty.firstName}? Maaari mo ring sabihin "book him/her" para mag-book ng consultation.`
-            : `\n\nWould you like to know more about ${faculty.firstName}? You can also say "book him/her" to schedule a consultation.`;
-
-          return response;
-        } else if (facultyMatches.length > 1) {
-          const namesList = facultyMatches.map(f => 
-            `• **${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}** - ${f.position}`
-          ).join('\n');
-          
-          return language === 'fil'
-            ? `Nakahanap ako ng ${facultyMatches.length} faculty members na may pangalang "${searchName}":\n\n${namesList}\n\nAlin sa kanila ang iyong tinutukoy?`
-            : `I found ${facultyMatches.length} faculty members with the name "${searchName}":\n\n${namesList}\n\nWhich one are you referring to?`;
-        } else {
-          return language === 'fil'
-            ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
-            : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
         }
       }
     }
-    }
 
-    // Detect faculty inquiries by role
-    const facultyRoles = [
-      'Dean', 'Associate Dean', 'Chairperson',
-      'Department Head, Science Department',
-      'Department Head, Mathematics Department',
-      'Program Chair, BS Mathematics',
-      'Program Chair, BS Biology',
-      'Program Chair, BS Food Technology',
-      'Program Chair, BS Environmental Science',
-      'Program Chair, BS Medical Technology',
-      'College Extension and Services Unit (CESU) Head',
-      'College Research Development Unit (CRDU) Head',
-      'Student Internship Program Coordinator',
-      'College Clerk', 'Laboratory Technician',
-      'Medical Laboratory Technician',
-      'Computer Laboratory Technician',
-      'Professor, Science', 'Professor, Mathematics',
-      'Faculty (Part-Time), Science',
-      'Faculty (Part-Time), Mathematics',
-      'Assistant Professor', 'Instructor', 'Lecturer'
-    ];
-
-    for (const role of facultyRoles) {
-      const normalizedRole = role.toLowerCase().replace(/,/g, '').replace(/\s+/g, ' ');
-      if (lowerMsg.includes(normalizedRole)) {
-        const facultyList = await prisma.faculty.findMany({
-          where: { 
-            position: role,
-            college: { startsWith: 'College of Science', mode: 'insensitive' }
-          },
-          orderBy: { lastName: 'asc' }
-        });
-
-        if (facultyList.length === 0) {
-          return `I don't have information about the ${role} for the College of Science at the moment. I recommend checking with the COS office directly or visiting the official BSU website for the most current faculty information.`;
-        }
-
-        const names = facultyList.map(f => `${f.firstName} ${f.lastName}`).join(', ');
-        const plural = facultyList.length > 1;
-        
-        return `The ${role}${plural ? 's' : ''} of the College of Science ${plural ? 'are' : 'is'} **${names}**.
-
-Would you like to know more about their office hours or how to contact them?`;
-      }
-    }
+    // (Removed redundant 'Detect faculty inquiries by role' block as it is now natively handled by the unified positional query logic above)
 
     // Detect if user is asking about careers/jobs - these should NOT trigger program disambiguation
     // Let the AI answer career questions directly using RAG context
-    const isCareerQuery = /career|job|work|employment|profession|occupation|salary|hire|industry|graduate|after finishing|after graduation|what can i (do|be|become)|where can i work/i.test(lowerMsg);
+    const isCareerQuery =
+      /career|job|work|employment|profession|occupation|salary|hire|industry|graduate|after finishing|after graduation|what can i (do|be|become)|where can i work/i.test(
+        lowerMsg,
+      );
 
     // Detect curriculum/prerequisite queries - these should also SKIP disambiguation
     // Users asking about specific courses, subjects, or prerequisites know what they want
-    const isCurriculumQuery = /prerequisite|prerequisites|subject|course|curriculum|thesis|year|semester|requirement/i.test(lowerMsg);
+    const isCurriculumQuery =
+      /prerequisite|prerequisites|subject|course|curriculum|thesis|year|semester|requirement/i.test(
+        lowerMsg,
+      );
+
     
+      // EXPLICIT PREREQUISITE QUERY INTERCEPT
+      // Handles two patterns:
+      //   1. "what are the prerequisites of/for X"
+      //   2. "can I take X if I failed/didn't pass Y"
+      // AFTER
+      if (/prerequisite|prerequisites|can i (?:still )?take|pwede (?:ba )?(?:akong )?kumuha/i.test(lowerMsg)) {
+      // ── Pattern 1: Conditional enrollment check ────────────────────────────────
+      // "Can I take <courseA> if I failed <courseB>"
+      const conditionalMatch =
+        lowerMsg.match(
+          /can i (?:still )?take\s+(.+?)\s+if\s+(?:i\s+)?(?:failed|failed to pass|didn'?t pass|did not pass|flunked|hindi pumasa|bumagsak sa?)\s+(.+?)(?:\?|$)/i,
+        ) ||
+        lowerMsg.match(
+          /pwede (?:ba )?(?:akong )?kumuha (?:ng )?(.+?)\s+(?:kahit|kung)\s+(?:bumagsak|failed|hindi pumasa)\s+(?:ako\s+)?(?:sa\s+)?(.+?)(?:\?|$)/i,
+        );
+
+      if (conditionalMatch) {
+        const rawTargetCourse = conditionalMatch[1].trim(); // course user wants to take
+        const rawFailedCourse = conditionalMatch[2].trim(); // course user failed
+
+        // ── Normalise Roman-numeral / Arabic aliases ──────────────────────────────
+        const normaliseCourseName = (s: string): string => {
+          const map: Record<string, string> = {
+            // Thesis courses
+            "thesis 1": "Thesis I",
+            "thesis 2": "Thesis II",
+            "thesis 3": "Thesis III",
+            "thesis 4": "Thesis IV",
+            "thesis i": "Thesis I",
+            "thesis ii": "Thesis II",
+            "thesis iii": "Thesis III",
+            "thesis iv": "Thesis IV",
+            // Common course name variations
+            "abstract algebra": "Abstract Algebra",
+            "linear algebra": "Linear Algebra",
+            "differential equations": "Differential Equations",
+            "calculus 1": "Calculus I",
+            "calculus 2": "Calculus II",
+            "calculus 3": "Calculus III",
+            "calculus i": "Calculus I",
+            "calculus ii": "Calculus II",
+            "calculus iii": "Calculus III",
+            "probability and statistics": "Probability and Statistics",
+            "numerical methods": "Numerical Methods",
+            "discrete mathematics": "Discrete Mathematics",
+            "mathematical analysis": "Mathematical Analysis",
+            "complex analysis": "Complex Analysis",
+            "real analysis": "Real Analysis",
+            "advanced mathematics": "Advanced Mathematics",
+            "programming 1": "Programming I",
+            "programming 2": "Programming II",
+            "data structures": "Data Structures",
+            "algorithms": "Algorithms",
+            "software engineering": "Software Engineering",
+            "database systems": "Database Systems",
+            "artificial intelligence": "Artificial Intelligence",
+            "machine learning": "Machine Learning",
+            // Additional common variations
+            "fundamental concept of mathematics": "Fundamental Concept of Mathematics",
+            "fundamental concepts of mathematics": "Fundamental Concept of Mathematics",
+            "fundamentals of mathematics": "Fundamental Concept of Mathematics",
+            "basic mathematics": "Fundamental Concept of Mathematics",
+            "college algebra": "College Algebra",
+            "trigonometry": "Trigonometry",
+            "plane trigonometry": "Plane Trigonometry",
+            "spherical trigonometry": "Spherical Trigonometry",
+            "solid geometry": "Solid Geometry",
+            "analytic geometry": "Analytic Geometry",
+            "plane geometry": "Plane Geometry",
+            "modern geometry": "Modern Geometry",
+            "euclidean geometry": "Euclidean Geometry",
+            "non-euclidean geometry": "Non-Euclidean Geometry",
+            "number theory": "Number Theory",
+            "statistical theory": "Statistical Theory",
+            "operations research": "Operations Research",
+            "actuarial mathematics": "Actuarial Mathematics",
+            "numerical analysis": "Numerical Analysis",
+            "advanced calculus": "Advanced Calculus",
+            "multivariable calculus": "Multivariable Calculus",
+            "vector calculus": "Vector Calculus",
+            "partial differential equations": "Partial Differential Equations",
+            "ordinary differential equations": "Ordinary Differential Equations",
+          };
+          return map[s.toLowerCase()] ?? s;
+        };
+
+        const targetCourseName = normaliseCourseName(rawTargetCourse);
+        const failedCourseName = normaliseCourseName(rawFailedCourse);
+
+        // ── Resolve target course from DB (name or code) ──────────────────────────
+        // Enhanced fuzzy matching for course names
+        const targetEntries = await prisma.curriculumEntry.findMany({
+          where: {
+            OR: [
+              {
+                subjectName: {
+                  contains: targetCourseName,
+                  mode: "insensitive",
+                },
+              },
+              {
+                courseCode: { contains: targetCourseName, mode: "insensitive" },
+              },
+              // Additional fuzzy matching for common variations
+              {
+                subjectName: {
+                  contains: targetCourseName.replace(/\s+/g, ''), // Remove spaces
+                  mode: "insensitive",
+                },
+              },
+              {
+                courseCode: { 
+                  contains: targetCourseName.replace(/\s+/g, ''), // Remove spaces
+                  mode: "insensitive" 
+                },
+              },
+            ],
+          },
+          include: { UniversityProgram: true },
+          take: 10, // Increased limit for better matching
+        });
+
+        if (targetEntries.length > 0) {
+          // Use the first match (most of the time they share the same prereqs across programs)
+          const targetEntry = targetEntries[0];
+          const prereqs: string[] = targetEntry.prerequisites ?? [];
+
+          // ── Resolve failed course code/name from DB ───────────────────────────
+          // We need to check whether the failed subject is IN the prerequisites list.
+          // Prerequisites are stored as course CODES (e.g. "MAT 204a").
+          // The user may type a name ("Abstract Algebra") or a code ("MAT 204a").
+          let failedEntry: { courseCode: string; subjectName: string } | null =
+            null;
+
+          const failedResults = await prisma.curriculumEntry.findMany({
+            where: {
+              OR: [
+                {
+                  subjectName: {
+                    contains: failedCourseName,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  courseCode: {
+                    contains: failedCourseName,
+                    mode: "insensitive",
+                  },
+                },
+                // Additional fuzzy matching for common variations
+                {
+                  subjectName: {
+                    contains: failedCourseName.replace(/\s+/g, ''), // Remove spaces
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  courseCode: {
+                    contains: failedCourseName.replace(/\s+/g, ''), // Remove spaces
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+            select: { courseCode: true, subjectName: true },
+            take: 5, // Increased limit for better matching
+          });
+
+          if (failedResults.length > 0) {
+            failedEntry = failedResults[0];
+          }
+
+          // ── Determine whether the failed course is a prerequisite ─────────────
+          // Enhanced matching for better accuracy
+          const isPrerequisite = prereqs.some((p) => {
+            const pLower = p.toLowerCase().trim();
+            const failedCourseLower = failedCourseName.toLowerCase().trim();
+            
+            if (failedEntry) {
+              const failedCodeLower = failedEntry.courseCode.toLowerCase();
+              const failedNameLower = failedEntry.subjectName.toLowerCase();
+              
+              return (
+                pLower === failedCodeLower ||
+                pLower.includes(failedCodeLower) ||
+                failedCodeLower.includes(pLower) ||
+                pLower.includes(failedNameLower) ||
+                failedNameLower.includes(pLower)
+              );
+            }
+            
+            // Enhanced fallback: more flexible matching
+            return (
+              pLower.includes(failedCourseLower) ||
+              failedCourseLower.includes(pLower) ||
+              pLower.replace(/\s+/g, '').includes(failedCourseLower.replace(/\s+/g, '')) ||
+              failedCourseLower.replace(/\s+/g, '').includes(pLower.replace(/\s+/g, ''))
+            );
+          });
+
+          // ── Enrich prereq list: resolve codes → "CODE – Name" ────────────────
+          let prereqDisplay: string;
+          if (prereqs.length === 0) {
+            prereqDisplay =
+              language === "fil"
+                ? "Walang prerequisites ang kursong ito."
+                : "This course has no listed prerequisites.";
+          } else {
+            // Bulk-fetch names for all prereq codes in one query
+            const prereqEntries = await prisma.curriculumEntry.findMany({
+              where: {
+                courseCode: { in: prereqs },
+              },
+              select: { courseCode: true, subjectName: true },
+              distinct: ["courseCode"],
+            });
+
+            const codeToName = new Map(
+              prereqEntries.map((e) => [e.courseCode, e.subjectName]),
+            );
+
+            prereqDisplay = prereqs
+              .map((code) => {
+                const name = codeToName.get(code);
+                return name ? `- ${code} – ${name}` : `- ${code}`;
+              })
+              .join("\n");
+          }
+
+          // ── Build response ────────────────────────────────────────────────────
+          const displayFailedName = failedEntry
+            ? `${failedEntry.courseCode} – ${failedEntry.subjectName}`
+            : rawFailedCourse;
+
+          const programNote =
+            targetEntries.length > 1
+              ? `\n*(Prerequisites shown are for ${targetEntry.UniversityProgram?.title ?? "this program"}. They may vary slightly per curriculum.)*`
+              : "";
+
+          if (isPrerequisite) {
+            return language === "fil"
+              ? `❌ **Hindi**, hindi ka maaaring kumuha ng **${targetEntry.subjectName}** kung bumagsak ka sa **${displayFailedName}**.\n\nAng **${displayFailedName}** ay isa sa mga kinakailangang prerequisite para sa **${targetEntry.subjectName}**. Kailangan mong pumasa sa lahat ng prerequisites bago mag-enroll.\n\n**Mga Prerequisites ng ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n${prereqDisplay}${programNote}`
+              : `❌ **No**, you cannot take **${targetEntry.subjectName}** if you failed **${displayFailedName}**.\n\nThis is because **${displayFailedName}** is one of the required prerequisites for **${targetEntry.subjectName}**. You must pass all prerequisite subjects before enrolling.\n\n**Prerequisites for ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n${prereqDisplay}${programNote}`;
+          } else {
+            const failedNote = failedEntry
+              ? language === "fil"
+                ? `Ang **${displayFailedName}** ay **hindi** kasama sa mga prerequisites ng **${targetEntry.subjectName}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.`
+                : `**${displayFailedName}** is **not** among the prerequisites for **${targetEntry.subjectName}**, so failing it does not block you from enrolling.`
+              : language === "fil"
+                ? `Hindi ko mahanap ang "${rawFailedCourse}" sa database, ngunit wala itong kaugnayan sa mga prerequisites ng **${targetEntry.subjectName}** batay sa available na data.`
+                : `I couldn't find "${rawFailedCourse}" in the database, but it does not appear in the prerequisites for **${targetEntry.subjectName}** based on available data.`;
+
+            return language === "fil"
+              ? `✅ **Oo**, maaari kang kumuha ng **${targetEntry.subjectName}** kahit bumagsak ka sa **${displayFailedName}**.\n\n${failedNote}\n\n**Mga Prerequisites ng ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n${prereqDisplay}${programNote}`
+              : `✅ **Yes**, you can take **${targetEntry.subjectName}** even if you failed **${displayFailedName}**.\n\n${failedNote}\n\n**Prerequisites for ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n${prereqDisplay}${programNote}`;
+          }
+        }
+        // If target course not found, fall through to Pattern 2 below
+      }
+
+      // ── Pattern 2: Plain prerequisite lookup ──────────────────────────────────
+      // "What are the prerequisites of/for X" / "prerequisites of Thesis I"
+      let targetCourseCode: string | null = null;
+      let targetSubjectName: string | null = null;
+
+      const ccMatch = lowerMsg.match(/\b([A-Z]{2,4}\s*\d{3}[a-z]?)\b/i);
+      if (ccMatch) {
+        targetCourseCode = ccMatch[1].trim();
+      } else {
+        const rawTarget = lowerMsg
+          .replace(/.*prerequisites?\s*(of|for)?\s*/i, "")
+          .trim()
+          .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, "")
+          .trim();
+
+        // Normalise number → Roman numeral aliases
+        const numberToRoman: Record<string, string> = {
+          "thesis 1": "Thesis I",
+          "thesis 2": "Thesis II",
+          "thesis 3": "Thesis III",
+          "thesis 4": "Thesis IV",
+        };
+        const normalisedTarget =
+          numberToRoman[rawTarget.toLowerCase()] ?? rawTarget;
+
+        if (normalisedTarget.length > 0) {
+          const matchingSubjects = await prisma.curriculumEntry.findMany({
+            where: {
+              subjectName: { contains: normalisedTarget, mode: "insensitive" },
+            },
+            select: { subjectName: true },
+            distinct: ["subjectName"],
+          });
+          if (matchingSubjects.length > 0) {
+            targetSubjectName = matchingSubjects[0].subjectName;
+          }
+        }
+      }
+
+      const prereqWhereClause: any = {};
+      let isQueryValid = false;
+
+      if (targetCourseCode) {
+        prereqWhereClause.courseCode = {
+          contains: targetCourseCode,
+          mode: "insensitive",
+        };
+        isQueryValid = true;
+      } else if (targetSubjectName) {
+        prereqWhereClause.subjectName = {
+          contains: targetSubjectName,
+          mode: "insensitive",
+        };
+        isQueryValid = true;
+      }
+
+      if (isQueryValid) {
+        const subjects = await prisma.curriculumEntry.findMany({
+          where: prereqWhereClause,
+          include: { UniversityProgram: true },
+          take: 10,
+        });
+
+        if (subjects.length > 0) {
+          // Collect all unique prereq codes across matched entries
+          const allPrereqCodes = [
+            ...new Set(subjects.flatMap((s) => s.prerequisites ?? [])),
+          ];
+
+          // Enrich prereq codes → names
+          const prereqEntries = await prisma.curriculumEntry.findMany({
+            where: { courseCode: { in: allPrereqCodes } },
+            select: { courseCode: true, subjectName: true },
+            distinct: ["courseCode"],
+          });
+          const codeToName = new Map(
+            prereqEntries.map((e) => [e.courseCode, e.subjectName]),
+          );
+
+          // Group by (courseCode + prereqs) to deduplicate across programs
+          const groupedSubjects: Record<string, (typeof subjects)[0]> = {};
+          const programMap: Record<string, Set<string>> = {};
+
+          for (const s of subjects) {
+            const key = `${s.courseCode.toUpperCase()}_${(s.prerequisites ?? []).join(",")}`;
+            if (!groupedSubjects[key]) {
+              groupedSubjects[key] = s;
+              programMap[key] = new Set();
+            }
+            if (s.UniversityProgram?.abbreviation) {
+              programMap[key].add(s.UniversityProgram.abbreviation);
+            } else if (s.UniversityProgram?.title) {
+              programMap[key].add(s.UniversityProgram.title);
+            }
+          }
+
+          const titleTarget = targetCourseCode || targetSubjectName;
+          let response =
+            language === "fil"
+              ? `📚 **Mga Prerequisites para sa ${titleTarget?.toUpperCase()}**\n\n`
+              : `📚 **Prerequisites for ${titleTarget?.toUpperCase()}**\n\n`;
+
+          for (const key of Object.keys(groupedSubjects)) {
+            const c = groupedSubjects[key];
+            const prereqs: string[] = c.prerequisites ?? [];
+            const programsStr =
+              Array.from(programMap[key]).join(", ") || "Various Programs";
+
+            response += `**${c.courseCode} – ${c.subjectName}** *(${programsStr})*\n`;
+
+            if (prereqs.length === 0) {
+              response +=
+                language === "fil"
+                  ? `• Walang prerequisites\n\n`
+                  : `• No prerequisites\n\n`;
+            } else {
+              for (const code of prereqs) {
+                const name = codeToName.get(code);
+                response += name ? `- ${code} – ${name}\n` : `- ${code}\n`;
+              }
+              response += "\n";
+            }
+          }
+
+          return response.trim();
+        }
+      }
+    }
+
     // Detect curriculum inquiries with context awareness, robust matching and disambiguation
     // SKIP disambiguation for career queries - let AI answer directly
-    const programs = await prisma.universityProgram.findMany({ 
-      where: { college: 'College of Science', isActive: true } 
+    const programs = await prisma.universityProgram.findMany({
+      where: { college: "College of Science", isActive: true },
     });
 
-    const normalize = (s: string) => s?.toString().toLowerCase().replace(/[^a-z0-9\s]/g, '').trim() || '';
+    const normalize = (s: string) =>
+      s
+        ?.toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .trim() || "";
 
     // Extra abbreviation aliases (common variants users might type)
     const abbrAliases: Record<string, string> = {
-      'bs bio': 'biology',
-      'bs envi sci': 'environmental science',
-      'bs envisci': 'environmental science',
-      'bs ft': 'food technology',
-      'bs as': 'applied statistics',
-      'bsm as': 'applied statistics',
-      'bsm cs': 'computer science',
-      'bsm ba': 'business applications',
-      'bs med lab sci': 'medical laboratory science',
-      'bs mt': 'medical technology'
+      "bs bio": "biology",
+      "bs envi sci": "environmental science",
+      "bs envisci": "environmental science",
+      "bs ft": "food technology",
+      "bs as": "applied statistics",
+      "bsm as": "applied statistics",
+      "bsm cs": "computer science",
+      "bsm ba": "business applications",
+      "bs med lab sci": "medical laboratory science",
+      "bs mt": "medical technology",
     };
 
     // Return an array of program candidates (may be empty)
@@ -512,7 +1167,7 @@ Would you like to know more about their office hours or how to contact them?`;
 
       for (const p of programs) {
         const title = normalize(p.title);
-        const abbr = p.abbreviation ? normalize(p.abbreviation) : '';
+        const abbr = p.abbreviation ? normalize(p.abbreviation) : "";
 
         if (abbr && (t === abbr || t.includes(abbr) || abbr.includes(t))) {
           candidates.push(p);
@@ -533,7 +1188,17 @@ Would you like to know more about their office hours or how to contact them?`;
         }
 
         // keyword-based matches (helpful for shorter user phrasing)
-        const keywords = ['computer science', 'food technology', 'environmental science', 'medical technology', 'biology', 'mathematics', 'business applications', 'applied statistics', 'medical laboratory'];
+        const keywords = [
+          "computer science",
+          "food technology",
+          "environmental science",
+          "medical technology",
+          "biology",
+          "mathematics",
+          "business applications",
+          "applied statistics",
+          "medical laboratory",
+        ];
         for (const kw of keywords) {
           if (title.includes(kw) && t.includes(kw)) {
             candidates.push(p);
@@ -542,8 +1207,8 @@ Would you like to know more about their office hours or how to contact them?`;
         }
 
         // token overlap heuristic - require >=2 tokens to reduce false positives
-        const titleTokens = title.split(/\s+/).filter(tok => tok.length > 2);
-        const tokenMatches = titleTokens.filter(tok => t.includes(tok));
+        const titleTokens = title.split(/\s+/).filter((tok) => tok.length > 2);
+        const tokenMatches = titleTokens.filter((tok) => t.includes(tok));
         if (tokenMatches.length >= 2) candidates.push(p);
       }
 
@@ -554,23 +1219,36 @@ Would you like to know more about their office hours or how to contact them?`;
     // Find candidates in current or last messages
     let candidates = findProgramCandidates(lowerMsg);
     if (candidates.length === 0 && lastInteraction) {
-      candidates = findProgramCandidates(lastInteraction.userMessage) || findProgramCandidates(lastInteraction.aiResponse);
+      candidates =
+        findProgramCandidates(lastInteraction.userMessage) ||
+        findProgramCandidates(lastInteraction.aiResponse);
     }
 
     // If multiple candidates, ask a clarifying question listing options
     // BUT skip this for career queries OR curriculum queries - let AI answer directly
     if (candidates.length > 1 && !isCareerQuery && !isCurriculumQuery) {
-      const options = candidates.map((c, i) => `${i+1}. ${c.title}${c.abbreviation ? ` (${c.abbreviation})` : ''}`).join('\n');
+      const options = candidates
+        .map(
+          (c, i) =>
+            `${i + 1}. ${c.title}${c.abbreviation ? ` (${c.abbreviation})` : ""}`,
+        )
+        .join("\n");
       return `I found a few programs that might match your question:\n${options}\n\nWhich one do you mean? Please reply with the number or program name (for example, "1" or "${candidates[0].title}").`;
     }
 
     // If exactly one candidate, select it
-    let programMatch: any | null = candidates.length === 1 ? candidates[0] : null;
+    let programMatch: any | null =
+      candidates.length === 1 ? candidates[0] : null;
 
     // If we didn't detect a program but user asked about programs generally, don't force a program match here
 
     // Improved year extraction (numeric and worded years)
-    const wordToNumber: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4 };
+    const wordToNumber: Record<string, number> = {
+      first: 1,
+      second: 2,
+      third: 3,
+      fourth: 4,
+    };
 
     const yearMatches: number[] = [];
     const numYearRegex = /(\d+)(st|nd|rd|th)?\s*year/gi;
@@ -583,14 +1261,18 @@ Would you like to know more about their office hours or how to contact them?`;
       yearMatches.push(wordToNumber[m[1].toLowerCase()]);
     }
 
-    const targetYear = yearMatches.length > 0 ? yearMatches[yearMatches.length - 1] : null;
+    const targetYear =
+      yearMatches.length > 0 ? yearMatches[yearMatches.length - 1] : null;
 
     // Only treat '2nd'/'second' as a semester when used with 'semester' or 'sem'
     let targetSem: number | null = null;
-    const semMatchNum = lowerMsg.match(/(\d+)(st|nd|rd|th)?\s*\bsem(?:ester)?\b/);
+    const semMatchNum = lowerMsg.match(
+      /(\d+)(st|nd|rd|th)?\s*\bsem(?:ester)?\b/,
+    );
     const semWordMatch = lowerMsg.match(/\b(first|second)\s*\bsem(?:ester)?\b/);
     if (semMatchNum) targetSem = parseInt(semMatchNum[1], 10);
-    else if (semWordMatch) targetSem = wordToNumber[semWordMatch[1].toLowerCase()];
+    else if (semWordMatch)
+      targetSem = wordToNumber[semWordMatch[1].toLowerCase()];
 
     // If we found exactly one program but no year specified, ask a clarifying question
     // BUT skip this for career queries or curriculum queries - let AI answer directly
@@ -605,7 +1287,7 @@ Would you like to know more about their office hours or how to contact them?`;
 
       const curriculum = await prisma.curriculumEntry.findMany({
         where: whereClause,
-        orderBy: [{ semester: 'asc' }, { courseCode: 'asc' }],
+        orderBy: [{ semester: "asc" }, { courseCode: "asc" }],
       });
 
       if (curriculum.length > 0) {
@@ -620,39 +1302,51 @@ Would you like to know more about their office hours or how to contact them?`;
         const responseParts: string[] = [];
         let grandTotal = 0;
 
-        for (const sem of Object.keys(grouped).sort((a, b) => Number(a) - Number(b))) {
+        for (const sem of Object.keys(grouped).sort(
+          (a, b) => Number(a) - Number(b),
+        )) {
           const entries = grouped[Number(sem)];
-          const totalUnits = entries.reduce((sum, e) => sum + (e.totalUnits || 0), 0);
+          const totalUnits = entries.reduce(
+            (sum, e) => sum + (e.totalUnits || 0),
+            0,
+          );
           grandTotal += totalUnits;
 
           const formattedList = entries
-            .map(e => `• **${e.courseCode}** - ${e.subjectName} (${e.totalUnits || 0} ${e.totalUnits === 1 ? 'unit' : 'units'})${e.prerequisites && e.prerequisites.length > 0 ? `\n  Prerequisites: ${e.prerequisites.join(', ')}` : ''}`)
-            .join('\n\n');
+            .map(
+              (e) =>
+                `• **${e.courseCode}** - ${e.subjectName} (${e.totalUnits || 0} ${e.totalUnits === 1 ? "unit" : "units"})${e.prerequisites && e.prerequisites.length > 0 ? `\n  Prerequisites: ${e.prerequisites.join(", ")}` : ""}`,
+            )
+            .join("\n\n");
 
-          responseParts.push(`**Year ${yearLevel} — ${Number(sem) === 1 ? '1st' : '2nd'} Semester**:\n\n${formattedList}\n\n**Total Units (sem ${sem}):** ${totalUnits}`);
+          responseParts.push(
+            `**Year ${yearLevel} — ${Number(sem) === 1 ? "1st" : "2nd"} Semester**:\n\n${formattedList}\n\n**Total Units (sem ${sem}):** ${totalUnits}`,
+          );
         }
-        
-        const contextNote = targetSem ? '' : '\n\n(Showing both semesters for the year you asked about)';
 
-        return `Here are the subjects for **${programMatch.title}** - Year ${yearLevel}:${contextNote}\n\n${responseParts.join('\n\n')}\n\n**Grand Total Units for Year ${yearLevel}:** ${grandTotal}\n\nWould you like the same breakdown for another year?`;
+        const contextNote = targetSem
+          ? ""
+          : "\n\n(Showing both semesters for the year you asked about)";
+
+        return `Here are the subjects for **${programMatch.title}** - Year ${yearLevel}:${contextNote}\n\n${responseParts.join("\n\n")}\n\n**Grand Total Units for Year ${yearLevel}:** ${grandTotal}\n\nWould you like the same breakdown for another year?`;
       } else {
-        return `I couldn't find curriculum information for **${programMatch.title}** Year ${yearLevel}${targetSem ? `, Semester ${targetSem}` : ''}. \n\nThis might be because the curriculum is not yet in the system or needs updating. I can contact the COS Registrar or show nearby years if you'd like.`;
+        return `I couldn't find curriculum information for **${programMatch.title}** Year ${yearLevel}${targetSem ? `, Semester ${targetSem}` : ""}. \n\nThis might be because the curriculum is not yet in the system or needs updating. I can contact the COS Registrar or show nearby years if you'd like.`;
       }
     }
 
     // Detect general COS program inquiries
-    const isAskingAboutPrograms = 
-      lowerMsg.includes('college of science') ||
-      lowerMsg.includes('cos programs') ||
-      lowerMsg.includes('course offerings') ||
-      lowerMsg.includes('what programs') ||
-      lowerMsg.includes('what are the courses') ||
-      lowerMsg.includes('bsu cos') ||
-      lowerMsg.includes('offered programs') ||
-      lowerMsg.includes('what courses') ||
-      lowerMsg.includes('available programs') ||
-      lowerMsg.includes('list of programs') ||
-      lowerMsg.includes('degrees');
+    const isAskingAboutPrograms =
+      lowerMsg.includes("college of science") ||
+      lowerMsg.includes("cos programs") ||
+      lowerMsg.includes("course offerings") ||
+      lowerMsg.includes("what programs") ||
+      lowerMsg.includes("what are the courses") ||
+      lowerMsg.includes("bsu cos") ||
+      lowerMsg.includes("offered programs") ||
+      lowerMsg.includes("what courses") ||
+      lowerMsg.includes("available programs") ||
+      lowerMsg.includes("list of programs") ||
+      lowerMsg.includes("degrees");
 
     if (isAskingAboutPrograms) {
       return `**Welcome to BSU College of Science!** 🎓
@@ -680,81 +1374,122 @@ Each program offers unique opportunities and career paths!
     }
 
     // Log FAQ context for debugging
-    console.log(`[AI Context] FAQs in context: ${ragContext.faqs?.length || 0}`);
+    console.log(
+      `[AI Context] FAQs in context: ${ragContext.faqs?.length || 0}`,
+    );
     if (ragContext.faqs && ragContext.faqs.length > 0) {
-      console.log(`[AI Context] First FAQ: ${ragContext.faqs[0].question.substring(0, 50)}...`);
+      console.log(
+        `[AI Context] First FAQ: ${ragContext.faqs[0].question.substring(0, 50)}...`,
+      );
     }
 
     // Primary: Groq, Fallback: Cerebras
-    const buildMessages = () => ([
-      { role: 'system' as const, content: TISA_SYSTEM_PROMPT },
-      ...(lastInteraction ? [
-        { role: 'user' as const, content: lastInteraction.userMessage },
-        { role: 'assistant' as const, content: lastInteraction.aiResponse }
-      ] : []),
-      { role: 'user' as const, content: userMessage }
-    ]);
+    const buildMessages = () => [
+      { role: "system" as const, content: TISA_SYSTEM_PROMPT },
+      ...(lastInteraction
+        ? [
+            { role: "user" as const, content: lastInteraction.userMessage },
+            { role: "assistant" as const, content: lastInteraction.aiResponse },
+          ]
+        : []),
+      { role: "user" as const, content: userMessage },
+    ];
 
     // Try Groq first
     if (groqClient) {
       try {
-        console.log(`[Groq] Generating response... Model=${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'} | lang=${language} | msgLen=${userMessage.length}`);
-        console.time('[Groq] latency');
+        console.log(
+          `[Groq] Generating response... Model=${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Groq] latency");
         const completion = await groqClient.chat.completions.create({
-          model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
           messages: buildMessages(),
           max_tokens: 2000,
           temperature: 0.7,
         });
-        console.timeEnd('[Groq] latency');
+        console.timeEnd("[Groq] latency");
         const choices = (completion as any)?.choices as Array<any> | undefined;
         const text = choices?.[0]?.message?.content as string | undefined;
-        console.log('[Groq] OK preview:', (text || '').replace(/\s+/g, ' ').slice(0, 120));
-        console.log('✓ Groq AI response generated successfully');
-        return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+        console.log(
+          "[Groq] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Groq AI response generated successfully");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
       } catch (groqError: any) {
-        console.error('[Groq][ERROR]:', groqError?.status, groqError?.code, groqError?.message || groqError);
-        try { console.error('[Groq][ERROR] raw:', JSON.stringify(groqError, null, 2)); } catch {}
+        console.error(
+          "[Groq][ERROR]:",
+          groqError?.status,
+          groqError?.code,
+          groqError?.message || groqError,
+        );
+        try {
+          console.error(
+            "[Groq][ERROR] raw:",
+            JSON.stringify(groqError, null, 2),
+          );
+        } catch {}
         // Only short-circuit on explicit rate limit; otherwise try fallback
         if (groqError?.status === 429) {
-          return language === 'fil'
+          return language === "fil"
             ? `Paumanhin, maraming requests ngayon. Subukan ulit pagkatapos ng ilang segundo. 🔄`
             : `I'm receiving too many requests right now. Please wait a moment and try again. 🔄`;
         }
-        console.log('[Fallback] Groq failed, trying Cerebras...');
+        console.log("[Fallback] Groq failed, trying Cerebras...");
       }
     }
 
     // Fallback to Cerebras if available
     if (cerebrasClient) {
       try {
-        console.log(`[Cerebras] Generating response... Model=${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'} | lang=${language} | msgLen=${userMessage.length}`);
-        console.time('[Cerebras] latency');
+        console.log(
+          `[Cerebras] Generating response... Model=${process.env.CEREBRAS_MODEL || "llama-3.3-70b"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Cerebras] latency");
         const completion = await cerebrasClient.chat.completions.create({
-          model: process.env.CEREBRAS_MODEL || 'llama-3.3-70b',
+          model: process.env.CEREBRAS_MODEL || "llama-3.3-70b",
           messages: buildMessages(),
           max_tokens: 2000,
           temperature: 0.7,
         } as any);
-        console.timeEnd('[Cerebras] latency');
+        console.timeEnd("[Cerebras] latency");
         const choices = (completion as any)?.choices as Array<any> | undefined;
         const text = choices?.[0]?.message?.content as string | undefined;
-        console.log('[Cerebras] OK preview:', (text || '').replace(/\s+/g, ' ').slice(0, 120));
-        console.log('✓ Cerebras AI response generated successfully (fallback)');
-        return text || 'I apologize, but I had trouble generating a response. Could you rephrase your question?';
+        console.log(
+          "[Cerebras] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Cerebras AI response generated successfully (fallback)");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
       } catch (cerebrasError: any) {
-        console.error('[Cerebras][ERROR]:', cerebrasError?.status, cerebrasError?.code, cerebrasError?.message || cerebrasError);
-        try { console.error('[Cerebras][ERROR] raw:', JSON.stringify(cerebrasError, null, 2)); } catch {}
+        console.error(
+          "[Cerebras][ERROR]:",
+          cerebrasError?.status,
+          cerebrasError?.code,
+          cerebrasError?.message || cerebrasError,
+        );
+        try {
+          console.error(
+            "[Cerebras][ERROR] raw:",
+            JSON.stringify(cerebrasError, null, 2),
+          );
+        } catch {}
       }
     }
 
     // If neither provider worked
     return `I'm having trouble connecting right now. 🔧 Please try again in a moment.`;
-
   } catch (error: any) {
     console.error('AI API Error:', error?.message || error);
     console.error('Full error:', JSON.stringify(error, null, 2));
-    
+
     // Provide more specific error messages based on error type
     if (error?.code === 'insufficient_quota') {
       return `I apologize, but the AI service quota has been exceeded. Please try again later or contact support.`;
@@ -765,7 +1500,7 @@ Each program offers unique opportunities and career paths!
     if (error?.status === 401 || error?.code === 'invalid_api_key') {
       return `I apologize, but there's an authentication issue with the AI service. Please contact support.`;
     }
-    
+
     return `I'm currently experiencing technical difficulties with my AI service. Please try again in a moment, or contact support if the issue persists.`;
   }
 };
@@ -794,9 +1529,9 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
 
     // STEP 0: Check if user is requesting a quiz/practice exam
     const quizKeywords = /create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|questions/i;
-    const isQuizRequest = quizKeywords.test(message) && 
-                         (/quiz|test|exam|practice|assessment/i.test(message));
-    
+    const isQuizRequest = quizKeywords.test(message) &&
+      (/quiz|test|exam|practice|assessment/i.test(message));
+
     if (isQuizRequest) {
       // Extract topic from message - handle typos and common variations
       let topic = message
@@ -805,7 +1540,7 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         .trim();
       // Clean up extra spaces
       topic = topic.replace(/\s+/g, ' ').trim();
-      
+
       // Validate that a topic was provided
       if (!topic || topic.length < 2) {
         return res.json({
@@ -819,7 +1554,7 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
           intent: 'quiz_generation_missing_topic'
         });
       }
-      
+
       // Check if quiz generator is available
       if (!quizGeneratorService.isAvailable()) {
         return res.json({
@@ -839,7 +1574,7 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
         let quizGenerationMethod = 'none';
         let lessonData = null;
         let courseData = null;
-        
+
         // Fetch lessons and course data for the topic
         if (topic) {
           // First, check if there are any courses for this topic
@@ -891,8 +1626,8 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
 
         // Check if lessons exist for this topic
         if (!lessonData || lessonData.length === 0) {
-          console.log(`[Quiz] No lessons found for "${topic}", checking courses, curriculum, and pre-loaded topics...`);
-          
+          console.log(`[Quiz] No lessons found for "${sanitizeLog(topic)}", checking courses, curriculum, and pre-loaded topics...`);
+
           // Check if topic exists in courses table (more flexible search)
           if (!courseData || courseData.length === 0) {
             courseData = await prisma.course.findMany({
@@ -911,7 +1646,7 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
               take: 5
             });
           }
-          
+
           // Check if topic exists in curriculum as additional fallback
           const curriculumData = await prisma.curriculumEntry.findMany({
             where: {
@@ -930,12 +1665,12 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
               'programming', 'data structures', 'algorithms', 'physics', 'mechanics',
               'environmental science', 'food technology', 'medical technology'
             ];
-            
+
             const normalizedTopic = topic.toLowerCase().trim();
-            const isSupported = supportedTopics.some(t => 
+            const isSupported = supportedTopics.some(t =>
               normalizedTopic.includes(t) || t.includes(normalizedTopic)
             );
-            
+
             if (!isSupported) {
               return res.json({
                 response: `I couldn't find any courses or curriculum for "${topic}" in our database.
@@ -965,15 +1700,15 @@ You can ask me:
                 }
               });
             }
-            
+
             // Topic is supported - proceed with quiz generation using AI
-            console.log(`[Quiz] Topic "${topic}" is a supported academic topic, generating quiz using AI`);
+            console.log(`[Quiz] Topic "${sanitizeLog(topic)}" is a supported academic topic, generating quiz using AI`);
           } else {
             // Topic exists in courses or curriculum but no lessons yet - generate from database
-            console.log(`[Quiz] Found ${courseData?.length || 0} courses and ${curriculumData?.length || 0} curriculum entries for "${topic}", generating quiz from database`);
+            console.log(`[Quiz] Found ${courseData?.length || 0} courses and ${curriculumData?.length || 0} curriculum entries for "${sanitizeLog(topic)}", generating quiz from database`);
           }
         }
-        
+
         // PRIORITY 1: Generate quiz from lessons (AI-powered)
         if (quizGeneratorService.isAvailable() && lessonData && lessonData.length > 0) {
           quiz = await quizGeneratorService.generateQuizFromLessons(
@@ -984,7 +1719,7 @@ You can ask me:
           );
           quizGenerationMethod = quiz ? 'ai_lessons' : 'none';
         }
-        
+
         // PRIORITY 2: Fallback to database-based generation if AI fails
         if (!quiz || quiz.questions.length === 0) {
           // Use topic directly for database fallback
@@ -1089,25 +1824,25 @@ You can ask me:
     // STEP 0.5: Check if user is requesting a consultation/appointment with faculty
     const consultationIntent = FacultyConsultationService.detectConsultationIntent(message);
     const consultationKeywords = /consult|consultation|appointment|book|schedule|meet|meeting|talk to|speak with|office hours|professor|faculty|instructor|teacher|advisor|advising/i;
-    
+
     // Check if this is a SCHEDULE INQUIRY (not a booking request) - should use FAQ instead
     const isScheduleInquiry = /(?:what|when|where).*schedule|schedule\s+of|class\s+schedule|teaching\s+schedule|room\s+schedule/i.test(message);
-    
+
     const isConsultationRequest = !isScheduleInquiry && (consultationIntent.isConsultationQuery || (
-      consultationKeywords.test(message) && 
+      consultationKeywords.test(message) &&
       (/book|schedule|appointment|consult|meet|available|office hours|advising/i.test(message))
     ));
 
     if (isConsultationRequest) {
       try {
         const lowerMessage = message.toLowerCase();
-        
+
         // PRONOUN RESOLUTION: Check if user is referring to previously mentioned faculty
         const resolvedFaculty = FacultyConsultationService.resolvePronoun(userId, message);
         if (resolvedFaculty) {
           console.log(`[Consultation] Pronoun resolved to: ${resolvedFaculty.fullName}`);
         }
-        
+
         // Extract potential faculty name from message
         // Common patterns: "book me with [name]", "book with [name]", "meet [name]", "[name]'s schedule"
         const namePatterns = [
@@ -1116,7 +1851,7 @@ You can ask me:
           /(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)*)\s*(?:'s)?\s*(?:schedule|availability|office hours)/i,
           /(?:talk|speak)\s+(?:to|with)\s+(?:prof(?:essor)?\.?\s+)?([a-z]+(?:\s+[a-z]+)*)/i
         ];
-        
+
         let extractedName = '';
         for (const pattern of namePatterns) {
           const match = message.match(pattern);
@@ -1130,24 +1865,24 @@ You can ask me:
             }
           }
         }
-        
+
         // Also check for any capitalized words that might be names (excluding common words)
         const words = message.split(/\s+/);
         const commonWords = ['I', 'Me', 'My', 'The', 'A', 'An', 'With', 'To', 'For', 'Book', 'Meet', 'Consult', 'Schedule', 'Appointment', 'Professor', 'Prof', 'Faculty'];
         const potentialNames = words.filter((w: string) => /^[A-Z][a-z]+$/.test(w) && !commonWords.includes(w)).map((w: string) => w.toLowerCase());
-        
+
         // Search for specific faculty by name if mentioned
         let matchedFaculty = null;
-        
+
         if (extractedName || potentialNames.length > 0) {
           const searchTerms = extractedName ? extractedName.split(/\s+/) : potentialNames;
-          
+
           // Build OR conditions for each search term
           const orConditions = searchTerms.flatMap((term: string) => [
             { firstName: { contains: term, mode: 'insensitive' as const } },
             { lastName: { contains: term, mode: 'insensitive' as const } }
           ]);
-          
+
           const searchResults = await prisma.faculty.findMany({
             where: {
               OR: orConditions,
@@ -1167,14 +1902,14 @@ You can ask me:
               officeHours: true
             }
           });
-          
+
           // Score-based matching: prefer exact matches over partial
           let bestScore = 0;
           for (const faculty of searchResults) {
             const firstName = faculty.firstName.toLowerCase();
             const lastName = faculty.lastName.toLowerCase();
             let score = 0;
-            
+
             for (const term of searchTerms) {
               // Exact match on firstName or lastName = 10 points
               if (firstName === term || lastName === term) {
@@ -1189,27 +1924,27 @@ You can ask me:
                 score += 1;
               }
             }
-            
+
             // Bonus for matching both first and last name
             const hasFirstMatch = searchTerms.some((t: string) => firstName === t || firstName.startsWith(t));
             const hasLastMatch = searchTerms.some((t: string) => lastName === t || lastName.startsWith(t));
             if (hasFirstMatch && hasLastMatch) {
               score += 20;
             }
-            
+
             if (score > bestScore) {
               bestScore = score;
               matchedFaculty = faculty;
             }
           }
-          
+
           // Only accept match if score is meaningful (at least one exact match)
           if (bestScore < 10 && searchResults.length > 0) {
             // No good match found, don't default to first result
             matchedFaculty = null;
           }
         }
-        
+
         // If no name match but we have a pronoun-resolved faculty, use that
         if (!matchedFaculty && resolvedFaculty) {
           const resolvedFromDb = await prisma.faculty.findUnique({
@@ -1233,14 +1968,14 @@ You can ask me:
             console.log(`[Consultation] Using pronoun-resolved faculty: ${matchedFaculty.firstName} ${matchedFaculty.lastName}`);
           }
         }
-        
+
         // Fetch general available faculty list using cached service
         const availableFaculty = await FacultyConsultationService.getAllFacultyWithConsultation();
         const facultyWithConsultation = availableFaculty.filter(f => f.consultationDays.length > 0).slice(0, 10);
 
         // Build response with consultation booking UI
         let consultationResponse: string;
-        
+
         // Store context for pronoun resolution in future messages
         if (matchedFaculty) {
           const facultyInfo: FacultyConsultationService.FacultyInfo = {
@@ -1258,25 +1993,25 @@ You can ask me:
             consultationEnd: matchedFaculty.consultationEnd || undefined,
           };
           FacultyConsultationService.setConversationContext(userId, facultyInfo);
-          
+
           // Get available slots for today/tomorrow if date was mentioned
           let slotsInfo = '';
           let pendingBooking: any = null;
           let showConfirmation = false;
-          
+
           if (consultationIntent.extractedDate) {
             const slots = await FacultyConsultationService.getAvailableSlots(
-              matchedFaculty.id, 
+              matchedFaculty.id,
               new Date(consultationIntent.extractedDate)
             );
             const availableSlots = slots.filter(s => s.isAvailable);
-            
+
             // If user also specified a time, prepare a pending booking for confirmation
             if (consultationIntent.extractedTime && availableSlots.length > 0) {
               // Find the matching slot or closest available slot
               const requestedTime = consultationIntent.extractedTime;
               let matchingSlot = availableSlots.find(s => s.startTime === requestedTime);
-              
+
               // If exact match not found, find closest slot
               if (!matchingSlot) {
                 matchingSlot = availableSlots.find(s => {
@@ -1285,14 +2020,14 @@ You can ask me:
                   return Math.abs(slotStart - reqTime) <= 30; // Within 30 minutes
                 });
               }
-              
+
               if (matchingSlot) {
                 // Calculate end time (30 min slot)
                 const [h, m] = matchingSlot.startTime.split(':').map(Number);
                 const endH = m + 30 >= 60 ? h + 1 : h;
                 const endM = (m + 30) % 60;
                 const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-                
+
                 pendingBooking = {
                   facultyId: matchedFaculty.id,
                   facultyName: `${matchedFaculty.firstName} ${matchedFaculty.lastName}`,
@@ -1304,14 +2039,14 @@ You can ask me:
                 showConfirmation = true;
               }
             }
-            
+
             if (availableSlots.length > 0 && !showConfirmation) {
               slotsInfo = userLanguage === 'fil'
                 ? `\n\n**Available Slots (${consultationIntent.extractedDate}):**\n${availableSlots.slice(0, 5).map(s => `• ${s.startTime} - ${s.endTime}`).join('\n')}`
                 : `\n\n**Available Slots (${consultationIntent.extractedDate}):**\n${availableSlots.slice(0, 5).map(s => `• ${s.startTime} - ${s.endTime}`).join('\n')}`;
             }
           }
-          
+
           // If we have a pending booking with date + time, show confirmation prompt
           if (showConfirmation && pendingBooking) {
             const formatTime12h = (time: string) => {
@@ -1320,14 +2055,14 @@ You can ask me:
               const hour = h % 12 || 12;
               return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
             };
-            
+
             // Add marker for frontend detection: __BOOKING_CONFIRM__facultyId__date__startTime__endTime__facultyName__dayName__
             const bookingMarker = `__BOOKING_CONFIRM__${pendingBooking.facultyId}__${pendingBooking.date}__${pendingBooking.startTime}__${pendingBooking.endTime}__${pendingBooking.facultyName}__${pendingBooking.dayName}__`;
-            
+
             consultationResponse = userLanguage === 'fil'
               ? `${bookingMarker}📅 **Kumpirmahin ang Booking**\n\n**Faculty:** ${pendingBooking.facultyName}\n**Petsa:** ${pendingBooking.date} (${pendingBooking.dayName})\n**Oras:** ${formatTime12h(pendingBooking.startTime)} - ${formatTime12h(pendingBooking.endTime)}\n\nI-click ang **Confirm** para i-book ang consultation, o **Cancel** para mag-cancel.`
               : `${bookingMarker}📅 **Confirm Your Booking**\n\n**Faculty:** ${pendingBooking.facultyName}\n**Date:** ${pendingBooking.date} (${pendingBooking.dayName})\n**Time:** ${formatTime12h(pendingBooking.startTime)} - ${formatTime12h(pendingBooking.endTime)}\n\nClick **Confirm** to book this consultation, or **Cancel** to go back.`;
-            
+
             // Save interaction
             const interaction = await prisma.aIInteraction.create({
               data: {
@@ -1347,7 +2082,7 @@ You can ask me:
                 faculty: [matchedFaculty],
                 selectedFaculty: matchedFaculty
               },
-              suggestions: userLanguage === 'fil' 
+              suggestions: userLanguage === 'fil'
                 ? ['Ibang oras', 'Ibang araw', 'Cancel']
                 : ['Different time', 'Different day', 'Cancel'],
               interactionId: interaction.id,
@@ -1355,15 +2090,15 @@ You can ask me:
               intent: 'consultation_booking_confirmation'
             });
           }
-          
+
           consultationResponse = userLanguage === 'fil'
             ? `Nakita ko na gusto mong mag-book ng consultation kay **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Araw: ${matchedFaculty.consultationDays.join(', ')}\n• Oras: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}${slotsInfo}\n\nSabihin mo ang araw at oras na gusto mo (hal. "tomorrow at 2pm") o i-click ang button sa ibaba:`
             : `I see you'd like to book a consultation with **${matchedFaculty.firstName} ${matchedFaculty.lastName}** (${matchedFaculty.position}). 📅\n\n**Available Schedule:**\n• Days: ${matchedFaculty.consultationDays.join(', ')}\n• Time: ${matchedFaculty.consultationStart || 'TBA'} - ${matchedFaculty.consultationEnd || 'TBA'}${slotsInfo}\n\nTell me the day and time you prefer (e.g., "tomorrow at 2pm") or click the button below:`;
         } else {
-          const facultyList = availableFaculty.slice(0, 5).map(f => 
+          const facultyList = availableFaculty.slice(0, 5).map(f =>
             `• **${f.firstName} ${f.lastName}** - ${f.position} (${f.consultationDays.join(', ')})`
           ).join('\n');
-          
+
           consultationResponse = userLanguage === 'fil'
             ? `Maaari akong tumulong sa pag-book ng consultation sa aming faculty! 📅\n\n**Available Faculty para sa Consultation:**\n${facultyList}\n\nPumili ng faculty sa ibaba para mag-book ng appointment, o sabihin mo kung sino ang gusto mong kausapin:`
             : `I can help you book a consultation with our faculty! 📅\n\n**Available Faculty for Consultation:**\n${facultyList}\n\nSelect a faculty below to book an appointment, or tell me who you'd like to meet with:`;
@@ -1387,7 +2122,7 @@ You can ask me:
             faculty: matchedFaculty ? [matchedFaculty] : availableFaculty.slice(0, 5),
             selectedFaculty: matchedFaculty || null
           },
-          suggestions: userLanguage === 'fil' 
+          suggestions: userLanguage === 'fil'
             ? ['Tingnan lahat ng faculty', 'Kailan available si Prof?', 'Paano mag-cancel ng booking?']
             : ['View all faculty', 'When is Prof available?', 'How to cancel a booking?'],
           interactionId: interaction.id,
@@ -1606,9 +2341,9 @@ You can ask me:
             });
 
             const bookingsList = existingBookings.length > 0
-              ? existingBookings.map(b => 
-                  `• ${new Date(b.date).toLocaleDateString()} ${b.startTime}-${b.endTime} (${b.status})`
-                ).join('\n')
+              ? existingBookings.map(b =>
+                `• ${new Date(b.date).toLocaleDateString()} ${b.startTime}-${b.endTime} (${b.status})`
+              ).join('\n')
               : userLanguage === 'fil' ? 'Walang existing bookings.' : 'No existing bookings.';
 
             const scheduleResponse = userLanguage === 'fil'
@@ -1658,18 +2393,18 @@ You can ask me:
       const cleaned = text.trim().toLowerCase();
       // Too short to be meaningful
       if (cleaned.length < 2) return true;
-      
+
       // Allow known acronyms and abbreviations (BSU, COS, IT, CS, etc.)
       const knownAcronyms = ['bsu', 'cos', 'it', 'cs', 'bs', 'ms', 'phd', 'mt', 'ft', 'envi', 'sci', 'math', 'bio'];
       const hasKnownAcronym = knownAcronyms.some(acr => cleaned.includes(acr));
       if (hasKnownAcronym) return false;
-      
+
       // No vowels AND longer than 3 chars (likely keyboard mashing, but allow short acronyms)
       if (!/[aeiou]/i.test(cleaned) && cleaned.length > 3) return true;
-      
+
       // Repeated characters (e.g., "asdasdasd", "aaaaa")
       if (/(.)\1{3,}/.test(cleaned)) return true;
-      
+
       // Random character sequences without real words
       const words = cleaned.split(/\s+/);
       const meaningfulWords = words.filter(w => {
@@ -1678,7 +2413,7 @@ You can ask me:
       });
       // If less than 50% of words seem meaningful and it's not a single short word
       if (words.length > 1 && meaningfulWords.length / words.length < 0.5) return true;
-      
+
       // Check for keyboard mashing patterns (only for longer strings)
       const keyboardPatterns = /^[asdfghjklqwertyuiopzxcvbnm]{6,}$/i;
       if (keyboardPatterns.test(cleaned.replace(/\s/g, ''))) {
@@ -1721,15 +2456,15 @@ You can ask me:
 
     // STEP 1: Analyze query scope BEFORE processing
     const scopeAnalysis = analyzeQueryScope(message);
-    
+
     // STEP 1.5: Check if this is a career intent query - these should ALWAYS be handled by career handler
     // even if the career itself is out of scope (e.g., "doctor", "lawyer")
     const isCareerIntentQuery = /\b(want(?:ed)? to be|become|work(?:ed)? as|career in|job as|future|program.*for|course.*for|should i take|what program|which program)\b/i.test(message.toLowerCase());
-    
+
     // STEP 2: If clearly out of scope AND NOT a career query, respond immediately without calling OpenAI
     if (!scopeAnalysis.isInScope && scopeAnalysis.confidence > 0.8 && !isCareerIntentQuery) {
       let outOfScopeResponse: string;
-      
+
       // Handle unsupported language
       if (scopeAnalysis.category === 'unsupported_language') {
         outOfScopeResponse = userLanguage === 'fil'
@@ -1764,21 +2499,21 @@ You can ask me:
 
     // STEP 3: Fetch conversation history for context continuity (last 5 exchanges)
     let lastInteraction = null;
-    let conversationHistory: Array<{role: string; content: string}> = [];
+    let conversationHistory: Array<{ role: string; content: string }> = [];
     let extractedEntities: string[] = []; // Names, topics mentioned in conversation
-    
+
     if (chatSessionId) {
       const chatSession = await prisma.chatSession.findUnique({
         where: { id: chatSessionId },
         select: { messages: true }
       });
-      
+
       if (chatSession && Array.isArray(chatSession.messages)) {
-        const msgs = chatSession.messages as Array<{role: string; content: string}>;
-        
+        const msgs = chatSession.messages as Array<{ role: string; content: string }>;
+
         // Get last 10 messages (5 exchanges) for better context
         conversationHistory = msgs.slice(-10);
-        
+
         // Extract entity references (names, topics) from conversation history
         // This helps resolve pronouns like "him", "her", "it", "that program"
         const entityPatterns = [
@@ -1786,7 +2521,7 @@ You can ask me:
           /\*\*([A-Z][a-z]+(?:\s+[A-Z]?\.?\s*[a-z]+)*)\*\*/g, // Bold names in AI responses
           /([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:is a|ay)/gi, // "Name Name is a..."
         ];
-        
+
         for (const msg of msgs) {
           for (const pattern of entityPatterns) {
             const matches = msg.content.matchAll(pattern);
@@ -1797,15 +2532,15 @@ You can ask me:
             }
           }
         }
-        
+
         // Deduplicate entities
         extractedEntities = [...new Set(extractedEntities)];
-        
+
         // Get the last exchange for backward compatibility
         if (msgs.length >= 2) {
           const lastUserMsg = msgs.filter(m => m.role === 'user').pop();
           const lastAiMsg = msgs.filter(m => m.role === 'ai').pop();
-          
+
           if (lastUserMsg && lastAiMsg) {
             lastInteraction = {
               userMessage: lastUserMsg.content,
@@ -1815,14 +2550,14 @@ You can ask me:
         }
       }
     }
-    
+
     // STEP 3.5: Resolve context references in current message
     // Detect short follow-up messages like "1st semester", "2nd year", "yes", "continue"
     // and combine with previously discussed program/topic from conversation history
-    
+
     let resolvedMessage = message;
     const lowerMessage = message.toLowerCase().trim();
-    
+
     // Extract program context from conversation history
     let sessionProgramContext: string | null = null;
     const programPatterns = [
@@ -1830,7 +2565,7 @@ You can ask me:
       /BS\s+([A-Za-z\s]+)/i,
       /\b(Biology|Computer Science|Food Technology|Environmental Science|Medical Technology|Statistics|Business Applications)\b/i
     ];
-    
+
     for (const msg of conversationHistory) {
       for (const pattern of programPatterns) {
         const match = msg.content.match(pattern);
@@ -1841,21 +2576,21 @@ You can ask me:
       }
       if (sessionProgramContext) break;
     }
-    
+
     // Detect short follow-up messages that need context enrichment
     const isShortFollowUp = lowerMessage.length < 30 && (
       /^(1st|2nd|3rd|4th|first|second|third|fourth)\s*(semester|sem|year)?$/i.test(lowerMessage) ||
       /^(yes|oo|continue|go on|more|show me|tell me|okay|ok|yes please|oo naman|sige|sure)$/i.test(lowerMessage) ||
       /^(semester|year)\s*(1|2|3|4|one|two|three|four)$/i.test(lowerMessage)
     );
-    
+
     // Detect affirmative responses that need context from last AI message
     const isAffirmativeResponse = /^(yes|oo|yes please|oo naman|sige|sure|okay|ok|go ahead|please|pls)$/i.test(lowerMessage);
-    
+
     // Extract what the AI last offered/asked from conversation history
     let lastAIQuestion: string | null = null;
     let lastAIOffer: string | null = null;
-    
+
     if (isAffirmativeResponse && conversationHistory.length > 0) {
       // Find the last AI message
       const lastAIMsg = [...conversationHistory].reverse().find(m => m.role === 'ai');
@@ -1867,7 +2602,7 @@ You can ask me:
           /shall i (?:provide|show|tell you about) (.*?)\?/i,
           /\*\*([A-Z][a-z]+ [A-Z][a-z]+)\*\*/g, // Extract bold names (faculty)
         ];
-        
+
         for (const pattern of offerPatterns) {
           const match = lastAIMsg.content.match(pattern);
           if (match) {
@@ -1875,78 +2610,88 @@ You can ask me:
             break;
           }
         }
-        
+
         // Also extract any faculty name mentioned
         const facultyMatch = lastAIMsg.content.match(/\*\*([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?[A-Z]?[a-z]+)\*\*/);
         if (facultyMatch) {
           lastAIQuestion = facultyMatch[1];
         }
-        
+
         // Check for specific offers in the AI response
         if (lastAIMsg.content.includes('office hours') || lastAIMsg.content.includes('contact')) {
           lastAIOffer = 'office hours and contact information';
         }
       }
     }
-    
+
     // Enrich affirmative responses with context
     if (isAffirmativeResponse && (lastAIQuestion || lastAIOffer || extractedEntities.length > 0)) {
       const contextEntity = lastAIQuestion || extractedEntities[extractedEntities.length - 1] || '';
       const contextOffer = lastAIOffer || 'more details';
-      
+
       if (contextEntity) {
         resolvedMessage = `Tell me about ${contextOffer} for ${contextEntity}`;
-        console.log(`[AI Context] Affirmative follow-up: "${message}" → "${resolvedMessage}"`);
+        console.log(`[AI Context] Affirmative follow-up: "${sanitizeLog(message)}" → "${sanitizeLog(resolvedMessage)}"`);
       }
     }
-    
+
     if (isShortFollowUp && sessionProgramContext && !isAffirmativeResponse) {
       // Enrich the message with program context from session
       const yearMatch = lowerMessage.match(/(1st|2nd|3rd|4th|first|second|third|fourth)/i);
       const semMatch = lowerMessage.match(/(semester|sem)/i);
-      
+
       if (yearMatch || semMatch) {
         resolvedMessage = `${sessionProgramContext} ${message}`;
-        console.log(`[AI Context] Enriched follow-up: "${message}" → "${resolvedMessage}"`);
+        console.log(`[AI Context] Enriched follow-up: "${sanitizeLog(message)}" → "${sanitizeLog(resolvedMessage)}"`);
       }
     }
-    
+
     // Also resolve pronoun references (him, her, them, etc.)
     const pronounPatterns = /\b(him|her|them|it|that person|that faculty|this person|about them|more about|full background|tell me more)\b/i;
     const hasPronounReference = pronounPatterns.test(message);
-    
+
     if (hasPronounReference && extractedEntities.length > 0) {
       // Use the most recently mentioned entity
       const lastEntity = extractedEntities[extractedEntities.length - 1];
       console.log(`[AI Context] Resolving pronoun reference to: ${lastEntity}`);
-      
+
       // Append context to the message for RAG retrieval
       resolvedMessage = `${resolvedMessage} (referring to ${lastEntity})`;
     }
 
     // STEP 4: Check for cached AI response (for frequently asked questions)
     // Skip cache for personalized queries (pronouns, follow-ups, recommendations)
-    const isPersonalizedQuery = hasPronounReference || 
-                                /my|me|i want|i need|recommend|book|schedule|appointment/i.test(message);
-    
-    let aiResponse: string = '';
+
+    const isConditionalEnrollmentQuery =
+      /can i (?:still )?take\s+.+\s+if\s+(?:i\s+)?(?:failed|didn'?t pass|did not pass|flunked)/i.test(
+        message,
+      ) ||
+      /pwede (?:ba )?(?:akong )?kumuha\s+.+\s+(?:kahit|kung)\s+(?:bumagsak|failed|hindi pumasa)/i.test(
+        message,
+      );
+
+    const isPersonalizedQuery =
+      hasPronounReference ||
+      /my|me|i want|i need|recommend|book|schedule|appointment/i.test(message);
+
+    let aiResponse: string = "";
     let usedCache = false;
     let ragContext: RAGContext | null = null;
-    
+
     // STEP 4.3: Direct curriculum response for affirmative follow-ups after program recommendation
     // When user says "yes" after AI asks "Would you like to see the full curriculum?"
     if (!usedCache && isAffirmativeResponse && conversationHistory.length > 0) {
       const lastAIMsg = [...conversationHistory].reverse().find(m => m.role === 'ai');
-      
+
       if (lastAIMsg && (lastAIMsg.content.includes('curriculum') || lastAIMsg.content.includes('Curriculum'))) {
         // Extract program name from the last AI message
         const programMatch = lastAIMsg.content.match(/\*\*([^*]+)\*\*\s*\(([A-Z\s]+)\)/);
-        
+
         if (programMatch) {
           const programTitle = programMatch[1];
           const programAbbr = programMatch[2];
           console.log(`[AI Direct] Curriculum follow-up detected for: ${programTitle} (${programAbbr})`);
-          
+
           // Find the program in database
           const program = await prisma.universityProgram.findFirst({
             where: {
@@ -1957,19 +2702,19 @@ You can ask me:
               college: 'College of Science'
             }
           });
-          
+
           if (program) {
             // Fetch FULL curriculum for this specific program only
             const curriculum = await prisma.curriculumEntry.findMany({
               where: { programId: program.id },
               orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }, { courseCode: 'asc' }]
             });
-            
+
             if (curriculum.length > 0) {
               let directResponse = userLanguage === 'fil'
                 ? `📚 **Buong Curriculum ng ${program.title}** (${program.abbreviation})\n\n`
                 : `📚 **Full Curriculum for ${program.title}** (${program.abbreviation})\n\n`;
-              
+
               // Group by year and semester
               const grouped: Record<string, typeof curriculum> = {};
               for (const c of curriculum) {
@@ -1977,7 +2722,7 @@ You can ask me:
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push(c);
               }
-              
+
               for (const [key, subjects] of Object.entries(grouped)) {
                 directResponse += `**${key}:**\n`;
                 let totalUnits = 0;
@@ -1987,11 +2732,11 @@ You can ask me:
                 }
                 directResponse += `*Total: ${totalUnits} units*\n\n`;
               }
-              
+
               directResponse += userLanguage === 'fil'
                 ? `---\n\n**May iba ka pa bang tanong tungkol sa ${program.abbreviation}?**`
                 : `---\n\n**Do you have any other questions about ${program.abbreviation}?**`;
-              
+
               aiResponse = directResponse;
               usedCache = true;
               console.log(`[AI Direct] Served full curriculum for ${program.abbreviation} (${curriculum.length} subjects)`);
@@ -2000,13 +2745,13 @@ You can ask me:
         }
       }
     }
-    
+
     // STEP 4.4: Direct faculty response for affirmative follow-ups (bypasses AI API)
     // When user says "yes please" after asking about a faculty member
     if (!usedCache && isAffirmativeResponse && (lastAIQuestion || extractedEntities.length > 0)) {
       const facultyName = lastAIQuestion || extractedEntities[extractedEntities.length - 1];
       console.log(`[AI Direct] Faculty follow-up detected for: ${facultyName}`);
-      
+
       // Query faculty directly from database
       const nameParts = facultyName.split(/\s+/);
       const faculty = await prisma.faculty.findFirst({
@@ -2029,11 +2774,11 @@ You can ask me:
           }
         }
       });
-      
+
       if (faculty) {
         const fullName = `${faculty.firstName}${faculty.middleName ? ' ' + faculty.middleName : ''} ${faculty.lastName}`;
         const subjects = faculty.FacultySubject.map((fs: any) => fs.Subject.name).join(', ');
-        
+
         let directResponse = `📋 **${fullName}** - Full Details\n\n`;
         directResponse += `**Position:** ${faculty.position || 'Faculty Member'}\n`;
         directResponse += `**College:** ${faculty.college}\n`;
@@ -2041,144 +2786,144 @@ You can ask me:
         if (faculty.officeHours) directResponse += `**Office Hours:** ${faculty.officeHours}\n`;
         if (faculty.consultationDays) directResponse += `**Consultation Days:** ${faculty.consultationDays}\n`;
         if (subjects) directResponse += `**Subjects:** ${subjects}\n`;
-        
+
         directResponse += userLanguage === 'fil'
           ? `\n---\n\n**May iba ka pa bang tanong tungkol kay ${faculty.firstName}?**`
           : `\n---\n\n**Do you have any other questions about ${faculty.firstName}?**`;
-        
+
         aiResponse = directResponse;
         usedCache = true;
         console.log(`[AI Direct] Served faculty details directly for: ${fullName}`);
       }
     }
-    
+
     // STEP 4.5: Direct curriculum response for semester/year follow-ups (bypasses AI API)
     // This saves API calls when user asks "1st semester" after discussing a program
     if (!usedCache) {
-      const isCurriculumFollowUp = isShortFollowUp && sessionProgramContext && 
+      const isCurriculumFollowUp = isShortFollowUp && sessionProgramContext &&
         /\b(1st|2nd|3rd|4th|first|second|third|fourth|semester|sem|year)\b/i.test(lowerMessage);
-      
+
       if (isCurriculumFollowUp && sessionProgramContext) {
-      console.log(`[AI Direct] Curriculum follow-up detected for: ${sessionProgramContext}`);
-      
-      // Parse year and semester from message
-      const yearMatch = lowerMessage.match(/(1st|2nd|3rd|4th|first|second|third|fourth)/i);
-      const semMatch = lowerMessage.match(/(semester|sem)/i);
-      
-      let yearLevel: number | null = null;
-      let semester: number | null = null;
-      
-      if (yearMatch) {
-        const yearMap: Record<string, number> = { '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, 'first': 1, 'second': 2, 'third': 3, 'fourth': 4 };
-        const matchedYear = yearMatch[1].toLowerCase();
-        yearLevel = yearMap[matchedYear] || null;
-        
-        // If "1st semester" vs "1st year" - check if semester is mentioned
-        if (semMatch) {
-          semester = yearLevel;
-          yearLevel = null; // Reset - this was semester, not year
+        console.log(`[AI Direct] Curriculum follow-up detected for: ${sessionProgramContext}`);
+
+        // Parse year and semester from message
+        const yearMatch = lowerMessage.match(/(1st|2nd|3rd|4th|first|second|third|fourth)/i);
+        const semMatch = lowerMessage.match(/(semester|sem)/i);
+
+        let yearLevel: number | null = null;
+        let semester: number | null = null;
+
+        if (yearMatch) {
+          const yearMap: Record<string, number> = { '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, 'first': 1, 'second': 2, 'third': 3, 'fourth': 4 };
+          const matchedYear = yearMatch[1].toLowerCase();
+          yearLevel = yearMap[matchedYear] || null;
+
+          // If "1st semester" vs "1st year" - check if semester is mentioned
+          if (semMatch) {
+            semester = yearLevel;
+            yearLevel = null; // Reset - this was semester, not year
+          }
         }
-      }
-      
-      // Query curriculum directly from database
-      const program = await prisma.universityProgram.findFirst({
-        where: {
-          OR: [
-            { title: { contains: sessionProgramContext, mode: 'insensitive' } },
-            { abbreviation: { contains: sessionProgramContext, mode: 'insensitive' } }
-          ],
-          college: 'College of Science'
-        }
-      });
-      
-      if (program) {
-        const whereClause: any = { programId: program.id };
-        if (yearLevel) whereClause.yearLevel = yearLevel;
-        if (semester) whereClause.semester = semester;
-        
-        const curriculum = await prisma.curriculumEntry.findMany({
-          where: whereClause,
-          orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }, { courseCode: 'asc' }],
-          take: 20
+
+        // Query curriculum directly from database
+        const program = await prisma.universityProgram.findFirst({
+          where: {
+            OR: [
+              { title: { contains: sessionProgramContext, mode: 'insensitive' } },
+              { abbreviation: { contains: sessionProgramContext, mode: 'insensitive' } }
+            ],
+            college: 'College of Science'
+          }
         });
-        
-        if (curriculum.length > 0) {
-          // Format direct response without calling AI
-          const semesterLabel = semester ? `Semester ${semester}` : '';
-          const yearLabel = yearLevel ? `Year ${yearLevel}` : '';
-          const contextLabel = [yearLabel, semesterLabel].filter(Boolean).join(', ') || 'All semesters';
-          
-          let directResponse = `📚 **${program.title}** - ${contextLabel}\n\n`;
-          
-          // Group by year and semester
-          const grouped: Record<string, typeof curriculum> = {};
-          for (const c of curriculum) {
-            const key = `Year ${c.yearLevel}, Semester ${c.semester}`;
-            if (!grouped[key]) grouped[key] = [];
-            grouped[key].push(c);
-          }
-          
-          for (const [key, subjects] of Object.entries(grouped)) {
-            directResponse += `**${key}:**\n`;
-            let totalUnits = 0;
-            for (const s of subjects) {
-              directResponse += `• ${s.courseCode}: ${s.subjectName} (${s.totalUnits} units)\n`;
-              totalUnits += s.totalUnits;
+
+        if (program) {
+          const whereClause: any = { programId: program.id };
+          if (yearLevel) whereClause.yearLevel = yearLevel;
+          if (semester) whereClause.semester = semester;
+
+          const curriculum = await prisma.curriculumEntry.findMany({
+            where: whereClause,
+            orderBy: [{ yearLevel: 'asc' }, { semester: 'asc' }, { courseCode: 'asc' }],
+            take: 20
+          });
+
+          if (curriculum.length > 0) {
+            // Format direct response without calling AI
+            const semesterLabel = semester ? `Semester ${semester}` : '';
+            const yearLabel = yearLevel ? `Year ${yearLevel}` : '';
+            const contextLabel = [yearLabel, semesterLabel].filter(Boolean).join(', ') || 'All semesters';
+
+            let directResponse = `📚 **${program.title}** - ${contextLabel}\n\n`;
+
+            // Group by year and semester
+            const grouped: Record<string, typeof curriculum> = {};
+            for (const c of curriculum) {
+              const key = `Year ${c.yearLevel}, Semester ${c.semester}`;
+              if (!grouped[key]) grouped[key] = [];
+              grouped[key].push(c);
             }
-            directResponse += `*Total: ${totalUnits} units*\n\n`;
+
+            for (const [key, subjects] of Object.entries(grouped)) {
+              directResponse += `**${key}:**\n`;
+              let totalUnits = 0;
+              for (const s of subjects) {
+                directResponse += `• ${s.courseCode}: ${s.subjectName} (${s.totalUnits} units)\n`;
+                totalUnits += s.totalUnits;
+              }
+              directResponse += `*Total: ${totalUnits} units*\n\n`;
+            }
+
+            directResponse += userLanguage === 'fil'
+              ? `\n---\n\n**Gusto mo bang malaman ang ibang taon o semester?**`
+              : `\n---\n\n**Would you like to know about another year or semester?**`;
+
+            aiResponse = directResponse;
+            usedCache = true; // Mark as handled (skip AI call)
+            console.log(`[AI Direct] Served curriculum directly (${curriculum.length} subjects)`);
           }
-          
-          directResponse += userLanguage === 'fil' 
-            ? `\n---\n\n**Gusto mo bang malaman ang ibang taon o semester?**`
-            : `\n---\n\n**Would you like to know about another year or semester?**`;
-          
-          aiResponse = directResponse;
-          usedCache = true; // Mark as handled (skip AI call)
-          console.log(`[AI Direct] Served curriculum directly (${curriculum.length} subjects)`);
         }
-      }
       }
     }
-    
+
     // STEP 4.6: Direct career response for career queries (bypasses AI API)
     // Uses ONLY database careerPaths field from UniversityProgram table
     if (!usedCache) {
       const isCareerQuery = /\b(want(?:ed)? to be|become|work(?:ed)? as|career in|job as|future|program.*for|course.*for|should i take|what program|which program|data analyst|software|engineer|developer|biologist|technologist|scientist|statistician|consultant)\b/i.test(lowerMessage);
-      
+
       if (isCareerQuery) {
-        console.log(`[AI Direct] Career query detected for: "${lowerMessage.substring(0, 60)}"`);
-        
+        console.log(`[AI Direct] Career query detected for: "${sanitizeLog(lowerMessage, 60)}"`);
+
         // Fetch all programs with career paths from database
         const programs = await prisma.universityProgram.findMany({
           where: { college: 'College of Science', isActive: true },
           orderBy: { order: 'asc' }
         });
-        
+
         // Extract meaningful words from user message for matching
-        const stopWords = ['i', 'a', 'an', 'the', 'to', 'be', 'in', 'of', 'for', 'and', 'or', 'my', 'me', 
+        const stopWords = ['i', 'a', 'an', 'the', 'to', 'be', 'in', 'of', 'for', 'and', 'or', 'my', 'me',
           'want', 'wanted', 'would', 'like', 'what', 'which', 'program', 'course', 'should', 'take',
           'future', 'become', 'career', 'job', 'work', 'as'];
         const queryWords = lowerMessage.split(/\s+/).filter((w: string) => w.length > 2 && !stopWords.includes(w));
-        
+
         // Check for tech/IT/security keywords that should ALWAYS map to BSM CS
-        const techKeywords = ['cyber', 'security', 'hacker', 'hacking', 'network', 'it', 'tech', 'computer', 
+        const techKeywords = ['cyber', 'security', 'hacker', 'hacking', 'network', 'it', 'tech', 'computer',
           'programming', 'coding', 'software', 'web', 'app', 'developer', 'engineer', 'ai', 'machine learning',
           'data science', 'devops', 'cloud', 'database', 'system'];
         const hasTechKeyword = techKeywords.some(kw => lowerMessage.includes(kw));
-        
+
         // Match programs and score by relevance (exact career match = higher score)
         const scoredPrograms = programs.map(p => {
           const careerPaths: string[] = Array.isArray(p.careerPaths) ? p.careerPaths : [];
           if (careerPaths.length === 0) return { program: p, score: 0, matchedCareers: [] as string[] };
-          
+
           let score = 0;
           const matchedCareers: string[] = [];
-          
+
           // Boost BSM CS score if tech keywords are present
           if (hasTechKeyword && p.abbreviation === 'BSM CS') {
             score += 15; // High priority for tech careers
           }
-          
+
           for (const career of careerPaths) {
             const careerLower = career.toLowerCase();
             // Exact match in message (e.g., "data analyst" in "i wanted to be data analyst")
@@ -2198,30 +2943,30 @@ You can ask me:
           }
           return { program: p, score, matchedCareers };
         }).filter(p => p.score > 0).sort((a, b) => b.score - a.score);
-        
+
         console.log(`[AI Direct] Found ${scoredPrograms.length} matching programs, top score: ${scoredPrograms[0]?.score || 0}`);
-        
+
         if (scoredPrograms.length > 0) {
           // Get the best matching program (highest score)
           const bestMatch = scoredPrograms[0];
           const hasExactMatch = bestMatch.score >= 10;
-          
+
           // If exact match found, show only that program. Otherwise show top 2.
           const programsToShow = hasExactMatch ? [bestMatch] : scoredPrograms.slice(0, 2);
-          
+
           let directResponse = '';
-          
+
           if (hasExactMatch) {
             // Focused response for exact career match
             const p = bestMatch.program;
             const matchedCareer = bestMatch.matchedCareers[0] || 'your desired career';
-            
+
             directResponse = userLanguage === 'fil'
               ? `🎯 **Rekomendasyon para sa ${matchedCareer}**\n\n`
               : `🎯 **Recommended Program for ${matchedCareer}**\n\n`;
-            
+
             directResponse += `**${p.title}** (${p.abbreviation})\n\n`;
-            
+
             // Show only top 5 related careers
             const topCareers = bestMatch.matchedCareers.slice(0, 5);
             if (topCareers.length > 0) {
@@ -2232,14 +2977,14 @@ You can ask me:
                 directResponse += `• ${career}\n`;
               }
             }
-            
+
             // Fetch curriculum preview for this program
             const curriculum = await prisma.curriculumEntry.findMany({
               where: { programId: p.id, yearLevel: 1, semester: 1 },
               orderBy: { courseCode: 'asc' },
               take: 5
             });
-            
+
             if (curriculum.length > 0) {
               directResponse += userLanguage === 'fil'
                 ? `\n📚 **Curriculum Preview (1st Year, 1st Sem):**\n`
@@ -2248,7 +2993,7 @@ You can ask me:
                 directResponse += `• ${c.courseCode}: ${c.subjectName}\n`;
               }
             }
-            
+
             directResponse += userLanguage === 'fil'
               ? `\n---\n\n**Gusto mo bang makita ang buong curriculum?**`
               : `\n---\n\n**Would you like to see the full curriculum?**`;
@@ -2257,7 +3002,7 @@ You can ask me:
             directResponse = userLanguage === 'fil'
               ? `🎓 **Mga Programa na Maaaring Angkop sa Iyo**\n\n`
               : `🎓 **Programs That May Suit Your Goals**\n\n`;
-            
+
             for (const { program: p, matchedCareers } of programsToShow) {
               directResponse += `**${p.title}** (${p.abbreviation})\n`;
               const topCareers = matchedCareers.slice(0, 3);
@@ -2266,12 +3011,12 @@ You can ask me:
               }
               directResponse += '\n';
             }
-            
+
             directResponse += userLanguage === 'fil'
               ? `---\n\n**Alin sa mga ito ang gusto mong malaman pa?**`
               : `---\n\n**Which of these would you like to learn more about?**`;
           }
-          
+
           aiResponse = directResponse;
           usedCache = true;
           console.log(`[AI Direct] Served focused career response (exact: ${hasExactMatch}, programs: ${programsToShow.length})`);
@@ -2279,7 +3024,7 @@ You can ask me:
           // NO MATCH FOUND - Provide intelligent fallback recommendation
           // Analyze the career type and recommend the most relevant program
           console.log(`[AI Direct] No career match found, providing fallback recommendation`);
-          
+
           // Career type mapping to programs (for careers not in DB)
           const careerTypeMapping: Record<string, { program: string, abbr: string, reason: string }> = {
             // Creative/Design careers → BSM CS (closest to tech/creative)
@@ -2297,18 +3042,18 @@ You can ask me:
             // Teaching → Any science program
             'teacher': { program: 'Bachelor of Science in Biology', abbr: 'BS Biology', reason: 'prepares you for science education careers' },
           };
-          
+
           // Find best fallback match
           let fallbackMatch: { program: string, abbr: string, reason: string } | null = null;
           const careerLower = lowerMessage;
-          
+
           for (const [keyword, mapping] of Object.entries(careerTypeMapping)) {
             if (careerLower.includes(keyword)) {
               fallbackMatch = mapping;
               break;
             }
           }
-          
+
           // Default fallback to BSM CS (most versatile)
           if (!fallbackMatch) {
             fallbackMatch = {
@@ -2317,29 +3062,29 @@ You can ask me:
               reason: 'offers versatile skills applicable to many modern careers'
             };
           }
-          
+
           // Find the program in DB to get its career paths
           const fallbackProgram = programs.find(p => p.abbreviation === fallbackMatch!.abbr);
-          const fallbackCareers: string[] = fallbackProgram && Array.isArray(fallbackProgram.careerPaths) 
-            ? (fallbackProgram.careerPaths as string[]).slice(0, 5) 
+          const fallbackCareers: string[] = fallbackProgram && Array.isArray(fallbackProgram.careerPaths)
+            ? (fallbackProgram.careerPaths as string[]).slice(0, 5)
             : [];
-          
+
           // Extract the career user mentioned
           const mentionedCareer = queryWords.filter((w: string) => w.length > 4).join(' ') || 'your desired career';
-          
+
           let directResponse = userLanguage === 'fil'
             ? `🤔 **Hindi ko nakita ang "${mentionedCareer}" sa aming database ng karera.**\n\n`
             : `🤔 **"${mentionedCareer}" is not in our career database.**\n\n`;
-          
+
           directResponse += userLanguage === 'fil'
             ? `Ngunit, batay sa iyong interes, inirerekomenda ko ang:\n\n`
             : `However, based on your interest, I recommend:\n\n`;
-          
+
           directResponse += `**${fallbackMatch.program}** (${fallbackMatch.abbr})\n\n`;
           directResponse += userLanguage === 'fil'
             ? `💡 **Bakit ito?** Ang programang ito ay ${fallbackMatch.reason}.\n\n`
             : `💡 **Why this program?** This program ${fallbackMatch.reason}.\n\n`;
-          
+
           if (fallbackCareers.length > 0) {
             directResponse += userLanguage === 'fil'
               ? `📋 **Mga Karera na Pwede Mong Pasukan:**\n`
@@ -2348,18 +3093,206 @@ You can ask me:
               directResponse += `• ${career}\n`;
             }
           }
-          
+
           directResponse += userLanguage === 'fil'
             ? `\n---\n\n**Gusto mo bang makita ang curriculum ng programang ito?**`
             : `\n---\n\n**Would you like to see the curriculum for this program?**`;
-          
+
           aiResponse = directResponse;
           usedCache = true;
           console.log(`[AI Direct] Served fallback recommendation: ${fallbackMatch.abbr}`);
         }
       }
     }
-    
+
+    // STEP 4.7: Direct prerequisite validation for conditional enrollment queries (bypasses AI API)
+    // Handles questions like "Can I take Thesis 1 if I failed Abstract Algebra?"
+    if (!usedCache) {
+      if (isConditionalEnrollmentQuery) {
+        console.log(`[AI Direct] Conditional enrollment query detected for: "${sanitizeLog(lowerMessage, 60)}"`);
+
+        // Define course name normalizer (from rag-context.service.ts)
+        function normaliseCourseName(s: string): string {
+          const map: Record<string, string> = {
+            // Thesis courses
+            'thesis 1':   'Thesis I',
+            'thesis 2':   'Thesis II',
+            'thesis 3':   'Thesis III',
+            'thesis 4':   'Thesis IV',
+            'thesis i':   'Thesis I',
+            'thesis ii':  'Thesis II',
+            'thesis iii': 'Thesis III',
+            'thesis iv':  'Thesis IV',
+            // Common course name variations
+            'abstract algebra': 'Abstract Algebra',
+            'linear algebra': 'Linear Algebra',
+            'differential equations': 'Differential Equations',
+            'calculus 1': 'Calculus I',
+            'calculus 2': 'Calculus II',
+            'calculus 3': 'Calculus III',
+            'calculus i': 'Calculus I',
+            'calculus ii': 'Calculus II',
+            'calculus iii': 'Calculus III',
+            'probability and statistics': 'Probability and Statistics',
+            'numerical methods': 'Numerical Methods',
+            'discrete mathematics': 'Discrete Mathematics',
+            'mathematical analysis': 'Mathematical Analysis',
+            'complex analysis': 'Complex Analysis',
+            'real analysis': 'Real Analysis',
+            'advanced mathematics': 'Advanced Mathematics',
+            'programming 1': 'Programming I',
+            'programming 2': 'Programming II',
+            'data structures': 'Data Structures',
+            'algorithms': 'Algorithms',
+            'software engineering': 'Software Engineering',
+            'database systems': 'Database Systems',
+            'artificial intelligence': 'Artificial Intelligence',
+            'machine learning': 'Machine Learning',
+            // Additional common variations
+            'fundamental concept of mathematics': 'Fundamental Concept of Mathematics',
+            'fundamental concepts of mathematics': 'Fundamental Concept of Mathematics',
+            'fundamentals of mathematics': 'Fundamental Concept of Mathematics',
+            'basic mathematics': 'Fundamental Concept of Mathematics',
+            'college algebra': 'College Algebra',
+            'trigonometry': 'Trigonometry',
+            'plane trigonometry': 'Plane Trigonometry',
+            'spherical trigonometry': 'Spherical Trigonometry',
+            'solid geometry': 'Solid Geometry',
+            'analytic geometry': 'Analytic Geometry',
+            'plane geometry': 'Plane Geometry',
+            'modern geometry': 'Modern Geometry',
+            'euclidean geometry': 'Euclidean Geometry',
+            'non-euclidean geometry': 'Non-Euclidean Geometry',
+            'number theory': 'Number Theory',
+            'statistical theory': 'Statistical Theory',
+            'operations research': 'Operations Research',
+            'actuarial mathematics': 'Actuarial Mathematics',
+            'numerical analysis': 'Numerical Analysis',
+            'advanced calculus': 'Advanced Calculus',
+            'multivariable calculus': 'Multivariable Calculus',
+            'vector calculus': 'Vector Calculus',
+            'partial differential equations': 'Partial Differential Equations',
+            'ordinary differential equations': 'Ordinary Differential Equations',
+          };
+          return map[s.toLowerCase()] ?? s;
+        }
+
+        // Extract courses from message using regex
+        let match = message.match(/can i (?:still )?take\s+(.+?)\s+if\s+(?:i\s+)?(?:failed|didn'?t pass|did not pass|flunked)\s+(.+)/i);
+        if (!match) {
+          match = message.match(/pwede (?:ba )?(?:akong )?kumuha\s+(.+?)\s+(?:kahit|kung)\s+(?:bumagsak|failed|hindi pumasa)\s+(.+)/i);
+        }
+
+        if (match) {
+          const targetCourseRaw = match[1].trim();
+          const failedCourseRaw = match[2].trim();
+          const targetNormalized = normaliseCourseName(targetCourseRaw);
+          const failedNormalized = normaliseCourseName(failedCourseRaw);
+
+          // Fetch all curriculum entries
+          const curriculumEntries = await prisma.curriculumEntry.findMany({
+            where: {
+              UniversityProgram: {
+                college: "College of Science",
+                isActive: true,
+              },
+            },
+            include: {
+              UniversityProgram: true
+            }
+          });
+
+          // Find target course with enhanced fuzzy matching
+          let targetEntry = null;
+          const targetRawLower = targetCourseRaw.toLowerCase();
+          const targetNormLower = targetNormalized.toLowerCase();
+          const targetNoSpaces = targetCourseRaw.replace(/\s+/g, '').toLowerCase();
+          const targetNormNoSpaces = targetNormalized.replace(/\s+/g, '').toLowerCase();
+
+          for (const entry of curriculumEntries) {
+            const entryNameLower = entry.subjectName.toLowerCase();
+            const entryCodeLower = entry.courseCode.toLowerCase();
+            const entryNameNoSpaces = entryNameLower.replace(/\s+/g, '');
+            const entryCodeNoSpaces = entryCodeLower.replace(/\s+/g, '');
+
+            if (entryNameLower.includes(targetNormLower) ||
+                entryNameLower.includes(targetRawLower) ||
+                entryCodeLower.includes(targetNormLower) ||
+                entryCodeLower.includes(targetRawLower) ||
+                entryNameNoSpaces.includes(targetNormNoSpaces) ||
+                entryNameNoSpaces.includes(targetNoSpaces) ||
+                entryCodeNoSpaces.includes(targetNormNoSpaces) ||
+                entryCodeNoSpaces.includes(targetNoSpaces)) {
+              targetEntry = entry;
+              break;
+            }
+          }
+
+          if (!targetEntry) {
+            aiResponse = userLanguage === 'fil'
+              ? `Paumanhin, hindi ko makita ang kursong "${targetCourseRaw}" sa aming database ng curriculum. Pakisuri ang tamang pangalan o code ng kursong ito.`
+              : `Sorry, I could not find a course matching "${targetCourseRaw}" in the current curriculum data. Please verify the exact course name or code and try again.`;
+          } else {
+            const prerequisites = targetEntry.prerequisites || [];
+            let isPrerequisite = false;
+
+            // Check if failed course is in prerequisites with fuzzy matching
+            const failedRawLower = failedCourseRaw.toLowerCase();
+            const failedNormLower = failedNormalized.toLowerCase();
+
+            for (const prereq of prerequisites) {
+              const prereqLower = prereq.toLowerCase();
+              const prereqParts = prereq.split(' – ');
+              const prereqName = prereqParts[1] || prereq;
+              const prereqCode = prereqParts[0] || '';
+              const prereqNameLower = prereqName.toLowerCase();
+              const prereqCodeLower = prereqCode.toLowerCase();
+
+              if (prereqNameLower.includes(failedNormLower) ||
+                  prereqNameLower.includes(failedRawLower) ||
+                  prereqCodeLower.includes(failedNormLower) ||
+                  prereqCodeLower.includes(failedRawLower) ||
+                  prereqLower.includes(failedNormLower) ||
+                  prereqLower.includes(failedRawLower)) {
+                isPrerequisite = true;
+                break;
+              }
+            }
+
+            let response = '';
+
+            if (isPrerequisite) {
+              response = userLanguage === 'fil'
+                ? `Hindi, hindi ka maaaring kumuha ng ${targetEntry.subjectName} kung bumagsak ka sa ${failedCourseRaw}.\n\nIto ay dahil ang ${failedCourseRaw} ay isa sa mga kinakailangang prerequisite para sa ${targetEntry.subjectName}. Dapat mong pasahan ang lahat ng prerequisite subjects bago mag-enroll.\n\n`
+                : `No, you cannot take ${targetEntry.subjectName} if you failed ${failedCourseRaw}.\n\nThis is because ${failedCourseRaw} is one of the required prerequisites for ${targetEntry.subjectName}. You must pass all prerequisite subjects before enrolling.\n\n`;
+            } else {
+              response = userLanguage === 'fil'
+                ? `Oo, maaari kang kumuha ng ${targetEntry.subjectName} kahit bumagsak ka sa ${failedCourseRaw}.\n\nAng ${failedCourseRaw} ay hindi prerequisite ng ${targetEntry.subjectName}.\n\n`
+                : `Yes, you can take ${targetEntry.subjectName} even if you failed ${failedCourseRaw}.\n\n${failedCourseRaw} is not a prerequisite for ${targetEntry.subjectName}.\n\n`;
+            }
+
+            if (prerequisites.length > 0) {
+              response += userLanguage === 'fil'
+                ? `Narito ang mga prerequisites para sa ${targetEntry.subjectName}:\n\n`
+                : `Here are the prerequisites for ${targetEntry.subjectName}:\n\n`;
+              for (const prereq of prerequisites) {
+                response += `• ${prereq}\n`;
+              }
+            } else {
+              response += userLanguage === 'fil'
+                ? `Ang kursong ito ay walang prerequisites.`
+                : `This course has no prerequisites.`;
+            }
+
+            aiResponse = response;
+          }
+
+          usedCache = true;
+          console.log(`[AI Direct] Served prerequisite validation response for: ${targetCourseRaw}`);
+        }
+      }
+    }
+
     if (!usedCache && !isPersonalizedQuery) {
       const cachedResponse = await FAQCacheService.getCachedAIResponse(message);
       if (cachedResponse) {
@@ -2368,7 +3301,7 @@ You can ask me:
         usedCache = true;
       }
     }
-    
+
     if (!usedCache) {
       // STEP 5: Retrieve comprehensive RAG context from database
       // This is the ONLY source of truth for AI responses
@@ -2377,7 +3310,7 @@ You can ask me:
 
       // STEP 5.5: Check for course recommendation queries
       const isRecommendationQuery = /recommend|best course|what course|which program|should i take|want to become|career/i.test(message);
-      
+
       if (isRecommendationQuery) {
         const recommendation = await generateCourseRecommendation(message);
         if (recommendation.recommendedProgram) {
@@ -2389,16 +3322,16 @@ You can ask me:
 
       // STEP 6: Generate AI response with strict RAG context
       aiResponse = await generateAIResponse(
-        message, 
+        message,
         ragContext,
         lastInteraction,
         userLanguage,
         conversationHistory
       );
-      
+
       // Cache the response for future similar questions (only for non-personalized queries)
       if (!isPersonalizedQuery && aiResponse && aiResponse.length > 50) {
-        FAQCacheService.cacheAIResponse(message, aiResponse).catch(() => {});
+        FAQCacheService.cacheAIResponse(message, aiResponse).catch(() => { });
       }
     }
 
@@ -2449,7 +3382,7 @@ You can ask me:
 
   } catch (error) {
     console.error('AI tutor error:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Server error processing AI request',
       message: 'We encountered an issue processing your question. Please try again.'
     });
@@ -2494,9 +3427,9 @@ export const getAIHistory = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    return res.json({ 
+    return res.json({
       interactions,
-      count: interactions.length 
+      count: interactions.length
     });
   } catch (error) {
     console.error('Get AI history error:', error);
@@ -2570,7 +3503,7 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
     const result = await geminiModel.generateContent(quizPrompt);
     const response = await result.response;
     const responseText = response.text() || '[]';
-    
+
     // Parse the JSON response and normalize correctAnswer to number index (0-3)
     let quiz: any[];
     try {
@@ -2704,16 +3637,16 @@ export const rateAIResponse = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.aIInteraction.update({
       where: { id },
-      data: { 
+      data: {
         helpful,
         // Store optional feedback if your schema supports it
         // feedback: feedback || undefined 
       },
     });
 
-    return res.json({ 
+    return res.json({
       interaction: updated,
-      message: 'Thank you for your feedback!' 
+      message: 'Thank you for your feedback!'
     });
   } catch (error) {
     console.error('Rate AI response error:', error);
@@ -2739,7 +3672,7 @@ export const getGreeting = async (req: AuthRequest, res: Response) => {
 
     // Generate personalized greeting
     const greeting = await generateGreeting(userId, userLanguage);
-    
+
     // Get default suggestions for new conversation
     const suggestions = getDefaultSuggestions(userLanguage);
 

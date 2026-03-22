@@ -1,0 +1,2140 @@
+[
+  {
+    "firstName": "Meryday",
+    "middleName": "P.",
+    "lastName": "Neo",
+    "email": "meryday.neo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ryann",
+    "middleName": "H.",
+    "lastName": "Valenzuela",
+    "email": "ryann.valenzuela@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Tuesday & Thursday, 09:00–11:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Elcharle",
+    "middleName": "D.",
+    "lastName": "Bala",
+    "email": "elcharle.bala@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Monday & Thursday, 10:00–12:00",
+    "consultationDays": [
+      "Monday",
+      "Thursday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Thrina",
+    "middleName": "O.",
+    "lastName": "Bernal",
+    "email": "thrina.bernal@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Alfredo",
+    "middleName": "P.",
+    "lastName": "Carpio Jr.",
+    "email": "alfredo.carpiojr@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Wednesday & Friday, 10:00–12:00",
+    "consultationDays": [
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Christian",
+    "middleName": "C.",
+    "lastName": "Laquindanum",
+    "email": "christian.laquindanum@bulsu.edu.ph",
+    "position": "Computer Laboratory Technician",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday & Friday, 13:00–14:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "14:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Anna Dominique",
+    "middleName": "T.",
+    "lastName": "Salunga",
+    "email": "anna.salunga@bulsu.edu.ph",
+    "position": "Program Chair, BS Food Technology",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 09:00–11:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "John Herald",
+    "middleName": "E.",
+    "lastName": "Reyes",
+    "email": "john.reyes@bulsu.edu.ph",
+    "position": "Science Laboratory Technician",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Jo Ann",
+    "middleName": "V.",
+    "lastName": "Reyes",
+    "email": "jo.reyes@bulsu.edu.ph",
+    "position": "Research Coordinator",
+    "college": "College of Science - Science",
+    "officeHours": "Wednesday & Friday, 10:00–12:00",
+    "consultationDays": [
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Danica",
+    "middleName": "G.",
+    "lastName": "Manahan-Del Rosario",
+    "email": "danica.rosario@bulsu.edu.ph",
+    "position": "Medical Laboratory Technician",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Michael John",
+    "middleName": "R.",
+    "lastName": "Aguilar",
+    "email": "michael.aguilar@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Kristan Diane",
+    "middleName": "B.",
+    "lastName": "Canta",
+    "email": "kristan.canta@bulsu.edu.ph",
+    "position": "Program Coordinator, BS Food Technology",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Paul Monching",
+    "middleName": "C.",
+    "lastName": "Santos",
+    "email": "paul.santos@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Maria Victoria",
+    "middleName": "S.",
+    "lastName": "Tiongson",
+    "email": "maria.tiongson@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Friday, 09:00–11:00",
+    "consultationDays": [
+      "Monday",
+      "Friday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Lawrence Victor",
+    "middleName": "D.",
+    "lastName": "Vitug",
+    "email": "lawrence.vitug@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Atheena Cammara",
+    "middleName": "T.",
+    "lastName": "Barre",
+    "email": "atheena.barre@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Erica May",
+    "middleName": "G.",
+    "lastName": "Dacquis",
+    "email": "erica.dacquis@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 09:00–11:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Maricel",
+    "middleName": "P.",
+    "lastName": "DE Guzman",
+    "email": "maricel.guzman@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday & Friday, 13:00–14:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "14:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Marvin",
+    "middleName": "A.",
+    "lastName": "De Leon",
+    "email": "marvin.leon@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ma. Agustina",
+    "middleName": "P.",
+    "lastName": "Dela Cruz",
+    "email": "ma.cruz@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Thursday, 10:00–12:00",
+    "consultationDays": [
+      "Monday",
+      "Thursday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Dan Carlo",
+    "middleName": "C.",
+    "lastName": "Dela Vega",
+    "email": "dan.vega@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ariel",
+    "middleName": null,
+    "lastName": "Rivera",
+    "email": "ariel.rivera@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Michael",
+    "middleName": "Dave",
+    "lastName": "Magsino",
+    "email": "michael.magsino@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Elyssa",
+    "middleName": "Grace",
+    "lastName": "Antonio",
+    "email": "elyssa.antonio@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Sarah Joy",
+    "middleName": "D.",
+    "lastName": "Dizon",
+    "email": "sarah.dizon@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Francis",
+    "middleName": "C.",
+    "lastName": "Rayo",
+    "email": "francis.rayo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 09:00–11:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Christian Lay",
+    "middleName": "M.",
+    "lastName": "Samson",
+    "email": "christian.samson@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Maria Salome",
+    "middleName": "C.",
+    "lastName": "Santos",
+    "email": "maria.santos@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Friday, 09:00–11:00",
+    "consultationDays": [
+      "Monday",
+      "Friday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "John Rhil",
+    "middleName": "D.",
+    "lastName": "Tobias",
+    "email": "john.tobias@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Wednesday & Friday, 10:00–12:00",
+    "consultationDays": [
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Julius Victor",
+    "middleName": null,
+    "lastName": "Degala",
+    "email": "julius.degala@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 09:00–11:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Billy Val",
+    "middleName": "O.",
+    "lastName": "Hernandez",
+    "email": "billy.hernandez@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday & Friday, 13:00–14:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "14:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Mary Ann",
+    "middleName": "L.",
+    "lastName": "Nicolas",
+    "email": "mary.nicolas@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Thursday, 10:00–12:00",
+    "consultationDays": [
+      "Monday",
+      "Thursday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Aarhus",
+    "middleName": "M.",
+    "lastName": "Dela Cruz",
+    "email": "aarhus.cruz@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Bernadette",
+    "middleName": "C.",
+    "lastName": "Dela Cruz",
+    "email": "bernadette.cruz@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Reymond",
+    "middleName": null,
+    "lastName": "Duenas",
+    "email": "reymond.duenas@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Wednesday & Friday, 10:00–12:00",
+    "consultationDays": [
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Paul Andrei",
+    "middleName": null,
+    "lastName": "Geronimo",
+    "email": "paul.geronimo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Monday & Wednesday & Friday, 13:00–14:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "14:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Dan Loyd",
+    "middleName": null,
+    "lastName": "Paulino",
+    "email": "dan.paulino@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Monday & Thursday, 10:00–12:00",
+    "consultationDays": [
+      "Monday",
+      "Thursday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Leo",
+    "middleName": null,
+    "lastName": "Santiago",
+    "email": "leo.santiago@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Wednesday & Friday, 10:00–12:00",
+    "consultationDays": [
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Judy Ann",
+    "middleName": "T.",
+    "lastName": "Sumala",
+    "email": "judy.sumala@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Monday & Wednesday & Friday, 13:00–14:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "14:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Jerica",
+    "middleName": null,
+    "lastName": "Tolentino",
+    "email": "jerica.tolentino@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Tuesday & Thursday, 15:00–17:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "15:00",
+    "consultationEnd": "17:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Marco",
+    "middleName": "C.",
+    "lastName": "Mandap",
+    "email": "marco.mandap@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Monday & Wednesday, 13:00–15:00",
+    "consultationDays": [
+      "Monday",
+      "Wednesday"
+    ],
+    "consultationStart": "13:00",
+    "consultationEnd": "15:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Agape",
+    "middleName": "E.",
+    "lastName": "Frontier",
+    "email": "agape.frontier@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "Tuesday & Thursday, 14:00–16:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Thelma",
+    "middleName": "V.",
+    "lastName": "Pagtalunan",
+    "email": "thelma.pagtalunan@bulsu.edu.ph",
+    "position": "Dean",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Benedict",
+    "middleName": "M.",
+    "lastName": "Estrella",
+    "email": "benedict.estrella@bulsu.edu.ph",
+    "position": "Associate Dean",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Rainilyn",
+    "middleName": "L.",
+    "lastName": "Duque",
+    "email": "rainilyn.duque@bulsu.edu.ph",
+    "position": "Department Head, Mathematics Department",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Bernie Rizza",
+    "middleName": "A.",
+    "lastName": "Cuenca",
+    "email": "bernie.cuenca@bulsu.edu.ph",
+    "position": "Science Laboratory Technician",
+    "college": "College of Science - Science",
+    "officeHours": "Monday & Thursday, 10:00–12:00",
+    "consultationDays": [
+      "Monday",
+      "Thursday"
+    ],
+    "consultationStart": "10:00",
+    "consultationEnd": "12:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Thelma",
+    "middleName": "DC.",
+    "lastName": "Arrieta",
+    "email": "arrieta.thelma@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": null,
+    "consultationDays": [],
+    "consultationStart": null,
+    "consultationEnd": null,
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Rolando",
+    "middleName": null,
+    "lastName": "Regalado",
+    "email": "regalado.rolando@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": null,
+    "consultationDays": [],
+    "consultationStart": null,
+    "consultationEnd": null,
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Judith Clarisse",
+    "middleName": "J.",
+    "lastName": "Tan",
+    "email": "judith.tan@bulsu.edu.ph",
+    "position": "Student Internship Program Coordinator (SIP Coordinator)",
+    "college": "College of Science - Science",
+    "officeHours": "Tuesday & Thursday, 09:00–11:00",
+    "consultationDays": [
+      "Tuesday",
+      "Thursday"
+    ],
+    "consultationStart": "09:00",
+    "consultationEnd": "11:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Minerva",
+    "middleName": "R.",
+    "lastName": "Amores",
+    "email": "minerva.amores@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Deo Stephanie",
+    "middleName": "R.",
+    "lastName": "Angeles",
+    "email": "deostephanie.angeles@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ma. Concepcion",
+    "middleName": "DC.",
+    "lastName": "Arellano",
+    "email": "ma.concepcion.arellano@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Michael",
+    "middleName": "R.",
+    "lastName": "Balagtas",
+    "email": "michael.balagtas@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Irish",
+    "middleName": "T.",
+    "lastName": "Baldevarona",
+    "email": "irish.baldevarona@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Evelyn",
+    "middleName": "R.",
+    "lastName": "Camara",
+    "email": "evelyn.camara@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Imelda Cristina",
+    "middleName": "B.",
+    "lastName": "Carcosia",
+    "email": "imeldacristina.carcosia@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Carla",
+    "middleName": "M.",
+    "lastName": "Clemente",
+    "email": "carla.clemente@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Harris",
+    "middleName": "R.",
+    "lastName": "Dela Cruz",
+    "email": "harris.delacruz@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Luzviminda",
+    "middleName": "F.",
+    "lastName": "Dela Cruz",
+    "email": "luzviminda.delacruz@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Raevinor",
+    "middleName": "R.",
+    "lastName": "Gonzales",
+    "email": "raevinor.gonzales@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Valentine Blez",
+    "middleName": "L.",
+    "lastName": "Lampayan",
+    "email": "valentineblez.lampayan@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Mary Ann",
+    "middleName": "C.",
+    "lastName": "Magtulis",
+    "email": "maryann.magtulis@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ellenita",
+    "middleName": "G.",
+    "lastName": "Manalaysay",
+    "email": "ellenita.manalaysay@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Armele",
+    "middleName": "J.",
+    "lastName": "Mangaran",
+    "email": "armele.mangaran@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Maria Cecilia",
+    "middleName": "E.",
+    "lastName": "Martin",
+    "email": "mariacecilia.martin@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Yolanda",
+    "middleName": "C.",
+    "lastName": "Roberto",
+    "email": "yolanda.roberto@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Edgardo",
+    "middleName": "M.",
+    "lastName": "Santos",
+    "email": "edgardo.santos@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Adolfo Jr.",
+    "middleName": "D.",
+    "lastName": "Victorino",
+    "email": "adolfojr..victorino@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Joselito",
+    "middleName": "V.",
+    "lastName": "Viola",
+    "email": "joselito.viola@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Aubrey Rose",
+    "middleName": "T.",
+    "lastName": "Gan",
+    "email": "aubreyrose.gan@bulsu.edu.ph",
+    "position": "Faculty (Adjunct)",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Thelma",
+    "middleName": "D.C.",
+    "lastName": "Arrieta",
+    "email": "thelma.arrieta@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Eleonor",
+    "middleName": "R.",
+    "lastName": "Basilio",
+    "email": "eleonor.basilio@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Rachel",
+    "middleName": "D.C.",
+    "lastName": "Clavio",
+    "email": "rachel.clavio@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Richard",
+    "middleName": "F.",
+    "lastName": "Clemente",
+    "email": "richard.clemente@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Maria Lin",
+    "middleName": "D.",
+    "lastName": "Cristobal",
+    "email": "marialin.cristobal@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Marissa",
+    "middleName": "DA.",
+    "lastName": "Dela Cruz",
+    "email": "marissa.delacruz@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Raymundo",
+    "middleName": "F.",
+    "lastName": "Javier",
+    "email": "raymundo.javier@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Freya Gay",
+    "middleName": "A.",
+    "lastName": "Jingco",
+    "email": "freyagay.jingco@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Mary Ylane",
+    "middleName": "S.",
+    "lastName": "Lee",
+    "email": "maryylane.lee@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Mery day",
+    "middleName": "P.",
+    "lastName": "Neo",
+    "email": "meryday.neo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Joana May",
+    "middleName": "C.",
+    "lastName": "Nepomuceno",
+    "email": "joanamay.nepomuceno@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Virginia",
+    "middleName": "P.",
+    "lastName": "Paitan",
+    "email": "virginia.paitan@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Jose Ravenal",
+    "middleName": "S.",
+    "lastName": "Ocampo",
+    "email": "joseravenal.ocampo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Michelle",
+    "middleName": "S.",
+    "lastName": "Agustin",
+    "email": "michelle.agustin@bulsu.edu.ph",
+    "position": "Extension Coordinator",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Rosario",
+    "middleName": "M.",
+    "lastName": "Poñado",
+    "email": "rosario.poñado@bulsu.edu.ph",
+    "position": "Department Head, Science Department",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Oliver",
+    "middleName": "R.",
+    "lastName": "Alaijos",
+    "email": "oliver.alaijos@bulsu.edu.ph",
+    "position": "Program Chair, BS Environmental Science",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Merlyn",
+    "middleName": "C.",
+    "lastName": "Cruz",
+    "email": "merlyn.cruz@bulsu.edu.ph",
+    "position": "Program Chair, BS Medical Technology",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Lyca",
+    "middleName": "D.",
+    "lastName": "Marcelino",
+    "email": "lyca.marcelino@bulsu.edu.ph",
+    "position": "Program Chair, BS Mathematics",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Arcel",
+    "middleName": "F.",
+    "lastName": "Galvez",
+    "email": "arcel.galvez@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Cherielyn",
+    "middleName": "C.",
+    "lastName": "Regalado",
+    "email": "cherielyn.regalado@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Gertrudes",
+    "middleName": "C.",
+    "lastName": "Reyes",
+    "email": "gertrudes.reyes@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Mara",
+    "middleName": "N.",
+    "lastName": "Roxas",
+    "email": "mara.roxas@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Joshua",
+    "middleName": "P.",
+    "lastName": "Valeroso",
+    "email": "joshua.valeroso@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Mathematics",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ma. Theresa",
+    "middleName": "F.",
+    "lastName": "Reyes",
+    "email": "ma.theresa.reyes@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Eden",
+    "middleName": "C.",
+    "lastName": "Ronquillo",
+    "email": "eden.ronquillo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Marlyn Rose",
+    "middleName": "M.",
+    "lastName": "Sacdalan",
+    "email": "marlynrose.sacdalan@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Anna Dominique",
+    "middleName": "M.",
+    "lastName": "Salunga",
+    "email": "annadominique.salunga@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Eloisa",
+    "middleName": "Q.",
+    "lastName": "Singian",
+    "email": "eloisa.singian@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ma. Victoria",
+    "middleName": "S.",
+    "lastName": "Tiongson",
+    "email": "ma.victoria.tiongson@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Debbie Ann",
+    "middleName": "S.",
+    "lastName": "Tuazon",
+    "email": "debbieann.tuazon@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Cielo Emar",
+    "middleName": "M.",
+    "lastName": "Villareal",
+    "email": "cieloemar.villareal@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Ria Laura",
+    "middleName": "B.",
+    "lastName": "Abuzo",
+    "email": "rialaura.abuzo@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Mark Andrew",
+    "middleName": "R.",
+    "lastName": "Anacleto",
+    "email": "markandrew.anacleto@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Alfredo",
+    "middleName": "P.",
+    "lastName": "Carpio",
+    "email": "alfredo.carpio@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Jayson",
+    "middleName": "V.",
+    "lastName": "Cayetano",
+    "email": "jayson.cayetano@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Reynaldo",
+    "middleName": "S.",
+    "lastName": "Jacinto",
+    "email": "reynaldo.jacinto@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Maribeth",
+    "middleName": "V.",
+    "lastName": "Martinez",
+    "email": "maribeth.martinez@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Marianne",
+    "middleName": "P.",
+    "lastName": "Santos",
+    "email": "marianne.santos@bulsu.edu.ph",
+    "position": "Faculty (Part-Time)",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Agatha Ruth",
+    "middleName": "T.",
+    "lastName": "Gan",
+    "email": "agatharuth.gan@bulsu.edu.ph",
+    "position": "Guest Lecturer",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Karl Kenneth",
+    "middleName": "R.",
+    "lastName": "Santos",
+    "email": "karlkenneth.santos@bulsu.edu.ph",
+    "position": "Guest Lecturer",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Edwin",
+    "middleName": "R.",
+    "lastName": "Tadiosa",
+    "email": "edwin.tadiosa@bulsu.edu.ph",
+    "position": "Program Chair, BS Biology",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Emily",
+    "middleName": "K.",
+    "lastName": "Bernardo",
+    "email": "emily.bernardo@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Jovie",
+    "middleName": "E.",
+    "lastName": "Nicolas",
+    "email": "jovie.nicolas@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Alma",
+    "middleName": "D.",
+    "lastName": "Politano",
+    "email": "alma.politano@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  },
+  {
+    "firstName": "Racquel",
+    "middleName": "Z.",
+    "lastName": "Rubico",
+    "email": "racquel.rubico@bulsu.edu.ph",
+    "position": "Faculty",
+    "college": "College of Science - Science",
+    "officeHours": "By Appointment",
+    "consultationDays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "consultationStart": "14:00",
+    "consultationEnd": "16:00",
+    "vacantTime": null,
+    "FacultySchedule": [],
+    "FacultySubject": []
+  }
+]
