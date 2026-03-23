@@ -1,0 +1,114 @@
+[
+  {
+    "courseCode": "MAT 102",
+    "subjectName": "Fundamentals of Computing"
+  },
+  {
+    "courseCode": "MAT 103",
+    "subjectName": "Calculus I"
+  },
+  {
+    "courseCode": "MAT 201",
+    "subjectName": "Calculus 1"
+  },
+  {
+    "courseCode": "MAT 104",
+    "subjectName": "Fundamental Concept of Mathematics"
+  },
+  {
+    "courseCode": "MAT 105",
+    "subjectName": "Calculus II"
+  },
+  {
+    "courseCode": "MAT 107",
+    "subjectName": "Probability"
+  },
+  {
+    "courseCode": "MAT 207",
+    "subjectName": "Abstract Algebra"
+  },
+  {
+    "courseCode": "MAT 208",
+    "subjectName": "Statistical Theory"
+  },
+  {
+    "courseCode": "MAT 204a",
+    "subjectName": "Linear Algebra"
+  },
+  {
+    "courseCode": "MAT 205",
+    "subjectName": "Differential Equations"
+  },
+  {
+    "courseCode": "MAT 206",
+    "subjectName": "Number Theory"
+  },
+  {
+    "courseCode": "MAT 204",
+    "subjectName": "Calculus (Integral and Differential)"
+  },
+  {
+    "courseCode": "MAT 301",
+    "subjectName": "Advanced Calculus"
+  },
+  {
+    "courseCode": "MAT 302",
+    "subjectName": "Modern Geometry"
+  },
+  {
+    "courseCode": "MAT 304a",
+    "subjectName": "Operations Research"
+  },
+  {
+    "courseCode": "MAT305",
+    "subjectName": "Applied Statistics"
+  },
+  {
+    "courseCode": "MAT 305",
+    "subjectName": "Mathematical Modeling"
+  },
+  {
+    "courseCode": "MAT 306",
+    "subjectName": "Graph Theory and Applications"
+  },
+  {
+    "courseCode": "MAT 308",
+    "subjectName": "Real Analysis"
+  },
+  {
+    "courseCode": "MAT 399b",
+    "subjectName": "Thesis I"
+  },
+  {
+    "courseCode": "MAT 400b",
+    "subjectName": "Thesis II"
+  },
+  {
+    "courseCode": "MAT 403",
+    "subjectName": "Numerical Analysis"
+  },
+  {
+    "courseCode": "MAT 406",
+    "subjectName": "Complex Analysis"
+  },
+  {
+    "courseCode": "MAT 404",
+    "subjectName": "Actuarial Mathematics"
+  },
+  {
+    "courseCode": "MAT 399c",
+    "subjectName": "Thesis I"
+  },
+  {
+    "courseCode": "MAT 400c",
+    "subjectName": "Thesis II"
+  },
+  {
+    "courseCode": "MAT 399a",
+    "subjectName": "Thesis I"
+  },
+  {
+    "courseCode": "MAT 400a",
+    "subjectName": "Thesis II"
+  }
+]

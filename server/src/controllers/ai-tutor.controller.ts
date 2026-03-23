@@ -1,5 +1,5 @@
-// server/src/controllers/ai-tutor.controller.ts
-// STRICT RAG-BASED AI TUTOR - Only answers from database knowledge
+﻿// server/src/controllers/ai-tutor.controller.ts
+// STRICT RAG-BASED AI TUTOR - Only answers from knowledge base
 import { Response } from "express";
 import { AIInteractionType } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth.middleware";
@@ -23,9 +23,22 @@ import * as FacultyConsultationService from "../services/faculty-consultation.se
 import { FAQCacheService } from "../services/faq-cache.service";
 import Groq from "groq-sdk";
 import { Cerebras } from "@cerebras/cerebras_cloud_sdk";
+import axios from "axios";
 
-// Initialize Groq client (FREE tier)
+// Initialize OpenRouter client (PRIMARY)
+const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+const openRouterModel =
+  process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1-distill-llama-70b";
+const hasOpenRouter = openRouterApiKey && openRouterApiKey !== "your-openrouter-api-key-here";
+if (hasOpenRouter) {
+  console.log(`✓ OpenRouter enabled (PRIMARY) - Model: ${openRouterModel}`);
+} else {
+  console.warn("⚠ OpenRouter API key not configured");
+}
+
+// Initialize Groq client (SECONDARY)
 let groqClient: Groq | null = null;
+let groqClientFallback: Groq | null = null;
 // Keep geminiModel null to avoid compile errors where it's referenced later
 let geminiModel: any = null;
 try {
@@ -35,10 +48,23 @@ try {
   ) {
     groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
     console.log(
-      `✓ Groq AI enabled (FREE tier) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
+      `✓ Groq AI enabled (SECONDARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
     );
   } else {
     console.warn("⚠ Groq API key not configured");
+  }
+  
+  // Initialize fallback Groq client with second API key
+  if (
+    process.env.GROQ_API_KEY_FALLBACK &&
+    process.env.GROQ_API_KEY_FALLBACK !== "your-groq-api-key-here"
+  ) {
+    groqClientFallback = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK });
+    console.log(
+      `✓ Groq fallback enabled (TERTIARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
+    );
+  } else {
+    console.log("ℹ Groq fallback API key not configured (optional)");
   }
 } catch (error) {
   console.error("Failed to initialize Groq client:", error);
@@ -53,7 +79,7 @@ try {
   ) {
     cerebrasClient = new Cerebras({ apiKey: process.env.CEREBRAS_API_KEY });
     console.log(
-      `✓ Cerebras fallback enabled - Model: ${process.env.CEREBRAS_MODEL || "llama-3.3-70b"}`,
+      `✓ Cerebras fallback enabled - Model: ${process.env.CEREBRAS_MODEL || "llama-3.1-70b"}`,
     );
   } else {
     console.warn("⚠ Cerebras API key not configured (fallback disabled)");
@@ -110,38 +136,49 @@ Respond in clear, professional English.
 
     // STRICT RAG-BASED TISA SYSTEM PROMPT
     const TISA_SYSTEM_PROMPT = `
-# TISA - The Intelligent Student Assistant (BSU College of Science)
-${languageInstruction}
+    # TISA - The Intelligent Student Assistant (BULSU College of Science)
+    ${languageInstruction}
 
-## RULES:
-- ONLY answer from the DATABASE KNOWLEDGE below. Never use general knowledge.
-- If info is NOT in database, say so and provide official BSU/COS links for updated information:
-  * College of Science Facebook: https://www.facebook.com/BulSUCSOfficial
-  * BSU Admissions: https://www.facebook.com/BulSUAdmissionsOffice
-  * BSU Official Facebook: https://www.facebook.com/bulsuofficial
-  * BSU Official Website: https://www.bulsu.edu.ph/
-- If question is unrelated to BSU COS, politely decline.
-- For policies/grading/admission questions, prioritize FAQ data.
-- For career queries, list career paths from the program data.
-- For faculty queries with multiple matches, list all and ask which one.
-- For course recommendations: state program name, why it fits, key subjects, and careers.
-- Be concise but thorough. If response is very long, offer to continue.
+    ## CRITICAL TONE & LANGUAGE RULES:
+    - NEVER say "according to the database", "based on the database", "the database shows",
+      "according to my records", "based on my records", "the system shows", "according to
+      the information provided", "based on the context", or any similar attribution phrases.
+    - Speak naturally as if you simply KNOW this information. You ARE TISA — you don't
+      "look things up", you just know them.
+    - WRONG: "According to the database, the Dean is Dr. Juan dela Cruz."
+    - RIGHT:  "The Dean of the College of Science is Dr. Juan dela Cruz."
+    - WRONG: "Based on the information I have, the program offers..."
+    - RIGHT:  "The program offers..."
 
-${databaseContext}
+    ## KNOWLEDGE RULES:
+    - ONLY answer from the UNIVERSITY INFORMATION section below. Never use general knowledge.
+    - If info is NOT available, say so naturally and provide official BSU/COS links:
+      * College of Science Facebook: https://www.facebook.com/BulSUCSOfficial
+      * BSU Admissions: https://www.facebook.com/BulSUAdmissionsOffice
+      * BSU Official Facebook: https://www.facebook.com/bulsuofficial
+      * BSU Official Website: https://www.bulsu.edu.ph/
+    - If question is unrelated to BSU COS, politely decline.
+    - For policies/grading/admission questions, prioritize FAQ data.
+    - For career queries, list career paths from the program data.
+    - For faculty queries with multiple matches, list all and ask which one.
+    - For course recommendations: state program name, why it fits, key subjects, and careers.
+    - Be concise but thorough. If response is very long, offer to continue.
 
-${
-  conversationHistory.length > 0
-    ? `## CONVERSATION CONTEXT:
-${conversationHistory
-  .slice(-4)
-  .map(
-    (m) =>
-      `${m.role === "user" ? "User" : "AI"}: ${m.content.substring(0, 300)}`,
-  )
-  .join("\n")}
-`
-    : ""
-}`.trim();
+    ${databaseContext}
+
+    ${
+      conversationHistory.length > 0
+        ? `## CONVERSATION CONTEXT:
+    ${conversationHistory
+      .slice(-4)
+      .map(
+        (m) =>
+          `${m.role === "user" ? "User" : "AI"}: ${m.content.substring(0, 300)}`,
+      )
+      .join("\n")}
+    `
+        : ""
+    }`.trim();
 
     const lowerMsg = userMessage.toLowerCase();
 
@@ -224,8 +261,8 @@ ${conversationHistory
 
       if (allFaculty.length === 0) {
         return language === "fil"
-          ? `Paumanhin, wala pa akong impormasyon tungkol sa faculty members ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
-          : `I apologize, but I don't have information about faculty members in the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
+          ? `Paumanhin, wala pa akong impormasyon tungkol sa faculty members ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BULSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
+          : `I apologize, but I don't have information about faculty members in the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BULSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
       }
 
       // Deduplicate faculty by full name (keep entry with most complete email)
@@ -269,8 +306,8 @@ ${conversationHistory
           )?.[0] || "the department";
         response =
           language === "fil"
-            ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring bisitahin ang mga opisyal na pahina sa ibaba.*\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`
-            : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please visit the official pages below.*\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\n`;
+            ? `📚 **Faculty Members ng College of Science**\n\n*Pakitandaan: Ang aking database ay hindi pa nag-iimbak ng department-specific na impormasyon. Narito ang lahat ng COS faculty. Para sa ${deptName}-specific na faculty list, mangyaring bisitahin ang mga opisyal na pahina sa ibaba.*\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BULSU Official Website: https://www.bulsu.edu.ph/\n\n`
+            : `📚 **College of Science Faculty Members**\n\n*Note: My database doesn't store department-specific information yet. Here are all COS faculty members. For ${deptName}-specific faculty, please visit the official pages below.*\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BULSU Official Website: https://www.bulsu.edu.ph/\n\n`;
       } else {
         response =
           language === "fil"
@@ -482,8 +519,8 @@ ${conversationHistory
 
       if (positionFaculty.length === 0) {
         return language === "fil"
-          ? `Paumanhin, wala pa akong impormasyon tungkol sa ${bestRole} ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Website: https://www.bulsu.edu.ph/`
-          : `I apologize, but I don't have information about the ${bestRole} of the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Website: https://www.bulsu.edu.ph/`;
+          ? `Paumanhin, wala pa akong impormasyon tungkol sa ${bestRole} ng College of Science sa aking database.\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Website: https://www.bulsu.edu.ph/`
+          : `I apologize, but I don't have information about the ${bestRole} of the College of Science in my database yet.\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Website: https://www.bulsu.edu.ph/`;
       }
 
       // Format response for position-specific query
@@ -738,8 +775,8 @@ ${conversationHistory
               : `I found ${facultyMatches.length} faculty members with the name "${searchName}":\n\n${namesList}\n\nWhich one are you referring to?`;
           } else {
             return language === "fil"
-              ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
-              : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
+              ? `Paumanhin, wala akong impormasyon tungkol kay "${searchName}" sa aking database ng College of Science faculty. Maaaring:\n• Mali ang spelling ng pangalan\n• Hindi siya faculty member ng COS\n• Wala pa siya sa database\n\n**OPISYAL NA MGA LINK PARA SA UPDATED NA IMPORMASYON:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BULSU Official Website: https://www.bulsu.edu.ph/\n\nMangyaring bisitahin ang mga opisyal na pahina para sa pinakabagong impormasyon at anunsyo.`
+              : `I apologize, but I don't have information about "${searchName}" in my College of Science faculty database. This could mean:\n• The name spelling might be different\n• They may not be a COS faculty member\n• They haven't been added to the database yet\n\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n- BULSU Official Website: https://www.bulsu.edu.ph/\n\nPlease visit these official pages for the most current information and announcements.`;
           }
         }
       }
@@ -1017,28 +1054,29 @@ ${conversationHistory
 
           // ── Build response ────────────────────────────────────────────────────
           const failedEntryDisplay = failedEntry
-             ? `${failedEntry.subjectName} (${failedEntry.courseCode})`
-             : rawFailedCourse;
+            ? `${failedEntry.subjectName} (${failedEntry.courseCode})`
+            : rawFailedCourse;
           const displayFailedName = failedEntry
             ? `${failedEntry.courseCode} – ${failedEntry.subjectName}`
             : rawFailedCourse;
+          const targetDisplay = `${targetEntry.subjectName} (${targetEntry.courseCode})`;
 
           if (isPrerequisite) {
             return language === "fil"
-              ? `❌ **Direktang Sagot**\nHindi, hindi ka maaaring kumuha ng **${targetEntry.subjectName}** kung bumagsak ka sa **${rawFailedCourse}**.\n\n📖 **Paliwanag**\nAng **${failedEntryDisplay}** ay isa sa mga kinakailangang prerequisites para sa **${targetEntry.subjectName}**. Kailangan mong pumasa sa lahat ng prerequisite subjects bago mag-enroll.\n\n📚 **Kumpletong Listahan ng Prerequisites**\n${prereqDisplay}`
-              : `❌ **Direct Answer**\nNo, you cannot take **${targetEntry.subjectName}** if you failed **${rawFailedCourse}**.\n\n📖 **Explanation**\n**${failedEntryDisplay}** is one of the required prerequisites for **${targetEntry.subjectName}**. You must pass all prerequisite subjects before enrolling.\n\n📚 **Complete Prerequisite List**\n${prereqDisplay}`;
+              ? `❌ **Direktang Sagot**\nHindi, hindi ka maaaring kumuha ng **${targetDisplay}** kung bumagsak ka sa **${failedEntryDisplay}**.\n\n📖 **Paliwanag**\nAng **${failedEntryDisplay}** ay isa sa mga kinakailangang prerequisites para sa **${targetDisplay}**. Kailangan mong pumasa sa lahat ng prerequisite subjects bago mag-enroll.\n\n📚 **Kumpletong Listahan ng Prerequisites**\n${prereqDisplay}`
+              : `❌ **Direct Answer**\nNo, you cannot take **${targetDisplay}** if you failed **${failedEntryDisplay}**.\n\n📖 **Explanation**\n**${failedEntryDisplay}** is one of the required prerequisites for **${targetDisplay}**. You must pass all prerequisite subjects before enrolling.\n\n📚 **Complete Prerequisite List**\n${prereqDisplay}`;
           } else {
             const failedNoteFil = failedEntry
-              ? `Ang **${failedEntryDisplay}** ay **hindi** kasama sa mga prerequisites ng **${targetEntry.subjectName}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.`
-              : `Hindi ko mahanap ang "${rawFailedCourse}" sa database, ngunit wala itong kaugnayan sa mga prerequisites ng **${targetEntry.subjectName}** batay sa available na data.`;
-              
+              ? `Ang **${failedEntryDisplay}** ay **hindi** kasama sa mga prerequisites ng **${targetDisplay}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.`
+              : `Hindi ko mahanap ang "${rawFailedCourse}" sa database, ngunit wala itong kaugnayan sa mga prerequisites ng **${targetDisplay}** batay sa available na data.`;
+
             const failedNoteEng = failedEntry
-              ? `**${failedEntryDisplay}** is **not** among the prerequisites for **${targetEntry.subjectName}**, so failing it does not block you from enrolling.`
-              : `I couldn't find "${rawFailedCourse}" in the database, but it does not appear in the prerequisites for **${targetEntry.subjectName}** based on available data.`;
+              ? `**${failedEntryDisplay}** is **not** among the prerequisites for **${targetDisplay}**, so failing it does not block you from enrolling.`
+              : `I couldn't find "${rawFailedCourse}" in the database, but it does not appear in the prerequisites for **${targetDisplay}** based on available data.`;
 
             return language === "fil"
-              ? `✅ **Direktang Sagot**\nOo, maaari kang kumuha ng **${targetEntry.subjectName}** kahit bumagsak ka sa **${rawFailedCourse}**.\n\n📖 **Paliwanag**\n${failedNoteFil}\n\n📚 **Kumpletong Listahan ng Prerequisites**\n${prereqDisplay}`
-              : `✅ **Direct Answer**\nYes, you can take **${targetEntry.subjectName}** even if you failed **${rawFailedCourse}**.\n\n📖 **Explanation**\n${failedNoteEng}\n\n📚 **Complete Prerequisite List**\n${prereqDisplay}`;
+              ? `✅ **Direktang Sagot**\nOo, maaari kang kumuha ng **${targetDisplay}** kahit bumagsak ka sa **${failedEntryDisplay}**.\n\n📖 **Paliwanag**\n${failedNoteFil}\n\n📚 **Kumpletong Listahan ng Prerequisites**\n${prereqDisplay}`
+              : `✅ **Direct Answer**\nYes, you can take **${targetDisplay}** even if you failed **${failedEntryDisplay}**.\n\n📖 **Explanation**\n${failedNoteEng}\n\n📚 **Complete Prerequisite List**\n${prereqDisplay}`;
           }
         }
         // If target course not found, fall through to Pattern 2 below
@@ -1389,7 +1427,7 @@ ${conversationHistory
       lowerMsg.includes("degrees");
 
     if (isAskingAboutPrograms) {
-      return `**Welcome to BSU College of Science!** 🎓
+      return `**Welcome to BULSU College of Science!** 🎓
 
 Here are our official undergraduate programs as of 2025:
 
@@ -1435,6 +1473,57 @@ Each program offers unique opportunities and career paths!
       { role: "user" as const, content: userMessage },
     ];
 
+    // Try OpenRouter first (PRIMARY)
+    if (hasOpenRouter) {
+      try {
+        console.log(
+          `[OpenRouter] Generating response... Model=${openRouterModel} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[OpenRouter] latency");
+        const response = await axios.post(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            model: openRouterModel,
+            messages: buildMessages(),
+            max_tokens: 1500,
+            temperature: 0.7,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${openRouterApiKey}`,
+              "HTTP-Referer":
+                process.env.FRONTEND_URL || "http://localhost:5173",
+              "X-Title": "TISA - BSU AI Tutor",
+            },
+          },
+        );
+        console.timeEnd("[OpenRouter] latency");
+        const text = response.data?.choices?.[0]?.message?.content;
+        if (text) {
+          console.log(
+            "[OpenRouter] OK preview:",
+            sanitizeLog((text || "").replace(/\s+/g, " ")),
+          );
+          console.log("✓ OpenRouter AI response generated successfully");
+          return text;
+        }
+      } catch (openRouterError: any) {
+        console.error(
+          "[OpenRouter][ERROR]:",
+          openRouterError?.response?.status,
+          openRouterError?.response?.data?.error?.code,
+          openRouterError?.message || openRouterError,
+        );
+        try {
+          console.error(
+            "[OpenRouter][ERROR] raw:",
+            JSON.stringify(openRouterError.response?.data, null, 2),
+          );
+        } catch {}
+        console.log("[Fallback] OpenRouter failed, trying Groq primary...");
+      }
+    }
+
     // Try Groq first
     if (groqClient) {
       try {
@@ -1445,7 +1534,7 @@ Each program offers unique opportunities and career paths!
         const completion = await groqClient.chat.completions.create({
           model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
           messages: buildMessages(),
-          max_tokens: 2000,
+          max_tokens: 1500,
           temperature: 0.7,
         });
         console.timeEnd("[Groq] latency");
@@ -1473,16 +1562,53 @@ Each program offers unique opportunities and career paths!
             JSON.stringify(groqError, null, 2),
           );
         } catch {}
-        // Only short-circuit on explicit rate limit; otherwise try fallback
-        if (groqError?.status === 429) {
-          return language === "fil"
-            ? `Paumanhin, maraming requests ngayon. Subukan ulit pagkatapos ng ilang segundo. 🔄`
-            : `I'm receiving too many requests right now. Please wait a moment and try again. 🔄`;
-        }
+        // Log the error but ALWAYS try fallback (don't return early on 429)
         console.log("[Fallback] Groq failed, trying Cerebras...");
       }
     }
 
+    // Fallback to second Groq API key if available
+    if (groqClientFallback) {
+      try {
+        console.log(
+          `[Groq Fallback] Generating response... Model=${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Groq Fallback] latency");
+        const completion = await groqClientFallback.chat.completions.create({
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: buildMessages(),
+          max_tokens: 1500,
+          temperature: 0.7,
+        });
+        console.timeEnd("[Groq Fallback] latency");
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log(
+          "[Groq Fallback] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Groq fallback API key response generated successfully");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
+      } catch (groqFallbackError: any) {
+        console.error(
+          "[Groq Fallback][ERROR]:",
+          groqFallbackError?.status,
+          groqFallbackError?.code,
+          groqFallbackError?.message || groqFallbackError,
+        );
+        try {
+          console.error(
+            "[Groq Fallback][ERROR] raw:",
+            JSON.stringify(groqFallbackError, null, 2),
+          );
+        } catch {}
+        // Log the error but try Cerebras next
+        console.log("[Fallback] Groq fallback failed, trying Cerebras...");
+      }
+    }
     // Fallback to Cerebras if available
     if (cerebrasClient) {
       try {
@@ -1491,9 +1617,9 @@ Each program offers unique opportunities and career paths!
         );
         console.time("[Cerebras] latency");
         const completion = await cerebrasClient.chat.completions.create({
-          model: process.env.CEREBRAS_MODEL || "llama-3.3-70b",
+          model: process.env.CEREBRAS_MODEL || "llama-3.1-70b",
           messages: buildMessages(),
-          max_tokens: 2000,
+          max_tokens: 1500,
           temperature: 0.7,
         } as any);
         console.timeEnd("[Cerebras] latency");
@@ -1524,8 +1650,20 @@ Each program offers unique opportunities and career paths!
       }
     }
 
-    // If neither provider worked
-    return `I'm having trouble connecting right now. 🔧 Please try again in a moment.`;
+    // If all providers failed, provide helpful diagnostic message
+    console.error(
+      "[AI] All providers failed. OpenRouter:",
+      !!hasOpenRouter,
+      "Groq primary:",
+      !!groqClient,
+      "Groq fallback:",
+      !!groqClientFallback,
+      "Cerebras:",
+      !!cerebrasClient,
+    );
+    return language === "fil"
+      ? `Paumanhin, ang AI service ay hindi available ngayon. Subukan ulit pagkatapos ng ilang segundo. 🔧`
+      : `I'm having trouble connecting right now. 🔧 Please try again in a moment.`;
   } catch (error: any) {
     console.error("AI API Error:", error?.message || error);
     console.error("Full error:", JSON.stringify(error, null, 2));
@@ -1899,6 +2037,7 @@ You can ask me:
     }
 
     // STEP 0.5: Check if user is requesting a consultation/appointment with faculty
+    const isConsultationRequest = false;
     const consultationIntent =
       FacultyConsultationService.detectConsultationIntent(message);
     const consultationKeywords =
@@ -1910,13 +2049,13 @@ You can ask me:
         message,
       );
 
-    const isConsultationRequest =
-      !isScheduleInquiry &&
-      (consultationIntent.isConsultationQuery ||
-        (consultationKeywords.test(message) &&
-          /book|schedule|appointment|consult|meet|available|office hours|advising/i.test(
-            message,
-          )));
+    // const isConsultationRequest =
+    //   !isScheduleInquiry &&
+    //   (consultationIntent.isConsultationQuery ||
+    //     (consultationKeywords.test(message) &&
+    //       /book|schedule|appointment|consult|meet|available|office hours|advising/i.test(
+    //         message,
+    //       )));
 
     if (isConsultationRequest) {
       try {
@@ -2507,10 +2646,11 @@ You can ask me:
     }
 
     // STEP 0.8: Check if user is asking about faculty consultation schedules/bookings
+const isFacultyScheduleQuery = false;
     const facultyScheduleKeywords =
       /schedule.*faculty|faculty.*schedule|booking.*faculty|faculty.*booking|available.*slot|slot.*available|when.*available|kailan.*available/i;
-    const isFacultyScheduleQuery =
-      facultyScheduleKeywords.test(message) && !isConsultationRequest;
+    // const isFacultyScheduleQuery =
+    //   facultyScheduleKeywords.test(message) && !isConsultationRequest;
 
     if (isFacultyScheduleQuery) {
       try {
@@ -2713,8 +2853,8 @@ You can ask me:
     if (isGibberish(message)) {
       const clarificationResponse =
         userLanguage === "fil"
-          ? `Hindi ko lubos na naintindihan ang iyong mensahe. 🤔\n\nMaaari mo bang i-rephrase ang iyong tanong? Halimbawa:\n• "Ano ang mga programa sa College of Science?"\n• "Sino ang Dean ng COS?"\n• "Paano mag-enroll sa BSU?"\n\n**Paano kita matutulungan?**`
-          : `I didn't quite understand your message. 🤔\n\nCould you please rephrase your question? For example:\n• "What programs are offered in College of Science?"\n• "Who is the Dean of COS?"\n• "How do I enroll at BSU?"\n\n**How can I help you today?**`;
+          ? `Hindi ko lubos na naintindihan ang iyong mensahe. 🤔\n\nMaaari mo bang i-rephrase ang iyong tanong? Halimbawa:\n• "Ano ang mga programa sa College of Science?"\n• "Sino ang Dean ng COS?"\n• "Paano mag-enroll sa BULSU?"\n\n**Paano kita matutulungan?**`
+          : `I didn't quite understand your message. 🤔\n\nCould you please rephrase your question? For example:\n• "What programs are offered in College of Science?"\n• "Who is the Dean of COS?"\n• "How do I enroll at BULSU?"\n\n**How can I help you today?**`;
 
       const interaction = await prisma.aIInteraction.create({
         data: {
@@ -2757,14 +2897,14 @@ You can ask me:
       if (scopeAnalysis.category === "unsupported_language") {
         outOfScopeResponse =
           userLanguage === "fil"
-            ? `Paumanhin, ngunit ako ay sumusuporta lamang sa **English** at **Filipino (Tagalog)** na mga wika. 🌐\n\nMangyaring magtanong sa English o Filipino.\n\n**Mayroon ka bang tanong tungkol sa BSU College of Science?**`
-            : `I apologize, but I only support **English** and **Filipino (Tagalog)** languages. 🌐\n\nPlease ask your question in English or Filipino.\n\n**Do you have any questions about BSU College of Science?**`;
+            ? `Paumanhin, ngunit ako ay sumusuporta lamang sa **English** at **Filipino (Tagalog)** na mga wika. 🌐\n\nMangyaring magtanong sa English o Filipino.\n\n**Mayroon ka bang tanong tungkol sa BULSU College of Science?**`
+            : `I apologize, but I only support **English** and **Filipino (Tagalog)** languages. 🌐\n\nPlease ask your question in English or Filipino.\n\n**Do you have any questions about BULSU College of Science?**`;
       } else {
         // Handle other out-of-scope topics
         outOfScopeResponse =
           userLanguage === "fil"
-            ? `Paumanhin, ngunit ang aking kaalaman ay limitado lamang sa **Bulacan State University – College of Science**. 🎓\n\nHindi ako makakatulong sa mga tanong tungkol sa ${scopeAnalysis.category}.\n\nMaaari akong tumulong sa:\n• Mga programa at kurikulum ng COS\n• Impormasyon tungkol sa faculty\n• Career opportunities\n• Admission at enrollment\n\n**Mayroon ka bang tanong tungkol sa BSU College of Science?**`
-            : `I apologize, but my knowledge is strictly limited to **Bulacan State University – College of Science**. 🎓\n\nI cannot help with questions about ${scopeAnalysis.category}.\n\nI can help you with:\n• COS programs and curriculum\n• Faculty information\n• Career opportunities\n• Admission and enrollment\n\n**Do you have any questions about BSU College of Science?**`;
+            ? `Paumanhin, ngunit ang aking kaalaman ay limitado lamang sa **Bulacan State University – College of Science**. 🎓\n\nHindi ako makakatulong sa mga tanong tungkol sa ${scopeAnalysis.category}.\n\nMaaari akong tumulong sa:\n• Mga programa at kurikulum ng COS\n• Impormasyon tungkol sa faculty\n• Career opportunities\n• Admission at enrollment\n\n**Mayroon ka bang tanong tungkol sa BULSU College of Science?**`
+            : `I apologize, but my knowledge is strictly limited to **Bulacan State University – College of Science**. 🎓\n\nI cannot help with questions about ${scopeAnalysis.category}.\n\nI can help you with:\n• COS programs and curriculum\n• Faculty information\n• Career opportunities\n• Admission and enrollment\n\n**Do you have any questions about BULSU College of Science?**`;
       }
 
       // Save the out-of-scope interaction
@@ -3878,7 +4018,7 @@ You can ask me:
               });
 
               const codeToName = new Map(
-                prereqEntries.map((e) => [e.courseCode, e.subjectName]),
+                prereqEntries.map((e) => [e.courseCode.toLowerCase(), e.subjectName]),
               );
 
               response +=
@@ -3887,7 +4027,7 @@ You can ask me:
                   : `**Prerequisites for ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n`;
 
               for (const code of prerequisites) {
-                const name = codeToName.get(code) || "";
+                const name = codeToName.get(code.toLowerCase());
                 response += name ? `• ${code} – ${name}\n` : `• ${code}\n`;
               }
             } else {
@@ -4114,13 +4254,13 @@ Generate a JSON array of quiz questions in this exact format:
   }
 ]
 
-Make questions educational and relevant to BSU College of Science curriculum. Return ONLY the JSON array, no other text.`;
+Replace questions educational and relevant to BULSU College of Science curriculum. Return ONLY the JSON array, no other text.`;
 
     if (!geminiModel) {
       // Fallback quiz if Gemini not configured
       const fallbackQuiz = [
         {
-          question: "What does BSU COS stand for?",
+          question: "What does BULSU COS stand for?",
           options: [
             "A) Bulacan State University - College of Science",
             "B) Basic Science Unit - Course of Study",
@@ -4129,11 +4269,11 @@ Make questions educational and relevant to BSU College of Science curriculum. Re
           ],
           correctAnswer: "A",
           explanation:
-            "BSU COS stands for Bulacan State University - College of Science",
+            "BULSU COS stands for Bulacan State University - College of Science",
         },
         {
           question:
-            "Which of the following is a program offered by BSU College of Science?",
+            "Which of the following is a program offered by BULSU College of Science?",
           options: [
             "A) BS Nursing",
             "B) BS Computer Science",

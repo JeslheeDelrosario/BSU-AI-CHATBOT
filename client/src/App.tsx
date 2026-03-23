@@ -49,6 +49,7 @@ import AdminForums from './pages/AdminForums';
 import AdminConsultations from './pages/AdminConsultations';
 import AdminAISettings from './pages/AdminAISettings';
 import AdminFacultyAccounts from './pages/AdminFacultyAccounts';
+import AdminKnowledgeManagement from './pages/AdminKnowledgeManagement';
 
 // Public Pages
 import FAQs from './pages/FAQs';
@@ -112,6 +113,7 @@ function App() {
                   <Route path="/AdminConsultations" element={<AdminConsultations />} />
                   <Route path="/AdminAISettings" element={<AdminAISettings />} />
                   <Route path="/AdminFacultyAccounts" element={<AdminFacultyAccounts />} />
+                  <Route path="/AdminKnowledgeManagement" element={<AdminKnowledgeManagement />} />
 
                         {/* Catch-all: redirect to dashboard if unknown route */}
                         <Route

@@ -19,21 +19,43 @@ interface CachedAIResponse {
 }
 
 export class FAQCacheService {
+  // Development flag to disable caching
+  private static readonly CACHE_DISABLED = true; // Set to false to enable caching
+  
   // Cache keys
   private static readonly FAQ_ALL_KEY = 'faq:all';
   private static readonly FAQ_BY_CATEGORY_PREFIX = 'faq:category:';
   private static readonly FAQ_SEARCH_PREFIX = 'faq:search:';
   private static readonly AI_RESPONSE_PREFIX = 'ai:response:';
   
-  // TTL values (in seconds)
-  private static readonly FAQ_TTL = 3600; // 1 hour for FAQ data
-  private static readonly AI_RESPONSE_TTL = 1800; // 30 minutes for AI responses
-  private static readonly SEARCH_CACHE_TTL = 900; // 15 minutes for search results
+  // TTL values (in seconds) - TEMPORARILY DISABLED FOR DEVELOPMENT
+  private static readonly FAQ_TTL = 1; // 1 second (effectively disabled)
+  private static readonly AI_RESPONSE_TTL = 1; // 1 second (effectively disabled)
+  private static readonly SEARCH_CACHE_TTL = 1; // 1 second (effectively disabled)
 
   /**
    * Get all FAQs from cache or database
    */
   static async getAllFAQs(): Promise<CachedFAQ[]> {
+    // Bypass cache if disabled
+    if (this.CACHE_DISABLED) {
+      console.log('[FAQCache] Cache disabled: fetching all FAQs from database');
+      return await prisma.fAQ.findMany({
+        where: { isPublished: true },
+        select: {
+          id: true,
+          category: true,
+          question: true,
+          answer: true,
+          keywords: true
+        },
+        orderBy: [
+          { helpful: 'desc' },
+          { viewCount: 'desc' }
+        ]
+      });
+    }
+
     // Try cache first
     const cached = await CacheService.get<CachedFAQ[]>(this.FAQ_ALL_KEY);
     if (cached) {
@@ -111,48 +133,42 @@ export class FAQCacheService {
     
     const cacheKey = `${this.FAQ_SEARCH_PREFIX}${normalizedKeywords}`;
     
-    // Try cache first
-    const cached = await CacheService.get<CachedFAQ[]>(cacheKey);
-    if (cached) {
-      console.log(`[FAQCache] Search cache hit: "${normalizedKeywords}"`);
-      return cached;
+    // Bypass cache if disabled
+    if (!this.CACHE_DISABLED) {
+      // Try cache first
+      const cached = await CacheService.get<CachedFAQ[]>(cacheKey);
+      if (cached) {
+        console.log(`[FAQCache] Search cache hit: "${normalizedKeywords}"`);
+        return cached;
+      }
     }
 
-    // Search in database - prioritize question matches
+    // Search in database
     console.log(`[FAQCache] Search cache miss: "${normalizedKeywords}"`);
     
-    // First, find FAQs that match keywords in question
-    const questionMatchFaqs = await prisma.fAQ.findMany({
-      where: {
-        isPublished: true,
-        OR: keywords.map(k => ({ question: { contains: k, mode: 'insensitive' as const } }))
-      },
-      select: {
-        id: true,
-        category: true,
-        question: true,
-        answer: true,
-        keywords: true
-      },
-      take: 5
-    });
-
-    // Build search conditions for broader search
+    // Build comprehensive search conditions
     const searchConditions: any[] = [];
+    
+    // Search in question field
     keywords.forEach(keyword => {
-      searchConditions.push({ question: { contains: keyword, mode: 'insensitive' } });
-      searchConditions.push({ answer: { contains: keyword, mode: 'insensitive' } });
+      searchConditions.push({ question: { contains: keyword, mode: 'insensitive' as const } });
     });
+    
+    // Search in answer field
+    keywords.forEach(keyword => {
+      searchConditions.push({ answer: { contains: keyword, mode: 'insensitive' as const } });
+    });
+    
+    // Search in keywords array
     if (keywords.length > 0) {
       searchConditions.push({ keywords: { hasSome: keywords } });
     }
 
-    // Get additional FAQs
-    const additionalFaqs = await prisma.fAQ.findMany({
+    // Get all matching FAQs
+    const faqs = await prisma.fAQ.findMany({
       where: {
         isPublished: true,
-        OR: searchConditions,
-        NOT: { id: { in: questionMatchFaqs.map(f => f.id) } }
+        OR: searchConditions
       },
       select: {
         id: true,
@@ -161,18 +177,17 @@ export class FAQCacheService {
         answer: true,
         keywords: true
       },
-      take: 10,
       orderBy: [
         { helpful: 'desc' },
         { viewCount: 'desc' }
-      ]
+      ],
+      take: 15
     });
 
-    // Combine results
-    const faqs = [...questionMatchFaqs, ...additionalFaqs].slice(0, 15);
-
-    // Cache the results
-    await CacheService.set(cacheKey, faqs, this.SEARCH_CACHE_TTL);
+    // Cache the results (only if caching is enabled)
+    if (!this.CACHE_DISABLED) {
+      await CacheService.set(cacheKey, faqs, this.SEARCH_CACHE_TTL);
+    }
     return faqs;
   }
 
@@ -181,6 +196,12 @@ export class FAQCacheService {
    * Uses normalized question as cache key
    */
   static async getCachedAIResponse(question: string): Promise<CachedAIResponse | null> {
+    // Bypass cache if disabled
+    if (this.CACHE_DISABLED) {
+      console.log('[FAQCache] Cache disabled: no AI response cache check');
+      return null;
+    }
+
     const normalizedQuestion = this.normalizeQuestion(question);
     const cacheKey = `${this.AI_RESPONSE_PREFIX}${normalizedQuestion}`;
     
@@ -200,6 +221,12 @@ export class FAQCacheService {
    * Cache an AI response for future similar questions
    */
   static async cacheAIResponse(question: string, response: string): Promise<void> {
+    // Skip caching if disabled
+    if (this.CACHE_DISABLED) {
+      console.log('[FAQCache] Cache disabled: skipping AI response cache');
+      return;
+    }
+
     const normalizedQuestion = this.normalizeQuestion(question);
     const cacheKey = `${this.AI_RESPONSE_PREFIX}${normalizedQuestion}`;
     
@@ -226,7 +253,7 @@ export class FAQCacheService {
     
     const words = question
       .toLowerCase()
-      .replace(/[?.,!;:'"()]/g, '')
+      .replace(/[?.,!;:'\"()]/g, '')
       .split(/\s+/)
       .filter(word => word.length > 2 && !stopWords.includes(word))
       .sort();

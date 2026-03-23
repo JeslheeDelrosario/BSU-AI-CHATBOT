@@ -146,7 +146,7 @@ const authLimiter = rateLimit({
 // AI endpoint rate limiter (more generous but still protected)
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 20, // 20 requests per minute
+  max: parseInt(process.env.AI_RATE_LIMIT_MAX || (isProduction ? '20' : '100')),
   message: { error: 'AI request limit reached. Please wait a moment.' },
   standardHeaders: true,
   legacyHeaders: false,

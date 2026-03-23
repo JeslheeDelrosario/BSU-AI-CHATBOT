@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
+import FAQCacheService from '../services/faq-cache.service';
 
 export const getAllFAQs = async (req: AuthRequest, res: Response) => {
   try {
@@ -168,6 +169,9 @@ export const updateFAQ = async (req: AuthRequest, res: Response) => {
       data,
     });
 
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
+
     return res.json(faq);
   } catch (error) {
     console.error('Update FAQ error:', error);
@@ -182,6 +186,9 @@ export const deleteFAQ = async (req: AuthRequest, res: Response) => {
     await prisma.fAQ.delete({
       where: { id },
     });
+
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
 
     return res.json({ success: true, message: 'FAQ deleted successfully' });
   } catch (error) {
@@ -221,6 +228,17 @@ export const getAdminFAQs = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Get admin FAQs error:', error);
     return res.status(500).json({ error: 'Server error fetching FAQs' });
+  }
+};
+
+export const invalidateCache = async (req: AuthRequest, res: Response) => {
+  try {
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
+    return res.json({ success: true, message: 'Cache invalidated successfully' });
+  } catch (error) {
+    console.error('Invalidate cache error:', error);
+    return res.status(500).json({ error: 'Server error invalidating cache' });
   }
 };
 

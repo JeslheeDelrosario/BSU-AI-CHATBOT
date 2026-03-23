@@ -3,6 +3,7 @@ import { PrismaClient, UserRole, LearningStyle, CourseLevel, CourseStatus, Lesso
 import bcrypt from 'bcryptjs';
 import { seedHolidays } from './seeds/holidays.seed';
 import { seedFAQs } from './seed-faqs';
+import { seedFaculty, seedMedTechSubjects, seedFacultySchedules } from './seeds/college-of-science-faculty.seed';
 
 const prisma = new PrismaClient();
 
@@ -322,6 +323,11 @@ async function main() {
 
   // Seed FAQs
   await seedFAQs();
+
+  // Seed faculty and subjects
+  await seedFaculty();
+  await seedFacultySchedules();
+  await seedMedTechSubjects();
 
   console.log('Seeding completed!');
   console.log('\n=== Login Credentials ===');

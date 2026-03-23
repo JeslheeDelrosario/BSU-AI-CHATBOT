@@ -277,6 +277,140 @@ export async function seedFaculty() {
   console.log(`✅ Faculty seeded: ${created} created, ${skipped} already existed.`);
 }
 
+export async function seedFacultySchedules() {
+  console.log('🌱 Seeding faculty teaching schedules...');
+
+  const scheduleData = [
+    {
+      firstName: 'Arcel',
+      lastName: 'Galvez',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '08:00', endTime: '09:30', subject: 'Calculus I', room: 'Room 101' },
+        { dayOfWeek: 'Tuesday', startTime: '10:00', endTime: '11:30', subject: 'Linear Algebra', room: 'Room 205' },
+        { dayOfWeek: 'Wednesday', startTime: '08:00', endTime: '09:30', subject: 'Calculus II', room: 'Room 101' },
+        { dayOfWeek: 'Thursday', startTime: '14:00', endTime: '15:30', subject: 'Calculus I', room: 'Room 102' },
+        { dayOfWeek: 'Friday', startTime: '10:00', endTime: '11:30', subject: 'Linear Algebra', room: 'Room 205' },
+      ],
+    },
+    {
+      firstName: 'Lyca',
+      lastName: 'Marcelino',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '09:00', endTime: '10:30', subject: 'Discrete Mathematics', room: 'Room 103' },
+        { dayOfWeek: 'Tuesday', startTime: '13:00', endTime: '14:30', subject: 'Abstract Algebra', room: 'Room 204' },
+        { dayOfWeek: 'Wednesday', startTime: '09:00', endTime: '10:30', subject: 'Discrete Mathematics', room: 'Room 103' },
+        { dayOfWeek: 'Thursday', startTime: '10:00', endTime: '11:30', subject: 'Numerical Methods', room: 'Room 206' },
+        { dayOfWeek: 'Friday', startTime: '13:00', endTime: '14:30', subject: 'Abstract Algebra', room: 'Room 204' },
+      ],
+    },
+    {
+      firstName: 'Rainilyn',
+      lastName: 'Duque',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '10:00', endTime: '11:30', subject: 'Calculus III', room: 'Room 104' },
+        { dayOfWeek: 'Tuesday', startTime: '14:00', endTime: '15:30', subject: 'Differential Equations', room: 'Room 207' },
+        { dayOfWeek: 'Wednesday', startTime: '10:00', endTime: '11:30', subject: 'Calculus III', room: 'Room 104' },
+        { dayOfWeek: 'Thursday', startTime: '13:00', endTime: '14:30', subject: 'Mathematical Analysis', room: 'Room 208' },
+        { dayOfWeek: 'Friday', startTime: '14:00', endTime: '15:30', subject: 'Differential Equations', room: 'Room 207' },
+      ],
+    },
+    {
+      firstName: 'Minerva',
+      lastName: 'Amores',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '11:00', endTime: '12:30', subject: 'Statistics and Probability', room: 'Room 105' },
+        { dayOfWeek: 'Tuesday', startTime: '09:00', endTime: '10:30', subject: 'Operations Research', room: 'Room 209' },
+        { dayOfWeek: 'Wednesday', startTime: '11:00', endTime: '12:30', subject: 'Statistics and Probability', room: 'Room 105' },
+        { dayOfWeek: 'Thursday', startTime: '15:00', endTime: '16:30', subject: 'Calculus I', room: 'Room 106' },
+        { dayOfWeek: 'Friday', startTime: '09:00', endTime: '10:30', subject: 'Operations Research', room: 'Room 209' },
+      ],
+    },
+    {
+      firstName: 'Edwin',
+      lastName: 'Tadiosa',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '08:00', endTime: '10:00', subject: 'General Biology', room: 'Lab 301' },
+        { dayOfWeek: 'Tuesday', startTime: '13:00', endTime: '15:00', subject: 'Cell Biology', room: 'Lab 302' },
+        { dayOfWeek: 'Wednesday', startTime: '08:00', endTime: '10:00', subject: 'General Biology', room: 'Lab 301' },
+        { dayOfWeek: 'Thursday', startTime: '10:00', endTime: '12:00', subject: 'Genetics', room: 'Room 301' },
+        { dayOfWeek: 'Friday', startTime: '13:00', endTime: '15:00', subject: 'Cell Biology', room: 'Lab 302' },
+      ],
+    },
+    {
+      firstName: 'Oliver',
+      lastName: 'Alaijos',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '09:00', endTime: '11:00', subject: 'Clinical Chemistry', room: 'Lab 303' },
+        { dayOfWeek: 'Tuesday', startTime: '14:00', endTime: '16:00', subject: 'Hematology', room: 'Lab 304' },
+        { dayOfWeek: 'Wednesday', startTime: '09:00', endTime: '11:00', subject: 'Clinical Chemistry', room: 'Lab 303' },
+        { dayOfWeek: 'Thursday', startTime: '11:00', endTime: '13:00', subject: 'Medical Microbiology', room: 'Lab 305' },
+        { dayOfWeek: 'Friday', startTime: '14:00', endTime: '16:00', subject: 'Hematology', room: 'Lab 304' },
+      ],
+    },
+    {
+      firstName: 'Rosario',
+      lastName: 'Poñado',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '10:00', endTime: '12:00', subject: 'Immunology and Serology', room: 'Lab 306' },
+        { dayOfWeek: 'Tuesday', startTime: '08:00', endTime: '10:00', subject: 'Parasitology', room: 'Lab 307' },
+        { dayOfWeek: 'Wednesday', startTime: '10:00', endTime: '12:00', subject: 'Immunology and Serology', room: 'Lab 306' },
+        { dayOfWeek: 'Thursday', startTime: '14:00', endTime: '16:00', subject: 'Histopathology', room: 'Lab 308' },
+        { dayOfWeek: 'Friday', startTime: '08:00', endTime: '10:00', subject: 'Parasitology', room: 'Lab 307' },
+      ],
+    },
+    {
+      firstName: 'Anna',
+      lastName: 'Salunga',
+      schedules: [
+        { dayOfWeek: 'Monday', startTime: '11:00', endTime: '13:00', subject: 'Blood Banking and Transfusion Medicine', room: 'Lab 309' },
+        { dayOfWeek: 'Tuesday', startTime: '09:00', endTime: '11:00', subject: 'Urinalysis and Body Fluids', room: 'Lab 310' },
+        { dayOfWeek: 'Wednesday', startTime: '11:00', endTime: '13:00', subject: 'Blood Banking and Transfusion Medicine', room: 'Lab 309' },
+        { dayOfWeek: 'Thursday', startTime: '09:00', endTime: '11:00', subject: 'Clinical Microscopy', room: 'Lab 311' },
+        { dayOfWeek: 'Friday', startTime: '09:00', endTime: '11:00', subject: 'Urinalysis and Body Fluids', room: 'Lab 310' },
+      ],
+    },
+  ];
+
+  let created = 0;
+  let notFound = 0;
+
+  for (const data of scheduleData) {
+    const faculty = await prisma.faculty.findFirst({
+      where: {
+        firstName: { equals: data.firstName, mode: 'insensitive' },
+        lastName: { equals: data.lastName, mode: 'insensitive' },
+      },
+    });
+
+    if (!faculty) {
+      console.warn(`⚠️  Faculty not found: ${data.firstName} ${data.lastName}`);
+      notFound++;
+      continue;
+    }
+
+    await prisma.facultySchedule.deleteMany({
+      where: { facultyId: faculty.id },
+    });
+
+    for (const schedule of data.schedules) {
+      await prisma.facultySchedule.create({
+        data: {
+          facultyId: faculty.id,
+          dayOfWeek: schedule.dayOfWeek,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          subject: schedule.subject,
+          room: schedule.room,
+          scheduleType: 'CLASS',
+        },
+      });
+      created++;
+    }
+  }
+
+  console.log(`✅ Faculty schedules seeded: ${created} entries, ${notFound} not found`);
+}
+
 export async function seedMedTechSubjects() {
   console.log('🌱 Seeding Medical Technology subjects...');
 
@@ -316,6 +450,7 @@ export async function seedMedTechSubjects() {
 async function main() {
   try {
     await seedFaculty();
+    await seedFacultySchedules();
     await seedMedTechSubjects();
   } catch (error) {
     console.error('❌ Seed error:', error);

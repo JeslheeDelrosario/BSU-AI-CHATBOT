@@ -71,6 +71,16 @@ interface FAQContext {
   answer: string;
 }
 
+/**
+ * Sanitize user input for safe logging (prevents log injection attacks)
+ */
+function sanitizeForLogging(input: string): string {
+  return input
+    .replace(/[\r\n]/g, ' ')  // Remove newlines
+    .replace(/[\x00-\x1F]/g, '') // Remove control characters
+    .substring(0, 500); // Limit length to prevent log flooding
+}
+
 // Career paths mapping for programs (stored in code since not in DB)
 const PROGRAM_CAREER_PATHS: Record<string, string[]> = {
   'BS Mathematics with Specialization in Applied Statistics': [
@@ -108,7 +118,7 @@ const PROGRAM_CAREER_PATHS: Record<string, string[]> = {
 };
 
 /**
- * Retrieve comprehensive database context for RAG
+ * Retrieve comprehensive context for RAG
  * This is the ONLY source of truth for AI responses
  */
 export async function retrieveRAGContext(userMessage: string): Promise<RAGContext> {
@@ -221,12 +231,14 @@ function generateProgramDescription(title: string): string {
   return descriptions[title] || 'A program offered by the College of Science at Bulacan State University.';
 }
 
+
+
 /**
  * Fetch faculty members with their subjects
  */
 async function fetchFaculty(msg: string, queryType: string): Promise<FacultyContext[]> {
   // amazonq-ignore-next-line
-  console.log(`🔍 Faculty search - original message: "${msg}"`);
+  console.log(`🔍 Faculty search - original message: "${sanitizeForLogging(msg)}"`);
   
   // Check for position mentions FIRST - before name extraction
   // IMPORTANT: More specific/longer keywords MUST come before shorter generic ones
@@ -257,7 +269,7 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
       positionFilter = { position: { contains: position, mode: 'insensitive' as const } };
       foundPosition = true;
       detectedPositionLabel = position;
-      console.log(`🔍 Position detected: ${position} (keyword: ${keyword})`);
+      console.log(`🔍 Position detected: ${sanitizeForLogging(position)} (keyword: ${sanitizeForLogging(keyword)})`);
       break;
     }
   }
@@ -271,7 +283,7 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
       ...positionFilter
     };
     
-    console.log(`🔍 Faculty search - where clause:`, JSON.stringify(whereClause, null, 2));
+    console.log(`🔍 Faculty search - where clause:`, JSON.stringify(whereClause, null, 2).substring(0, 500));
 
     const faculty = await prisma.faculty.findMany({
       where: whereClause,
@@ -442,8 +454,38 @@ function normaliseCourseName(s: string): string {
   return map[s.toLowerCase()] ?? s;
 }
 
+async function enrichCurriculumEntries(entries: any[]): Promise<CurriculumContext[]> {
+  const allPrereqCodes = [...new Set(entries.flatMap(c => c.prerequisites || []))];
+  const prereqMap = new Map<string, string>();
+  
+  if (allPrereqCodes.length > 0) {
+    const prereqEntries = await prisma.curriculumEntry.findMany({
+      where: { courseCode: { in: allPrereqCodes as string[] } },
+      select: { courseCode: true, subjectName: true },
+      distinct: ['courseCode']
+    });
+    prereqEntries.forEach(e => prereqMap.set(e.courseCode, e.subjectName));
+  }
+
+  return entries.map(c => ({
+    programTitle:        c.UniversityProgram?.title ?? '',
+    programAbbreviation: c.UniversityProgram?.abbreviation ?? null,
+    yearLevel:           c.yearLevel,
+    semester:            c.semester,
+    courseCode:          c.courseCode,
+    subjectName:         c.subjectName,
+    lec:                 c.lec,
+    lab:                 c.lab,
+    totalUnits:          c.totalUnits,
+    prerequisites:       (c.prerequisites || []).map((code: string) => {
+      const name = prereqMap.get(code);
+      return name ? `${code} - ${name}` : code;
+    })
+  }));
+}
+
 async function fetchCurriculum(msg: string, queryType: string): Promise<CurriculumContext[]> {
-  console.log(`[fetchCurriculum] Starting - message: "${msg.substring(0, 60)}..."`);
+  console.log(`[fetchCurriculum] Starting - message: "${sanitizeForLogging(msg.substring(0, 60))}..."`);
 
   // ─────────────────────────────────────────────────────────────────────────
   // NEW BLOCK: Detect "can I take X if I failed Y" BEFORE anything else.
@@ -462,7 +504,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     const rawTarget  = conditionalEnrollmentMatch[1].trim();
     const normalised = normaliseCourseName(rawTarget);
 
-    console.log(`[fetchCurriculum] Conditional enrollment pattern detected → target course: "${normalised}"`);
+    console.log(`[fetchCurriculum] Conditional enrollment pattern detected → target course: "${sanitizeForLogging(normalised)}"`);
 
     const entries = await prisma.curriculumEntry.findMany({
       where: {
@@ -476,20 +518,9 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
       take: 10,
     });
 
-    console.log(`[fetchCurriculum] Conditional match found ${entries.length} entries for "${normalised}"`);
+    console.log(`[fetchCurriculum] Conditional match found ${entries.length} entries for "${sanitizeForLogging(normalised)}"`);
 
-    return entries.map(c => ({
-      programTitle:        c.UniversityProgram.title,
-      programAbbreviation: c.UniversityProgram.abbreviation,
-      yearLevel:           c.yearLevel,
-      semester:            c.semester,
-      courseCode:          c.courseCode,
-      subjectName:         c.subjectName,
-      lec:                 c.lec,
-      lab:                 c.lab,
-      totalUnits:          c.totalUnits,
-      prerequisites:       c.prerequisites,
-    }));
+    return await enrichCurriculumEntries(entries);
   }
   // ─────────────────────────────────────────────────────────────────────────
   // END NEW BLOCK — everything below is UNCHANGED from the original
@@ -510,7 +541,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
   for (const [program, keywords] of Object.entries(programKeywords)) {
     if (keywords.some(k => msg.includes(k))) {
       programFilter = program;
-      console.log(`[fetchCurriculum] Program filter detected: ${programFilter}`);
+      console.log(`[fetchCurriculum] Program filter detected: ${sanitizeForLogging(programFilter)}`);
       break;
     }
   }
@@ -567,7 +598,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
 
   // Normalize subject names: convert numbers to Roman numerals for Thesis courses
   if (subjectFilter) {
-    console.log(`[fetchCurriculum] Subject filter before normalization: "${subjectFilter}"`);
+    console.log(`[fetchCurriculum] Subject filter before normalization: "${sanitizeForLogging(subjectFilter)}"`);
     const numberToRoman: Record<string, string> = {
       'Thesis 1': 'Thesis I',
       'Thesis 2': 'Thesis II',
@@ -582,7 +613,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     for (const [numForm, romanForm] of Object.entries(numberToRoman)) {
       if (subjectFilter.toLowerCase() === numForm.toLowerCase()) {
         subjectFilter = romanForm;
-        console.log(`[fetchCurriculum] Normalized subject filter to: "${subjectFilter}"`);
+        console.log(`[fetchCurriculum] Normalized subject filter to: "${sanitizeForLogging(subjectFilter)}"`);
         break;
       }
     }
@@ -620,7 +651,7 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
     ];
   }
 
-  console.log(`[fetchCurriculum] Final whereClause:`, JSON.stringify(whereClause, null, 2));
+  console.log(`[fetchCurriculum] Final whereClause:`, JSON.stringify(whereClause, null, 2).substring(0, 500));
 
   const curriculum = await prisma.curriculumEntry.findMany({
     where: whereClause,
@@ -637,21 +668,10 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
 
   console.log(`[fetchCurriculum] Found ${curriculum.length} curriculum entries`);
   if (curriculum.length > 0) {
-    console.log(`[fetchCurriculum] First result: ${curriculum[0].subjectName} (${curriculum[0].courseCode})`);
+    console.log(`[fetchCurriculum] First result: ${sanitizeForLogging(curriculum[0].subjectName)} (${sanitizeForLogging(curriculum[0].courseCode)})`);
   }
 
-  return curriculum.map(c => ({
-    programTitle: c.UniversityProgram.title,
-    programAbbreviation: c.UniversityProgram.abbreviation,
-    yearLevel: c.yearLevel,
-    semester: c.semester,
-    courseCode: c.courseCode,
-    subjectName: c.subjectName,
-    lec: c.lec,
-    lab: c.lab,
-    totalUnits: c.totalUnits,
-    prerequisites: c.prerequisites
-  }));
+  return await enrichCurriculumEntries(curriculum);
 }
 
 /**
@@ -659,21 +679,38 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
  */
 async function fetchFAQs(msg: string): Promise<FAQContext[]> {
   // Extract meaningful keywords from user message
-  const stopWords = ['what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 'tell', 'explain', 'prof', 'prof.', 'professor'];
+  const stopWords = ['what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 'tell', 'explain', 'prof', 'prof.', 'professor', 'maam', "ma'am", 'sir', 'of', 'for'];
   const keywords = msg.toLowerCase()
     .replace(/[?.,!;:'"()]/g, '') // Strip punctuation
     .split(/\s+/)
     .filter(word => word.length > 2 && !stopWords.includes(word)); // Reduced min length to 2 for names
 
+  // IMPORTANT: For faculty schedule queries, also add the faculty name as a keyword
+  // Pattern: "schedule of [Name]" or "[Name]'s schedule"
+  const facultyNameMatch = msg.match(/(?:schedule|teaching|class)\s+(?:of|for)?\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)\b/i) ||
+                           msg.match(/([A-Za-z]+(?:\s+[A-Za-z]+)*)\s+(?:schedule|teaching|class)/i);
+  
+  if (facultyNameMatch && facultyNameMatch[1]) {
+    const facultyName = facultyNameMatch[1].toLowerCase().trim();
+    // Add faculty name parts as keywords if not already present
+    const nameParts = facultyName.split(/\s+/).filter(p => p.length > 2);
+    keywords.push(...nameParts.filter(p => !keywords.includes(p)));
+  }
+
+  // CRITICAL: For schedule queries, always include "schedule" as a keyword
+  if ((msg.toLowerCase().includes('schedule') || msg.toLowerCase().includes('teaching') || msg.toLowerCase().includes('class')) && !keywords.includes('schedule')) {
+    keywords.push('schedule');
+  }
+
   if (keywords.length === 0) {
-    console.log(`[FAQ Retrieval] No keywords extracted from: "${msg.substring(0, 50)}..."`);
+    console.log(`[FAQ Retrieval] No keywords extracted from: "${sanitizeForLogging(msg.substring(0, 50))}..."`);
     return [];
   }
 
   // Use cached FAQ search
   const faqs = await FAQCacheService.searchFAQs(keywords);
 
-  console.log(`[FAQ Retrieval] Query: "${msg.substring(0, 50)}..." | Found: ${faqs.length} FAQs | Keywords: ${keywords.join(', ')}`);
+  console.log(`[FAQ Retrieval] Query: "${sanitizeForLogging(msg.substring(0, 50))}..." | Found: ${faqs.length} FAQs | Keywords: ${keywords.join(', ')}`);
 
   // Update view count for retrieved FAQs (async, don't wait)
   if (faqs.length > 0) {
@@ -726,13 +763,11 @@ async function fetchSubjects(msg: string): Promise<SubjectContext[]> {
  * Format RAG context into a string for the AI prompt
  */
 export function formatRAGContextForPrompt(context: RAGContext): string {
-  let formatted = `\n## DATABASE KNOWLEDGE BASE (ONLY SOURCE OF TRUTH)\n`;
-  formatted += `Retrieved at: ${context.metadata.retrievedAt}\n`;
-  formatted += `Query Type: ${context.metadata.queryType}\n\n`;
+  let formatted = `\n## INFORMATION FROM BULACAN STATE UNIVERSITY - COLLEGE OF SCIENCE\n\n`;
 
   // Programs section
   if (context.programs.length > 0) {
-    formatted += `### AVAILABLE PROGRAMS (${context.programs.length} total)\n`;
+    formatted += `### PROGRAMS OFFERED\n`;
     for (const p of context.programs) {
       formatted += `\n**${p.title}**${p.abbreviation ? ` (${p.abbreviation})` : ''}\n`;
       formatted += `- College: ${p.college}\n`;
@@ -753,7 +788,7 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
     const isPositionQuery = context.metadata.queryType === 'faculty' &&
       context.faculty.every(f => f.position && f.position.trim().length > 0);
 
-    formatted += `### FACULTY MEMBERS (${context.faculty.length} found)\n`;
+    formatted += `### FACULTY INFORMATION\n`;
     
     for (const f of context.faculty) {
       formatted += `\n**${f.fullName}**\n`;
@@ -767,14 +802,15 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
       if (f.subjects.length > 0) {
         formatted += `- Subjects: ${f.subjects.join(', ')}\n`;
       }
+
     }
     
     // Only ask for clarification when searching by NAME and multiple people match.
     // For position-based queries, just list all people with that position directly.
     if (context.faculty.length > 1 && !isPositionQuery) {
-      formatted += `\n**INSTRUCTION**: Since multiple people match this name, list all of them and ask the user which one they meant. Provide distinguishing details (position, subjects taught) to help them choose.\n`;
+      formatted += `\n**NOTE**: Multiple people match this name. List all of them and ask which one they meant.\n`;
     } else if (context.faculty.length > 1 && isPositionQuery) {
-      formatted += `\n**INSTRUCTION**: List all faculty members with this position directly. Do NOT ask for clarification since the user asked about a position, not a specific person.\n`;
+      formatted += `\n**NOTE**: List all faculty members with this position directly.\n`;
     }
     
     formatted += '\n';
@@ -782,7 +818,7 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
 
   // Curriculum section
   if (context.curriculum.length > 0) {
-    formatted += `### CURRICULUM ENTRIES (${context.curriculum.length} subjects)\n`;
+    formatted += `### CURRICULUM\n`;
     
     // Group by program and year
     const grouped: Record<string, Record<number, Record<number, CurriculumContext[]>>> = {};
@@ -818,25 +854,53 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
 
   // FAQs section
   if (context.faqs.length > 0) {
-    formatted += `### RELEVANT FAQs\n`;
-    for (const f of context.faqs) {
-      formatted += `\nQ: ${f.question}\n`;
-      formatted += `A: ${f.answer}\n`;
+    formatted += `### FREQUENTLY ASKED QUESTIONS\n`;
+    
+    // Separate schedule FAQs from other FAQs for better formatting
+    const scheduleFAQs = context.faqs.filter(f => 
+      f.question.toLowerCase().includes('schedule') || 
+      f.answer.toLowerCase().includes('monday') ||
+      f.answer.toLowerCase().includes('tuesday') ||
+      f.answer.toLowerCase().includes('wednesday') ||
+      f.answer.toLowerCase().includes('thursday') ||
+      f.answer.toLowerCase().includes('friday') ||
+      f.answer.toLowerCase().includes('saturday') ||
+      f.answer.toLowerCase().includes('sunday')
+    );
+    
+    const otherFAQs = context.faqs.filter(f => !scheduleFAQs.includes(f));
+    
+    // Display schedule FAQs first with special formatting
+    if (scheduleFAQs.length > 0) {
+      formatted += `\n**FACULTY SCHEDULES:**\n`;
+      for (const f of scheduleFAQs) {
+        formatted += `\nQ: ${f.question}\n`;
+        formatted += `A: ${f.answer}\n`;
+      }
     }
+    
+    // Display other FAQs
+    if (otherFAQs.length > 0) {
+      formatted += `\n**OTHER INFORMATION:**\n`;
+      for (const f of otherFAQs) {
+        formatted += `\nQ: ${f.question}\n`;
+        formatted += `A: ${f.answer}\n`;
+      }
+    }
+    
     formatted += '\n';
   }
 
   // If no data found
   if (context.programs.length === 0 && context.faculty.length === 0 && 
       context.curriculum.length === 0 && context.faqs.length === 0) {
-    formatted += `\n**NO SPECIFIC DATA FOUND FOR THIS QUERY**\n`;
-    formatted += `The database does not contain information directly related to this question.\n`;
-    formatted += `You should politely inform the user that this topic is outside your knowledge scope.\n`;
+    formatted += `\n**NO INFORMATION AVAILABLE FOR THIS QUERY**\n`;
+    formatted += `I don't have information about this topic in my knowledge base.\n`;
     formatted += `\n**OFFICIAL RESOURCES FOR UPDATED INFORMATION:**\n`;
     formatted += `- College of Science Facebook Page: https://www.facebook.com/BulSUCSOfficial\n`;
-    formatted += `- BSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n`;
-    formatted += `- BSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n`;
-    formatted += `- BSU Official Website: https://www.bulsu.edu.ph/\n`;
+    formatted += `- BULSU Admissions Office: https://www.facebook.com/BulSUAdmissionsOffice\n`;
+    formatted += `- BULSU Official Facebook Page: https://www.facebook.com/bulsuofficial\n`;
+    formatted += `- BULSU Official Website: https://www.bulsu.edu.ph/\n`;
     formatted += `\nPlease visit these official pages for the most current information and announcements.\n`;
   }
 
@@ -893,7 +957,7 @@ export async function generateCourseRecommendation(careerGoal: string): Promise<
     return {
       recommendedProgram: null,
       relevantSubjects: [],
-      reasoning: 'No specific program match found for this career goal. Here are all available programs at BSU College of Science.'
+      reasoning: 'No specific program match found for this career goal. Here are all available programs at BULSU College of Science.'
     };
   }
 
