@@ -736,13 +736,30 @@ async function seedFacultySchedules() {
 **Friday:**
 • 7am-8:30am: BSM AS 3B - Federizo hall
 • 8:30am-11:30am: MAT 306 (BSM CS 3A G2) - Federizo Hall
-• 10am-11:30am: MAT 306 (BSM CS 3B G2) - AVR A
+• 10am-11:30am: MAT 306 (BSM_CS 3B G2) - AVR A
 • 11:30am-1pm: MAT 306 (BSM AS 3B) - FH 206
 
 **Saturday:**
 • 7am-10am: MAT 306 (BSM BA 3A) - FH 205
 • 10am-1pm: MAT 206 (BSM BA 3B) - FH 206`,
       keywords: ['dela cruz', 'harris', 'schedule', 'faculty', 'mat 306'],
+      isPublished: true
+    },
+    {
+      category: 'Faculty Schedules',
+      question: 'What is the schedule of Sir Marco Mandap?',
+      answer: `**Sir. MANDAP, MARCO C - Schedule**
+
+**Monday:**
+• 4:30 PM - 6:30 PM: BST 305 (BSB 3B) - Federizo Hall - FH 107 (Physics Lab)
+
+**Friday:**
+• 2:00 PM - 5:00 PM: BST 305 (BSB 3B) - Federizo Hall - FH 205
+
+**Saturday:**
+• 10:00 AM - 1:00 PM: MBA 306 (BSM BA 3A) - Federizo Hall - FH 207
+• 1:00 PM - 4:00 PM: MBA 306 (BSM BA 3B) - Federizo Hall - FH 207`,
+      keywords: ['mandap', 'marco', 'schedule', 'faculty', 'bst 305', 'mba 306'],
       isPublished: true
     }
   ];
