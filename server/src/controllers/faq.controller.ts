@@ -138,15 +138,15 @@ export const createFAQ = async (req: AuthRequest, res: Response) => {
     });
 
     const faq = await prisma.fAQ.create({
-        data: {
-          category: category.trim(),
-          question: question.trim(),
-          answer: answer.trim(),
-          keywords: keywords || [],
-          order: order !== undefined ? order : (maxOrder._max.order || 0) + 1,
-          updatedAt: new Date(),
-        },
-      });
+      data: {
+        category: category.trim(),
+        question: question.trim(),
+        answer: answer.trim(),
+        keywords: keywords || [],
+        order: order !== undefined ? order : (maxOrder._max.order || 0) + 1,
+        updatedAt: new Date(),
+      },
+    });
 
     // Invalidate FAQ cache
     await FAQCacheService.invalidateFAQCache();
@@ -178,9 +178,9 @@ export const updateFAQ = async (req: AuthRequest, res: Response) => {
     if (order !== undefined) data.order = order;
 
     const faq = await prisma.fAQ.update({
-        where: { id },
-        data,
-      });
+      where: { id },
+      data,
+    });
 
     // Invalidate FAQ cache
     await FAQCacheService.invalidateFAQCache();
@@ -202,8 +202,8 @@ export const deleteFAQ = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
     await prisma.fAQ.delete({
-        where: { id },
-      });
+      where: { id },
+    });
 
     // Invalidate FAQ cache
     await FAQCacheService.invalidateFAQCache();

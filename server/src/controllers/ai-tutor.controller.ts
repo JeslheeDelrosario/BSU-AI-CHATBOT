@@ -40,16 +40,19 @@ try {
 const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 const openRouterModel =
   process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1-distill-llama-70b";
-const hasOpenRouter = openRouterApiKey && openRouterApiKey !== "your-openrouter-api-key-here";
+const hasOpenRouter =
+  openRouterApiKey && openRouterApiKey !== "your-openrouter-api-key-here";
 if (hasOpenRouter) {
-  console.log(`✓ OpenRouter enabled (FINAL FALLBACK #5) - Model: ${openRouterModel}`);
+  console.log(
+    `✓ OpenRouter enabled (FINAL FALLBACK #5) - Model: ${openRouterModel}`,
+  );
 } else {
   console.warn("⚠ OpenRouter API key not configured");
 }
 
 // Initialize Groq clients with enhanced fallback chain
-let groqClient: Groq | null = null;        // PRIMARY
-let groqClientFallback: Groq | null = null; // SECONDARY  
+let groqClient: Groq | null = null; // PRIMARY
+let groqClientFallback: Groq | null = null; // SECONDARY
 let groqClientFallback2: Groq | null = null; // TERTIARY
 let groqClientFallback3: Groq | null = null; // FALLBACK #4
 // Keep geminiModel null to avoid compile errors where it's referenced later
@@ -67,13 +70,15 @@ try {
   } else {
     console.warn("⚠ Groq MAIN API key not configured");
   }
-  
+
   // SECONDARY: GROQ_API_KEY_FALLBACK
   if (
     process.env.GROQ_API_KEY_FALLBACK &&
     process.env.GROQ_API_KEY_FALLBACK !== "your-groq-api-key-here"
   ) {
-    groqClientFallback = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK });
+    groqClientFallback = new Groq({
+      apiKey: process.env.GROQ_API_KEY_FALLBACK,
+    });
     console.log(
       `✓ Groq fallback enabled (SECONDARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
     );
@@ -86,7 +91,9 @@ try {
     process.env.GROQ_API_KEY_FALLBACK2 &&
     process.env.GROQ_API_KEY_FALLBACK2 !== "your-groq-api-key-here"
   ) {
-    groqClientFallback2 = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK2 });
+    groqClientFallback2 = new Groq({
+      apiKey: process.env.GROQ_API_KEY_FALLBACK2,
+    });
     console.log(
       `✓ Groq fallback 2 enabled (TERTIARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
     );
@@ -99,7 +106,9 @@ try {
     process.env.GROQ_API_KEY_FALLBACK3 &&
     process.env.GROQ_API_KEY_FALLBACK3 !== "your-groq-api-key-here"
   ) {
-    groqClientFallback3 = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK3 });
+    groqClientFallback3 = new Groq({
+      apiKey: process.env.GROQ_API_KEY_FALLBACK3,
+    });
     console.log(
       `✓ Groq fallback 3 enabled (FALLBACK #4) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
     );
@@ -867,7 +876,8 @@ Respond in clear, professional English.
       // Group by program
       const entriesByProgram = new Map<string, typeof allTargetEntries>();
       for (const entry of allTargetEntries) {
-        const programTitle = entry.UniversityProgram?.title || "Unknown Program";
+        const programTitle =
+          entry.UniversityProgram?.title || "Unknown Program";
         if (!entriesByProgram.has(programTitle)) {
           entriesByProgram.set(programTitle, []);
         }
@@ -884,7 +894,8 @@ Respond in clear, professional English.
         const prereqs: string[] = targetEntry.prerequisites ?? [];
 
         // Find failed course - first try same program, then all programs
-        let failedEntry: { courseCode: string; subjectName: string } | null = null;
+        let failedEntry: { courseCode: string; subjectName: string } | null =
+          null;
         let isPrerequisite = false;
 
         // Try to find failed course in same program first
@@ -907,13 +918,17 @@ Respond in clear, professional English.
                   },
                   {
                     subjectName: {
-                      contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                      contains: failedCourseName
+                        .replace(/\s+/g, "")
+                        .replace(/\?$/, ""),
                       mode: "insensitive",
                     },
                   },
                   {
                     courseCode: {
-                      contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                      contains: failedCourseName
+                        .replace(/\s+/g, "")
+                        .replace(/\?$/, ""),
                       mode: "insensitive",
                     },
                   },
@@ -948,13 +963,17 @@ Respond in clear, professional English.
                 },
                 {
                   subjectName: {
-                    contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                    contains: failedCourseName
+                      .replace(/\s+/g, "")
+                      .replace(/\?$/, ""),
                     mode: "insensitive",
                   },
                 },
                 {
                   courseCode: {
-                    contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                    contains: failedCourseName
+                      .replace(/\s+/g, "")
+                      .replace(/\?$/, ""),
                     mode: "insensitive",
                   },
                 },
@@ -1000,8 +1019,12 @@ Respond in clear, professional English.
             return (
               pLower.includes(failedCourseLower) ||
               failedCourseLower.includes(pLower) ||
-              pLower.replace(/\s+/g, "").includes(failedCourseLower.replace(/\s+/g, "")) ||
-              failedCourseLower.replace(/\s+/g, "").includes(pLower.replace(/\s+/g, ""))
+              pLower
+                .replace(/\s+/g, "")
+                .includes(failedCourseLower.replace(/\s+/g, "")) ||
+              failedCourseLower
+                .replace(/\s+/g, "")
+                .includes(pLower.replace(/\s+/g, ""))
             );
           });
         }
@@ -1078,13 +1101,13 @@ Respond in clear, professional English.
             ? overallCanTake
               ? `✅ **Buod**: Maaari kang kumuha ng **${targetDisplay}** sa lahat ng programang ito kahit bumagsok ka sa tinukoy na subject.`
               : overallIsPrerequisite
-              ? `❌ **Buod**: Hindi ka maaaring kumuha ng **${targetDisplay}** sa ilan sa mga programang ito dahil sa prerequisite requirements.`
-              : `✅ **Buod**: Maaari kang kumuha ng **${targetDisplay}** sa lahat ng programang ito.`
+                ? `❌ **Buod**: Hindi ka maaaring kumuha ng **${targetDisplay}** sa ilan sa mga programang ito dahil sa prerequisite requirements.`
+                : `✅ **Buod**: Maaari kang kumuha ng **${targetDisplay}** sa lahat ng programang ito.`
             : overallCanTake
-            ? `✅ **Summary**: You can take **${targetDisplay}** in all these programs even if you failed the specified subject.`
-            : overallIsPrerequisite
-            ? `❌ **Summary**: You cannot take **${targetDisplay}** in some of these programs due to prerequisite requirements.`
-            : `✅ **Summary**: You can take **${targetDisplay}** in all these programs.`;
+              ? `✅ **Summary**: You can take **${targetDisplay}** in all these programs even if you failed the specified subject.`
+              : overallIsPrerequisite
+                ? `❌ **Summary**: You cannot take **${targetDisplay}** in some of these programs due to prerequisite requirements.`
+                : `✅ **Summary**: You can take **${targetDisplay}** in all these programs.`;
 
         finalResponse =
           language === "fil"
@@ -1210,7 +1233,6 @@ Respond in clear, professional English.
 
         // ── Normalise Roman-numeral / Arabic aliases ──────────────────────────────
         const normaliseCourseName = (s: string): string => {
-
           const cleanS = s.replace(/[?.,!]$/, "").trim();
 
           const map: Record<string, string> = {
@@ -1291,7 +1313,6 @@ Respond in clear, professional English.
         };
 
         // Use this in your target and failed course resolution
-    
 
         const targetCourseName = normaliseCourseName(rawTargetCourse);
         const failedCourseName = normaliseCourseName(rawFailedCourse);
@@ -1421,96 +1442,96 @@ Respond in clear, professional English.
           );
 
           // ── Resolve failed course code/name from DB ───────────────────────────
-           let failedEntry: { courseCode: string; subjectName: string } | null =
-             null;
+          let failedEntry: { courseCode: string; subjectName: string } | null =
+            null;
 
-           const failedResults = await prisma.curriculumEntry.findMany({
-             where: {
-               OR: [
-                 {
-                   subjectName: {
-                     contains: failedCourseName.replace(/\?$/, ""),
-                     mode: "insensitive",
-                   },
-                 },
-                 {
-                   courseCode: {
-                     contains: failedCourseName.replace(/\?$/, ""),
-                     mode: "insensitive",
-                   },
-                 },
-                 // Additional fuzzy matching for common variations
-                 {
-                   subjectName: {
-                     contains: failedCourseName
-                       .replace(/\s+/g, "")
-                       .replace(/\?$/, ""),
-                     mode: "insensitive",
-                   },
-                 },
-                 {
-                   courseCode: {
-                     contains: failedCourseName
-                       .replace(/\s+/g, "")
-                       .replace(/\?$/, ""),
-                     mode: "insensitive",
-                   },
-                 },
-               ],
-             },
-             select: { courseCode: true, subjectName: true },
-             take: 20,
-           });
+          const failedResults = await prisma.curriculumEntry.findMany({
+            where: {
+              OR: [
+                {
+                  subjectName: {
+                    contains: failedCourseName.replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  courseCode: {
+                    contains: failedCourseName.replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+                // Additional fuzzy matching for common variations
+                {
+                  subjectName: {
+                    contains: failedCourseName
+                      .replace(/\s+/g, "")
+                      .replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  courseCode: {
+                    contains: failedCourseName
+                      .replace(/\s+/g, "")
+                      .replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+            select: { courseCode: true, subjectName: true },
+            take: 20,
+          });
 
-           // ── Determine whether the failed course is a prerequisite ─────────────
-           failedEntry = null;
-           let isPrerequisite = false;
+          // ── Determine whether the failed course is a prerequisite ─────────────
+          failedEntry = null;
+          let isPrerequisite = false;
 
-           // Check if any of the failed results match any of the prerequisites
-           // We check the codes against each prerequisite
-           for (const f of failedResults) {
-             const fCodeLower = f.courseCode.toLowerCase().trim();
-             const fNameLower = f.subjectName.toLowerCase().trim();
+          // Check if any of the failed results match any of the prerequisites
+          // We check the codes against each prerequisite
+          for (const f of failedResults) {
+            const fCodeLower = f.courseCode.toLowerCase().trim();
+            const fNameLower = f.subjectName.toLowerCase().trim();
 
-             const matchesPrereq = prereqs.some((p) => {
-               const pLower = p.toLowerCase().trim();
-               return (
-                 pLower === fCodeLower ||
-                 pLower.includes(fCodeLower) ||
-                 fCodeLower.includes(pLower) ||
-                 pLower.includes(fNameLower) ||
-                 fNameLower.includes(pLower)
-               );
-             });
+            const matchesPrereq = prereqs.some((p) => {
+              const pLower = p.toLowerCase().trim();
+              return (
+                pLower === fCodeLower ||
+                pLower.includes(fCodeLower) ||
+                fCodeLower.includes(pLower) ||
+                pLower.includes(fNameLower) ||
+                fNameLower.includes(pLower)
+              );
+            });
 
-             if (matchesPrereq) {
-               failedEntry = f; // Found the specific database entry the user actually failed that IS a prerequisite!
-               isPrerequisite = true;
-               break;
-             }
-           }
+            if (matchesPrereq) {
+              failedEntry = f; // Found the specific database entry the user actually failed that IS a prerequisite!
+              isPrerequisite = true;
+              break;
+            }
+          }
 
-           // If no direct DB match found to a prereq, fall back to simple string/fuzzy matching
-           if (!isPrerequisite) {
-             if (failedResults.length > 0) {
-               failedEntry = failedResults[0]; // Just take the best guess for non-prereq fallback display
-             }
+          // If no direct DB match found to a prereq, fall back to simple string/fuzzy matching
+          if (!isPrerequisite) {
+            if (failedResults.length > 0) {
+              failedEntry = failedResults[0]; // Just take the best guess for non-prereq fallback display
+            }
 
-             const failedCourseLower = failedCourseName.toLowerCase().trim();
-             isPrerequisite = prereqs.some((p) => {
-               const pLower = p.toLowerCase().trim();
-               return (
-                 pLower.includes(failedCourseLower) ||
-                 failedCourseLower.includes(pLower) ||
-                 pLower
-                   .replace(/\s+/g, "")
-                   .includes(failedCourseLower.replace(/\s+/g, "")) ||
-                 failedCourseLower
-                   .replace(/\s+/g, "")
-                   .includes(pLower.replace(/\s+/g, ""))
-               );
-             });
-           }
+            const failedCourseLower = failedCourseName.toLowerCase().trim();
+            isPrerequisite = prereqs.some((p) => {
+              const pLower = p.toLowerCase().trim();
+              return (
+                pLower.includes(failedCourseLower) ||
+                failedCourseLower.includes(pLower) ||
+                pLower
+                  .replace(/\s+/g, "")
+                  .includes(failedCourseLower.replace(/\s+/g, "")) ||
+                failedCourseLower
+                  .replace(/\s+/g, "")
+                  .includes(pLower.replace(/\s+/g, ""))
+              );
+            });
+          }
 
           // ── Enrich prereq list: resolve codes → "CODE – Name" ────────────────
           let prereqDisplay: string;
@@ -1571,7 +1592,7 @@ Respond in clear, professional English.
         // If target course not found, fall through to Pattern 2 below
       }
       // ── Pattern 2: Plain prerequisite lookup ──────────────────────────────────
-      
+
       // "What are the prerequisites of/for X" / "prerequisites of Thesis I"
       let targetCourseCode: string | null = null;
       let targetSubjectName: string | null = null;
@@ -2057,7 +2078,9 @@ Each program offers unique opportunities and career paths!
             JSON.stringify(groqFallbackError, null, 2),
           );
         } catch {}
-        console.log("[Fallback] Groq fallback failed, trying Groq fallback 2...");
+        console.log(
+          "[Fallback] Groq fallback failed, trying Groq fallback 2...",
+        );
       }
     }
 
@@ -2099,7 +2122,9 @@ Each program offers unique opportunities and career paths!
             JSON.stringify(groqFallback2Error, null, 2),
           );
         } catch {}
-        console.log("[Fallback] Groq fallback 2 failed, trying Groq fallback 3...");
+        console.log(
+          "[Fallback] Groq fallback 2 failed, trying Groq fallback 3...",
+        );
       }
     }
 
@@ -2141,7 +2166,9 @@ Each program offers unique opportunities and career paths!
             JSON.stringify(groqFallback3Error, null, 2),
           );
         } catch {}
-        console.log("[Fallback] Groq fallback 3 failed, trying OpenRouter final fallback...");
+        console.log(
+          "[Fallback] Groq fallback 3 failed, trying OpenRouter final fallback...",
+        );
       }
     }
 
@@ -2176,7 +2203,9 @@ Each program offers unique opportunities and career paths!
             "[OpenRouter Final] OK preview:",
             sanitizeLog((text || "").replace(/\s+/g, " ")),
           );
-          console.log("✓ OpenRouter FINAL FALLBACK response generated successfully");
+          console.log(
+            "✓ OpenRouter FINAL FALLBACK response generated successfully",
+          );
           return text;
         }
       } catch (openRouterError: any) {
@@ -2280,7 +2309,6 @@ Each program offers unique opportunities and career paths!
         console.log("[Fallback] Groq fallback failed...");
       }
     }
-    
 
     // If all providers failed, provide helpful diagnostic message
     console.error(
@@ -3444,21 +3472,24 @@ You can ask me:
       }
     }
 
-
-
-
     // IMPORTANT: checked BEFORE general faculty queries and BEFORE RAG
     const facultyScheduleKeywords =
       /(?:what|when|where|give me|show me|tell me|ano|ibigay|ipakita).*schedule|schedule\s+(?:of|for|ni|kay)|faculty.*schedule|schedule.*faculty|class\s+schedule|room\s+schedule|teaching\s+schedule|sir.*schedule|prof.*schedule|ma['']?am.*schedule/i;
-    
+
     // Check if asking about a SPECIFIC PERSON'S schedule (not just room schedules)
-    const isFacultyNameQuery = /(?:schedule|teaching|class)\s+(?:of|for|ni|kay)\s+(?:sir|ma'am|prof|dr|maam)?\s*[A-Za-z]+/i.test(message) ||
-                              /(?:sir|ma'am|prof|dr|maam)\s+[A-Za-z]+\s+(?:schedule|teaching|class)/i.test(message) ||
-                              /[A-Za-z]+\s+(?:schedule|teaching|class)/i.test(message);
-    
-                              
+    const isFacultyNameQuery =
+      /(?:schedule|teaching|class)\s+(?:of|for|ni|kay)\s+(?:sir|ma'am|prof|dr|maam)?\s*[A-Za-z]+/i.test(
+        message,
+      ) ||
+      /(?:sir|ma'am|prof|dr|maam)\s+[A-Za-z]+\s+(?:schedule|teaching|class)/i.test(
+        message,
+      ) ||
+      /[A-Za-z]+\s+(?:schedule|teaching|class)/i.test(message);
+
     const isFacultyScheduleQuery =
-      facultyScheduleKeywords.test(message) && !isConsultationRequest && isFacultyNameQuery;
+      facultyScheduleKeywords.test(message) &&
+      !isConsultationRequest &&
+      isFacultyNameQuery;
 
     if (isFacultyScheduleQuery) {
       try {
@@ -3530,8 +3561,6 @@ You can ask me:
           );
           // intentional fall-through; isFacultyScheduleQuery block does nothing
         } else {
-
-          
           // Also check if the search term contains a room identifier
           const hasRoomIdentifier =
             /\b(?:fh|fs|room|lab|avr|physics|cs[-\s]?ar)\b/i.test(searchTerm);
@@ -3548,9 +3577,9 @@ You can ask me:
             scheduleCategories = ["Faculty Schedules", "Room Schedules"];
           }
 
-            console.log(
-              `[STEP 0.8] Searching in categories: ${scheduleCategories.join(", ")}`,
-            );
+          console.log(
+            `[STEP 0.8] Searching in categories: ${scheduleCategories.join(", ")}`,
+          );
           // ── 3. Query the FAQ table — NARROW by category AND by the search term ─
 
           const faqResults = await prisma.fAQ.findMany({
@@ -3768,7 +3797,6 @@ You can ask me:
         // fall through to normal AI response
       }
     }
-   
 
     // STEP 0.9: Detect gibberish/unclear input and ask for clarification
     const isGibberish = (text: string): boolean => {
@@ -4843,30 +4871,33 @@ You can ask me:
             "artificial intelligence": "Artificial Intelligence",
             "machine learning": "Machine Learning",
             // Additional common variations
-            'fundamental concept of mathematics': 'Fundamental Concept of Mathematics',
-            'fundamental concepts of mathematics': 'Fundamental Concept of Mathematics',
-            'fundamentals of mathematics': 'Fundamental Concept of Mathematics',
-            'basic mathematics': 'Fundamental Concept of Mathematics',
-            'college algebra': 'College Algebra',
-            'trigonometry': 'Trigonometry',
-            'plane trigonometry': 'Plane Trigonometry',
-            'spherical trigonometry': 'Spherical Trigonometry',
-            'solid geometry': 'Solid Geometry',
-            'analytic geometry': 'Analytic Geometry',
-            'plane geometry': 'Plane Geometry',
-            'modern geometry': 'Modern Geometry',
-            'euclidean geometry': 'Euclidean Geometry',
-            'non-euclidean geometry': 'Non-Euclidean Geometry',
-            'number theory': 'Number Theory',
-            'statistical theory': 'Statistical Theory',
-            'operations research': 'Operations Research',
-            'actuarial mathematics': 'Actuarial Mathematics',
-            'numerical analysis': 'Numerical Analysis',
-            'advanced calculus': 'Advanced Calculus',
-            'multivariable calculus': 'Multivariable Calculus',
-            'vector calculus': 'Vector Calculus',
-            'partial differential equations': 'Partial Differential Equations',
-            'ordinary differential equations': 'Ordinary Differential Equations',
+            "fundamental concept of mathematics":
+              "Fundamental Concept of Mathematics",
+            "fundamental concepts of mathematics":
+              "Fundamental Concept of Mathematics",
+            "fundamentals of mathematics": "Fundamental Concept of Mathematics",
+            "basic mathematics": "Fundamental Concept of Mathematics",
+            "college algebra": "College Algebra",
+            trigonometry: "Trigonometry",
+            "plane trigonometry": "Plane Trigonometry",
+            "spherical trigonometry": "Spherical Trigonometry",
+            "solid geometry": "Solid Geometry",
+            "analytic geometry": "Analytic Geometry",
+            "plane geometry": "Plane Geometry",
+            "modern geometry": "Modern Geometry",
+            "euclidean geometry": "Euclidean Geometry",
+            "non-euclidean geometry": "Non-Euclidean Geometry",
+            "number theory": "Number Theory",
+            "statistical theory": "Statistical Theory",
+            "operations research": "Operations Research",
+            "actuarial mathematics": "Actuarial Mathematics",
+            "numerical analysis": "Numerical Analysis",
+            "advanced calculus": "Advanced Calculus",
+            "multivariable calculus": "Multivariable Calculus",
+            "vector calculus": "Vector Calculus",
+            "partial differential equations": "Partial Differential Equations",
+            "ordinary differential equations":
+              "Ordinary Differential Equations",
           };
           return map[s.toLowerCase()] ?? s;
         }
@@ -4914,14 +4945,16 @@ You can ask me:
             const entryNameNoSpaces = entryNameLower.replace(/\s+/g, "");
             const entryCodeNoSpaces = entryCodeLower.replace(/\s+/g, "");
 
-            if (entryNameLower.includes(targetNormLower) ||
-                entryNameLower.includes(targetRawLower) ||
-                entryCodeLower.includes(targetNormLower) ||
-                entryCodeLower.includes(targetRawLower) ||
-                entryNameNoSpaces.includes(targetNormNoSpaces) ||
-                entryNameNoSpaces.includes(targetNoSpaces) ||
-                entryCodeNoSpaces.includes(targetNormNoSpaces) ||
-                entryCodeNoSpaces.includes(targetNoSpaces)) {
+            if (
+              entryNameLower.includes(targetNormLower) ||
+              entryNameLower.includes(targetRawLower) ||
+              entryCodeLower.includes(targetNormLower) ||
+              entryCodeLower.includes(targetRawLower) ||
+              entryNameNoSpaces.includes(targetNormNoSpaces) ||
+              entryNameNoSpaces.includes(targetNoSpaces) ||
+              entryCodeNoSpaces.includes(targetNormNoSpaces) ||
+              entryCodeNoSpaces.includes(targetNoSpaces)
+            ) {
               targetEntry = entry;
               break;
             }
@@ -4942,39 +4975,44 @@ You can ask me:
 
             for (const prereq of prerequisites) {
               const prereqLower = prereq.toLowerCase();
-              const prereqParts = prereq.split(' – ');
+              const prereqParts = prereq.split(" – ");
               const prereqName = prereqParts[1] || prereq;
-              const prereqCode = prereqParts[0] || '';
+              const prereqCode = prereqParts[0] || "";
               const prereqNameLower = prereqName.toLowerCase();
               const prereqCodeLower = prereqCode.toLowerCase();
 
-              if (prereqNameLower.includes(failedNormLower) ||
-                  prereqNameLower.includes(failedRawLower) ||
-                  prereqCodeLower.includes(failedNormLower) ||
-                  prereqCodeLower.includes(failedRawLower) ||
-                  prereqLower.includes(failedNormLower) ||
-                  prereqLower.includes(failedRawLower)) {
+              if (
+                prereqNameLower.includes(failedNormLower) ||
+                prereqNameLower.includes(failedRawLower) ||
+                prereqCodeLower.includes(failedNormLower) ||
+                prereqCodeLower.includes(failedRawLower) ||
+                prereqLower.includes(failedNormLower) ||
+                prereqLower.includes(failedRawLower)
+              ) {
                 isPrerequisite = true;
                 break;
               }
             }
 
-            let response = '';
+            let response = "";
 
             if (isPrerequisite) {
-              response = userLanguage === 'fil'
-                ? `Hindi, hindi ka maaaring kumuha ng ${targetEntry.subjectName} kung bumagsak ka sa ${failedCourseRaw}.\n\nIto ay dahil ang ${failedCourseRaw} ay isa sa mga kinakailangang prerequisite para sa ${targetEntry.subjectName}. Dapat mong pasahan ang lahat ng prerequisite subjects bago mag-enroll.\n\n`
-                : `No, you cannot take ${targetEntry.subjectName} if you failed ${failedCourseRaw}.\n\nThis is because ${failedCourseRaw} is one of the required prerequisites for ${targetEntry.subjectName}. You must pass all prerequisite subjects before enrolling.\n\n`;
+              response =
+                userLanguage === "fil"
+                  ? `Hindi, hindi ka maaaring kumuha ng ${targetEntry.subjectName} kung bumagsak ka sa ${failedCourseRaw}.\n\nIto ay dahil ang ${failedCourseRaw} ay isa sa mga kinakailangang prerequisite para sa ${targetEntry.subjectName}. Dapat mong pasahan ang lahat ng prerequisite subjects bago mag-enroll.\n\n`
+                  : `No, you cannot take ${targetEntry.subjectName} if you failed ${failedCourseRaw}.\n\nThis is because ${failedCourseRaw} is one of the required prerequisites for ${targetEntry.subjectName}. You must pass all prerequisite subjects before enrolling.\n\n`;
             } else {
-              response = userLanguage === 'fil'
-                ? `Oo, maaari kang kumuha ng ${targetEntry.subjectName} kahit bumagsak ka sa ${failedCourseRaw}.\n\nAng ${failedCourseRaw} ay hindi prerequisite ng ${targetEntry.subjectName}.\n\n`
-                : `Yes, you can take ${targetEntry.subjectName} even if you failed ${failedCourseRaw}.\n\n${failedCourseRaw} is not a prerequisite for ${targetEntry.subjectName}.\n\n`;
+              response =
+                userLanguage === "fil"
+                  ? `Oo, maaari kang kumuha ng ${targetEntry.subjectName} kahit bumagsak ka sa ${failedCourseRaw}.\n\nAng ${failedCourseRaw} ay hindi prerequisite ng ${targetEntry.subjectName}.\n\n`
+                  : `Yes, you can take ${targetEntry.subjectName} even if you failed ${failedCourseRaw}.\n\n${failedCourseRaw} is not a prerequisite for ${targetEntry.subjectName}.\n\n`;
             }
 
             if (prerequisites.length > 0) {
-              response += userLanguage === 'fil'
-                ? `Narito ang mga prerequisites para sa ${targetEntry.subjectName}:\n\n`
-                : `Here are the prerequisites for ${targetEntry.subjectName}:\n\n`;
+              response +=
+                userLanguage === "fil"
+                  ? `Narito ang mga prerequisites para sa ${targetEntry.subjectName}:\n\n`
+                  : `Here are the prerequisites for ${targetEntry.subjectName}:\n\n`;
               for (const prereq of prerequisites) {
                 response += `• ${prereq}\n`;
               }

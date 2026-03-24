@@ -1,18 +1,18 @@
 // server/prisma/seed-knowledge.ts
 // Seed script to populate FAQs, Room Schedules, and other knowledge data for AI responses
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function seedFAQs() {
-  console.log('🔄 Seeding FAQs...');
+  console.log("🔄 Seeding FAQs...");
 
   const faqs = [
     // Grading System FAQs
     {
-      category: 'Grading System',
-      question: 'What is the grading scale used at Bulacan State University?',
+      category: "Grading System",
+      question: "What is the grading scale used at Bulacan State University?",
       answer: `BulSU evaluates academic performance using numerical grades and letter equivalents:
 
       | Grade | Percentage | Remark |
@@ -31,12 +31,22 @@ async function seedFAQs() {
       | Inc. | N/A | Incomplete |
       | D | N/A | Officially Dropped |
       | FDA/UD | N/A | Failure Due to Absences / Unofficially Dropped |`,
-      keywords: ['grading', 'scale', 'grades', 'percentage', 'passing', 'failed', 'excellent', 'good', 'satisfactory'],
-      isPublished: true
+      keywords: [
+        "grading",
+        "scale",
+        "grades",
+        "percentage",
+        "passing",
+        "failed",
+        "excellent",
+        "good",
+        "satisfactory",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Grading System',
-      question: 'What does a 4.00 (Conditional Passed) grade mean?',
+      category: "Grading System",
+      question: "What does a 4.00 (Conditional Passed) grade mean?",
       answer: `A 4.00 grade is given when a student is slightly below the passing criteria but has the potential to pass the course.
 
       Key points:
@@ -45,11 +55,11 @@ async function seedFAQs() {
       • The 4.00 grade does not appear on the student's permanent record or transcript
 
       This policy encourages students to actively address minor academic deficiencies before failing.`,
-      keywords: ['conditional', '4.00', 'passed', 'deficiency', 'two weeks'],
-      isPublished: true
+      keywords: ["conditional", "4.00", "passed", "deficiency", "two weeks"],
+      isPublished: true,
     },
     {
-      category: 'Grading System',
+      category: "Grading System",
       question: 'What is an "Inc." (Incomplete) grade?',
       answer: `An Incomplete (Inc.) is assigned when a student is passing all grading criteria except for missing certain requirements such as projects, assignments, or activities.
 
@@ -57,33 +67,40 @@ async function seedFAQs() {
       • Students have a grace period of one (1) year to complete the missing requirements
       • If requirements are not completed within one year, the grade automatically becomes 5.00 (Failed)
       • If the incomplete grade is in a prerequisite subject, the student cannot enroll in the subsequent subject until the prerequisite is completed`,
-      keywords: ['incomplete', 'inc', 'missing', 'requirements', 'one year', 'prerequisite'],
-      isPublished: true
+      keywords: [
+        "incomplete",
+        "inc",
+        "missing",
+        "requirements",
+        "one year",
+        "prerequisite",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Grading System',
+      category: "Grading System",
       question: 'What does "D" (Officially Dropped) mean?',
       answer: `"D" indicates that a student has officially dropped a subject by submitting a formal dropping form, which must be signed by the instructor, dean, and university registrar.
 
       This grade ensures that the student's withdrawal is properly documented and does not affect other academic records adversely.`,
-      keywords: ['dropped', 'officially', 'withdrawal', 'dropping form'],
-      isPublished: true
+      keywords: ["dropped", "officially", "withdrawal", "dropping form"],
+      isPublished: true,
     },
     {
-      category: 'Grading System',
-      question: 'What does FDA or UD mean?',
+      category: "Grading System",
+      question: "What does FDA or UD mean?",
       answer: `FDA (Failure Due to Absences) occurs when a student discontinues attending class without informing the instructor, resulting in failure.
 
       UD (Unofficially Dropped) occurs when a student stops attending the class without filing a formal dropping form, which also counts as failure.
 
       These grades highlight the importance of regular attendance and proper communication with instructors.`,
-      keywords: ['fda', 'ud', 'absences', 'unofficially dropped', 'attendance'],
-      isPublished: true
+      keywords: ["fda", "ud", "absences", "unofficially dropped", "attendance"],
+      isPublished: true,
     },
     // University History FAQs
     {
-      category: 'University History',
-      question: 'When and how was Bulacan State University established?',
+      category: "University History",
+      question: "When and how was Bulacan State University established?",
       answer: `BulSU started in 1904 as an intermediate school during the early years of the American occupation in the Philippines. It was established under Act 74 of the Philippine Commission (1901), which aimed to set up schools in every town and reorganize existing ones.
 
       Key milestones:
@@ -93,12 +110,20 @@ async function seedFAQs() {
       • 1957: Converted to Bulacan National School of Arts and Trades (BNSAT)
       • 1965: Became Bulacan College of Arts and Trades (BCAT)
       • 1993: Formally became Bulacan State University (BSU) via R.A. 7665`,
-      keywords: ['history', 'established', 'founded', '1904', 'trade school', 'bcat', 'bnts'],
-      isPublished: true
+      keywords: [
+        "history",
+        "established",
+        "founded",
+        "1904",
+        "trade school",
+        "bcat",
+        "bnts",
+      ],
+      isPublished: true,
     },
     {
-      category: 'University History',
-      question: 'Who were the notable leaders of BSU?',
+      category: "University History",
+      question: "Who were the notable leaders of BSU?",
       answer: `Notable BSU Presidents:
 
       • Dr. Rosario Pimentel (1993-1997): First President of BSU; oversaw university conversion and campus expansion
@@ -106,27 +131,40 @@ async function seedFAQs() {
       • Dr. Mariano C. De Jesus (2006-2014): Second President; strengthened partnerships with local government and developed facilities
 
       • Dr. Cecilia N. Gascon (2015-present): First lady President; focuses on instruction, research, extension, and production; developed 25 hectares of land donated by the national government`,
-      keywords: ['president', 'leader', 'pimentel', 'de jesus', 'gascon', 'administration'],
-      isPublished: true
+      keywords: [
+        "president",
+        "leader",
+        "pimentel",
+        "de jesus",
+        "gascon",
+        "administration",
+      ],
+      isPublished: true,
     },
     // Vision and Mission
     {
-      category: 'Vision and Mission',
-      question: 'What is the vision of Bulacan State University?',
+      category: "Vision and Mission",
+      question: "What is the vision of Bulacan State University?",
       answer: `The Bulacan State University is a progressive knowledge generating institution globally recognized for excellent instruction, pioneering research, and responsive community engagements.`,
-      keywords: ['vision', 'mission', 'goals', 'progressive', 'knowledge'],
-      isPublished: true
+      keywords: ["vision", "mission", "goals", "progressive", "knowledge"],
+      isPublished: true,
     },
     {
-      category: 'Vision and Mission',
-      question: 'What is the mission of Bulacan State University?',
+      category: "Vision and Mission",
+      question: "What is the mission of Bulacan State University?",
       answer: `The Bulacan State University exists to produce highly competent, ethical, and service-oriented professionals that contribute to the sustainable socio-economic growth and development of the nation.`,
-      keywords: ['mission', 'competent', 'ethical', 'professionals', 'development'],
-      isPublished: true
+      keywords: [
+        "mission",
+        "competent",
+        "ethical",
+        "professionals",
+        "development",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Vision and Mission',
-      question: 'What are the goals of Bulacan State University?',
+      category: "Vision and Mission",
+      question: "What are the goals of Bulacan State University?",
       answer: `BulSU directs its initiatives toward achieving these goals:
 
       1. **Provide Relevant, Quality, and Accessible Education** – Ensure education meets the needs of students and society
@@ -138,68 +176,74 @@ async function seedFAQs() {
       4. **Sound Financial Management and Resource Generation** – Maintain financial stability
 
       5. **Good Governance** – Uphold transparency, accountability, and efficiency`,
-      keywords: ['goals', 'objectives', 'education', 'research', 'governance'],
-      isPublished: true
+      keywords: ["goals", "objectives", "education", "research", "governance"],
+      isPublished: true,
     },
     // Student Classification
     {
-      category: 'Student Classification',
-      question: 'What is a regular student?',
+      category: "Student Classification",
+      question: "What is a regular student?",
       answer: `A regular student is one who registers for formal academic credits and carries the full load of subjects required for a given semester and curriculum.`,
-      keywords: ['regular', 'student', 'full load', 'classification'],
-      isPublished: true
+      keywords: ["regular", "student", "full load", "classification"],
+      isPublished: true,
     },
     {
-      category: 'Student Classification',
-      question: 'What is an irregular student?',
+      category: "Student Classification",
+      question: "What is an irregular student?",
       answer: `An irregular student is one who registers for formal credits but carries less than the full load in a given semester, usually to complete specific curriculum requirements.`,
-      keywords: ['irregular', 'student', 'less than full load', 'classification'],
-      isPublished: true
+      keywords: [
+        "irregular",
+        "student",
+        "less than full load",
+        "classification",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Student Classification',
-      question: 'What is a shifter student?',
+      category: "Student Classification",
+      question: "What is a shifter student?",
       answer: `A shifter student is one who changes from one course to another, either within the same college/campus or in a different college/campus of the University.`,
-      keywords: ['shifter', 'change course', 'transfer', 'classification'],
-      isPublished: true
+      keywords: ["shifter", "change course", "transfer", "classification"],
+      isPublished: true,
     },
     {
-      category: 'Student Classification',
-      question: 'What is a transfer student?',
+      category: "Student Classification",
+      question: "What is a transfer student?",
       answer: `A transfer student is one who comes from another recognized higher education institution and is officially allowed to enroll in the same or another course at BulSU.`,
-      keywords: ['transfer', 'student', 'another school', 'classification'],
-      isPublished: true
+      keywords: ["transfer", "student", "another school", "classification"],
+      isPublished: true,
     },
     {
-      category: 'Student Classification',
-      question: 'What is a working student?',
+      category: "Student Classification",
+      question: "What is a working student?",
       answer: `A working student has a part-time job while studying. They may enroll in a minimum of 15 academic units per term or semester to balance work and studies.`,
-      keywords: ['working', 'student', 'part-time', 'job', 'classification'],
-      isPublished: true
+      keywords: ["working", "student", "part-time", "job", "classification"],
+      isPublished: true,
     },
     // Admission Requirements
     {
-      category: 'Admission',
-      question: 'Where do I file my application for admission to Bulacan State University?',
+      category: "Admission",
+      question:
+        "Where do I file my application for admission to Bulacan State University?",
       answer: `All applications for admission must be filed with the Office of Admissions and Orientation of Bulacan State University. Applicants are required to submit the prescribed documents, pay the BSU Admission Test (BSUAT) fee, and comply with the admission procedures within the scheduled application period.`,
-      keywords: ['admission', 'application', 'file', 'office', 'admissions'],
-      isPublished: true
+      keywords: ["admission", "application", "file", "office", "admissions"],
+      isPublished: true,
     },
     {
-      category: 'Admission',
-      question: 'Is admission to Bulacan State University open to everyone?',
+      category: "Admission",
+      question: "Is admission to Bulacan State University open to everyone?",
       answer: `Admission to BulSU is selective. The University receives more applicants than it can accommodate, so admission is based on:
       • Academic performance (GPA)
       • BSU Admission Test (BSUAT) scores
       • Interview results (if required by the program)
 
       Only qualified applicants are admitted, subject to available slots.`,
-      keywords: ['admission', 'selective', 'open', 'requirements', 'bsuat'],
-      isPublished: true
+      keywords: ["admission", "selective", "open", "requirements", "bsuat"],
+      isPublished: true,
     },
     {
-      category: 'Admission',
-      question: 'Who is eligible to take the BulSU Admission Test (BSUAT)?',
+      category: "Admission",
+      question: "Who is eligible to take the BulSU Admission Test (BSUAT)?",
       answer: `The following individuals may apply for the BSUAT:
       • Graduates of Grade 12
       • High school graduates prior to the K-12 implementation
@@ -207,12 +251,12 @@ async function seedFAQs() {
       • ALS A&E Secondary Level passers with a Standard Score of 100 or higher
       • Filipino or foreign nationals graduating from foreign schools with K-12 programs
       • Foreigners graduating from schools in the Philippines`,
-      keywords: ['bsuat', 'eligible', 'admission test', 'grade 12', 'k-12'],
-      isPublished: true
+      keywords: ["bsuat", "eligible", "admission test", "grade 12", "k-12"],
+      isPublished: true,
     },
     {
-      category: 'Admission',
-      question: 'What are the requirements for college freshmen applicants?',
+      category: "Admission",
+      question: "What are the requirements for college freshmen applicants?",
       answer: `College freshmen must:
       • Have a Senior High School diploma from a recognized school
       • Submit a fully accomplished application form
@@ -220,12 +264,18 @@ async function seedFAQs() {
       • Submit a photocopy of school ID
       • Meet the GPA requirement of the chosen program
       • Pass the interview, if required`,
-      keywords: ['freshmen', 'requirements', 'admission', 'senior high', 'diploma'],
-      isPublished: true
+      keywords: [
+        "freshmen",
+        "requirements",
+        "admission",
+        "senior high",
+        "diploma",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Admission',
-      question: 'What are the requirements for transfer students?',
+      category: "Admission",
+      question: "What are the requirements for transfer students?",
       answer: `Transfer students must:
       • Submit a completed application form with required ID pictures
       • Have a GPA of 2.5 or better with no failing grade (5.0)
@@ -233,12 +283,18 @@ async function seedFAQs() {
       • Submit Transcript of Records and Honorable Dismissal
 
       Transfer credits are evaluated by the Office of the Registrar and approved by the Vice President for Academic Affairs.`,
-      keywords: ['transfer', 'requirements', 'gpa', 'transcript', 'honorable dismissal'],
-      isPublished: true
+      keywords: [
+        "transfer",
+        "requirements",
+        "gpa",
+        "transcript",
+        "honorable dismissal",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Admission',
-      question: 'What is the admission procedure for BulSU applicants?',
+      category: "Admission",
+      question: "What is the admission procedure for BulSU applicants?",
       answer: `Applicants must:
       1. Secure an application form from the Office of Admissions and Orientation
       2. Submit original and photocopies of required academic records
@@ -249,26 +305,32 @@ async function seedFAQs() {
       7. Complete reservation and enrollment requirements
 
       Note: Applicants are allowed to take the BSUAT only once.`,
-      keywords: ['procedure', 'admission', 'steps', 'bsuat', 'enrollment'],
-      isPublished: true
+      keywords: ["procedure", "admission", "steps", "bsuat", "enrollment"],
+      isPublished: true,
     },
     {
-      category: 'Admission',
-      question: 'What documents are required once I pass the BSUAT?',
+      category: "Admission",
+      question: "What documents are required once I pass the BSUAT?",
       answer: `Successful applicants must submit:
       1. Reservation slip
       2. Original Form 138 (High School Card)
       3. NSO-authenticated Birth Certificate
       4. Certificate of Good Moral Character
       5. Medical Permit from BSU Medical Clinic
-      6. One (1) recent 2"×2" ID picture`,  
-      keywords: ['documents', 'passed', 'bsuat', 'form 138', 'birth certificate'],
-      isPublished: true
+      6. One (1) recent 2"×2" ID picture`,
+      keywords: [
+        "documents",
+        "passed",
+        "bsuat",
+        "form 138",
+        "birth certificate",
+      ],
+      isPublished: true,
     },
     // Student Responsibilities
     {
-      category: 'Student Responsibilities',
-      question: 'What is the dress code at BulSU?',
+      category: "Student Responsibilities",
+      question: "What is the dress code at BulSU?",
       answer: `BulSU Dress Code:
 
       **Daily Uniform:** Monday, Tuesday, Thursday, Friday – as prescribed by college/campus
@@ -284,12 +346,12 @@ async function seedFAQs() {
       **Laboratory:** Laboratory outfit must be worn for lab work
 
       **Cross-dressing:** Allowed only in official social events (College Night, Students' Ball)`,
-      keywords: ['dress code', 'uniform', 'clothing', 'shoes', 'attire'],
-      isPublished: true
+      keywords: ["dress code", "uniform", "clothing", "shoes", "attire"],
+      isPublished: true,
     },
     {
-      category: 'Student Responsibilities',
-      question: 'What is the University ID policy?',
+      category: "Student Responsibilities",
+      question: "What is the University ID policy?",
       answer: `University ID Policy:
 
       1. Required to be worn at all times within campus
@@ -298,12 +360,12 @@ async function seedFAQs() {
       4. Lost or tampered IDs must be reported to OSAS and Office of the Registrar
       5. Tampering is a grave violation`,
 
-      keywords: ['id', 'university id', 'no entry', 'policy', 'identification'],
-      isPublished: true
+      keywords: ["id", "university id", "no entry", "policy", "identification"],
+      isPublished: true,
     },
     // Academic Policies
     {
-      category: 'Academic Policies',
+      category: "Academic Policies",
       question: 'What does "change of academic load" mean?',
       answer: `Change of academic load refers to the adding or changing of subjects that a student is officially enrolled in for a given semester.
 
@@ -311,12 +373,12 @@ async function seedFAQs() {
       • Any student may request to add or change subjects
       • Requests must be made within the first two (2) weeks of regular classes only
       • All requests are subject to the approval of the concerned academic unit head`,
-      keywords: ['change', 'academic load', 'add', 'subjects', 'enrollment'],
-      isPublished: true
+      keywords: ["change", "academic load", "add", "subjects", "enrollment"],
+      isPublished: true,
     },
     {
-      category: 'Academic Policies',
-      question: 'What is subject substitution?',
+      category: "Academic Policies",
+      question: "What is subject substitution?",
       answer: `Subject substitution refers to the replacement of an old subject with a new one in a student's academic program.
 
         A student may substitute a subject when:
@@ -325,12 +387,18 @@ async function seedFAQs() {
         3. The substitute subject has equal or greater credit units than the original
 
         Subject substitution must be evaluated and approved by the concerned academic unit and university authorities.`,
-      keywords: ['substitution', 'subject', 'replace', 'curriculum', 'credit units'],
-      isPublished: true
+      keywords: [
+        "substitution",
+        "subject",
+        "replace",
+        "curriculum",
+        "credit units",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Academic Policies',
-      question: 'What are tutorial classes?',
+      category: "Academic Policies",
+      question: "What are tutorial classes?",
       answer: `Tutorial classes are special academic classes offered exclusively to graduating (senior-level) students when taking or completing one remaining subject is necessary for their graduation in a particular term.
 
       Requirements:
@@ -338,13 +406,19 @@ async function seedFAQs() {
       • The subject must be the last subject required for graduation
       • Student must secure a certification from the Office of the Registrar confirming graduating status
       • Request must be recommended by the College or Campus Dean`,
-      keywords: ['tutorial', 'classes', 'graduating', 'senior', 'special class'],
-      isPublished: true
+      keywords: [
+        "tutorial",
+        "classes",
+        "graduating",
+        "senior",
+        "special class",
+      ],
+      isPublished: true,
     },
     // Social Media and Websites
     {
-      category: 'Contact and Resources',
-      question: 'What are the official BulSU websites and social media?',
+      category: "Contact and Resources",
+      question: "What are the official BulSU websites and social media?",
       answer: `Official BulSU Online Resources:
 
       **Main Website:** https://bulsu.edu.ph
@@ -356,12 +430,19 @@ async function seedFAQs() {
       **Admission Portal:** https://bulsu.heims.ph/admission
 
       For the latest updates, please check BulSU's official Facebook page or the main website.`,
-      keywords: ['website', 'social media', 'facebook', 'contact', 'online', 'portal'],
-      isPublished: true
+      keywords: [
+        "website",
+        "social media",
+        "facebook",
+        "contact",
+        "online",
+        "portal",
+      ],
+      isPublished: true,
     },
     {
-      category: 'Contact and Resources',
-      question: 'How do I access the admission portal?',
+      category: "Contact and Resources",
+      question: "How do I access the admission portal?",
       answer: `The BulSU Admission Portal is available at: https://bulsu.heims.ph/admission
 
       The portal provides guidance for:
@@ -373,9 +454,9 @@ async function seedFAQs() {
       • Night Class enrollment
 
       Start your application journey there by selecting your program classification.`,
-      keywords: ['admission', 'portal', 'heims', 'apply', 'online application'],
-      isPublished: true
-    }
+      keywords: ["admission", "portal", "heims", "apply", "online application"],
+      isPublished: true,
+    },
   ];
 
   let created = 0;
@@ -384,7 +465,7 @@ async function seedFAQs() {
   for (const faq of faqs) {
     // Check if FAQ with this question already exists
     const existing = await prisma.fAQ.findFirst({
-      where: { question: faq.question }
+      where: { question: faq.question },
     });
 
     if (existing) {
@@ -394,8 +475,8 @@ async function seedFAQs() {
           answer: faq.answer,
           category: faq.category,
           keywords: faq.keywords,
-          isPublished: faq.isPublished
-        }
+          isPublished: faq.isPublished,
+        },
       });
       updated++;
     } else {
@@ -405,8 +486,8 @@ async function seedFAQs() {
           answer: faq.answer,
           category: faq.category,
           keywords: faq.keywords,
-          isPublished: faq.isPublished
-        }
+          isPublished: faq.isPublished,
+        },
       });
       created++;
     }
@@ -416,7 +497,7 @@ async function seedFAQs() {
 }
 
 async function seedRoomSchedules() {
-  console.log('🔄 Seeding Room Schedules...');
+  console.log("🔄 Seeding Room Schedules...");
 
   // Store room schedules as FAQs for AI to access - create individual FAQs for better matching
   const roomScheduleFAQs = [
@@ -604,8 +685,17 @@ async function seedRoomSchedules() {
     {
       category: "Room Schedules",
       question: "What is the schedule for FH 110 room?",
-      answer: "**FH 110 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: INV 204 (BSB 3A) - LEE, MARY YLANE S.\n• 10:00 AM - 1:00 PM: INV 204 (BSB 3B) - LEE, MARY YLANE S.\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n• 1:00 PM - 2:30 PM: CHE 301L - TUAZON\n• 2:30 PM - 4:00 PM: FedAAN H 101 - DE LEON, SHIELA MARIE\n• 4:00 PM - 5:30 PM: PID 101 - RAMOS, DANTE B.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: CHE 105/105L (BSFT 1B) - TUAZON, DEBBIE ANN S.\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3A) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: MIC 205 (BSB 2B) - DIZON, SARAH JOY\n• 1:00 PM - 4:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MIC 205L (BSB 2B) - DIZON, SARAH JOY\n• 2:00 PM - 8:00 PM: GEN 301 L - DIZON, SARAH JOY\n• 4:00 PM - 8:00 PM: GEN 301L",
-      keywords: ["fh110", "fh 110", "room 110", "federizo hall", "room schedule", "classroom", "fh"],
+      answer:
+        "**FH 110 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: INV 204 (BSB 3A) - LEE, MARY YLANE S.\n• 10:00 AM - 1:00 PM: INV 204 (BSB 3B) - LEE, MARY YLANE S.\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n• 1:00 PM - 2:30 PM: CHE 301L - TUAZON\n• 2:30 PM - 4:00 PM: FedAAN H 101 - DE LEON, SHIELA MARIE\n• 4:00 PM - 5:30 PM: PID 101 - RAMOS, DANTE B.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: CHE 105/105L (BSFT 1B) - TUAZON, DEBBIE ANN S.\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3A) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: MIC 205 (BSB 2B) - DIZON, SARAH JOY\n• 1:00 PM - 4:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MIC 205L (BSB 2B) - DIZON, SARAH JOY\n• 2:00 PM - 8:00 PM: GEN 301 L - DIZON, SARAH JOY\n• 4:00 PM - 8:00 PM: GEN 301L",
+      keywords: [
+        "fh110",
+        "fh 110",
+        "room 110",
+        "federizo hall",
+        "room schedule",
+        "classroom",
+        "fh",
+      ],
       isPublished: true,
     },
   ];
@@ -615,28 +705,30 @@ async function seedRoomSchedules() {
 
   for (const faq of roomScheduleFAQs) {
     const existing = await prisma.fAQ.findFirst({
-      where: { question: faq.question }
+      where: { question: faq.question },
     });
 
     if (existing) {
       await prisma.fAQ.update({
         where: { id: existing.id },
-        data: faq
+        data: faq,
       });
       updated++;
     } else {
       await prisma.fAQ.create({
-        data: faq
+        data: faq,
       });
       created++;
     }
   }
 
-  console.log(`✅ Seeded room schedule FAQs: ${created} created, ${updated} updated`);
+  console.log(
+    `✅ Seeded room schedule FAQs: ${created} created, ${updated} updated`,
+  );
 }
 
 async function seedFacultySchedules() {
-  console.log('🔄 Seeding Faculty Schedules...');
+  console.log("🔄 Seeding Faculty Schedules...");
 
   // Store faculty schedules as FAQs
   const facultyScheduleFAQs = [
@@ -1349,8 +1441,8 @@ async function seedFacultySchedules() {
       isPublished: true,
     },
     {
-      category: 'Faculty Schedules',
-      question: 'What is the schedule of Prof. Harris Dela Cruz?',
+      category: "Faculty Schedules",
+      question: "What is the schedule of Prof. Harris Dela Cruz?",
       answer: `**Prof. DELA CRUZ, HARRIS - Schedule**
 
 **Thursday:**
@@ -1367,9 +1459,9 @@ async function seedFacultySchedules() {
 **Saturday:**
 • 7am-10am: MAT 306 (BSM BA 3A) - FH 205
 • 10am-1pm: MAT 206 (BSM BA 3B) - FH 206`,
-      keywords: ['dela cruz', 'harris', 'schedule', 'faculty', 'mat 306'],
-      isPublished: true
-    }
+      keywords: ["dela cruz", "harris", "schedule", "faculty", "mat 306"],
+      isPublished: true,
+    },
   ];
 
   let created = 0;
@@ -1377,37 +1469,39 @@ async function seedFacultySchedules() {
 
   for (const faq of facultyScheduleFAQs) {
     const existing = await prisma.fAQ.findFirst({
-      where: { question: faq.question }
+      where: { question: faq.question },
     });
 
     if (existing) {
       await prisma.fAQ.update({
         where: { id: existing.id },
-        data: faq
+        data: faq,
       });
       updated++;
     } else {
       await prisma.fAQ.create({
-        data: faq
+        data: faq,
       });
       created++;
     }
   }
 
-  console.log(`✅ Seeded faculty schedule FAQs: ${created} created, ${updated} updated`);
+  console.log(
+    `✅ Seeded faculty schedule FAQs: ${created} created, ${updated} updated`,
+  );
 }
 
 async function main() {
-  console.log('🚀 Starting knowledge seed...\n');
+  console.log("🚀 Starting knowledge seed...\n");
 
   try {
     await seedFAQs();
     await seedRoomSchedules();
     await seedFacultySchedules();
 
-    console.log('\n✅ Knowledge seed completed successfully!');
+    console.log("\n✅ Knowledge seed completed successfully!");
   } catch (error) {
-    console.error('❌ Error seeding knowledge:', error);
+    console.error("❌ Error seeding knowledge:", error);
     throw error;
   } finally {
     await prisma.$disconnect();
