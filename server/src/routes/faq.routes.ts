@@ -10,7 +10,7 @@ import {
   deleteFAQ,
   getAdminFAQs,
   getFAQAnalytics,
-  invalidateCache,
+  // invalidateCache,
 } from '../controllers/faq.controller';
 
 const router = Router();
@@ -36,6 +36,6 @@ router.get('/admin/analytics', getFAQAnalytics);
 router.post('/admin', createFAQ);
 router.put('/admin/:id', updateFAQ);
 router.delete('/admin/:id', deleteFAQ);
-router.post('/admin/cache/invalidate', invalidateCache);
+// router.post('/admin/cache/invalidate', invalidateCache);
 
 export default router;

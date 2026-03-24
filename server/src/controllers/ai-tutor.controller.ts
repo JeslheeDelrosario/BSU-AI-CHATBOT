@@ -22,70 +22,92 @@ import { quizGeneratorService } from "../services/quiz-generator.service";
 import * as FacultyConsultationService from "../services/faculty-consultation.service";
 import { FAQCacheService } from "../services/faq-cache.service";
 import Groq from "groq-sdk";
-import { Cerebras } from "@cerebras/cerebras_cloud_sdk";
 import axios from "axios";
+import fs from "fs";
+import path from "path";
 
-// Initialize OpenRouter client (PRIMARY)
+let curriculumGuide: string = "";
+try {
+  const guidePath = path.join(__dirname, "../knowledge/curriculum-guide.md");
+  curriculumGuide = fs.readFileSync(guidePath, "utf-8");
+  console.log("✅ Curriculum guide loaded in controller");
+} catch (error) {
+  console.error("❌ Failed to load curriculum guide in controller:", error);
+  curriculumGuide = "";
+}
+
+// Initialize OpenRouter client (FINAL FALLBACK - #5)
 const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 const openRouterModel =
   process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1-distill-llama-70b";
 const hasOpenRouter = openRouterApiKey && openRouterApiKey !== "your-openrouter-api-key-here";
 if (hasOpenRouter) {
-  console.log(`✓ OpenRouter enabled (PRIMARY) - Model: ${openRouterModel}`);
+  console.log(`✓ OpenRouter enabled (FINAL FALLBACK #5) - Model: ${openRouterModel}`);
 } else {
   console.warn("⚠ OpenRouter API key not configured");
 }
 
-// Initialize Groq client (SECONDARY)
-let groqClient: Groq | null = null;
-let groqClientFallback: Groq | null = null;
+// Initialize Groq clients with enhanced fallback chain
+let groqClient: Groq | null = null;        // PRIMARY
+let groqClientFallback: Groq | null = null; // SECONDARY  
+let groqClientFallback2: Groq | null = null; // TERTIARY
+let groqClientFallback3: Groq | null = null; // FALLBACK #4
 // Keep geminiModel null to avoid compile errors where it's referenced later
 let geminiModel: any = null;
 try {
+  // PRIMARY: GROQ_API_KEY_MAIN
   if (
-    process.env.GROQ_API_KEY &&
-    process.env.GROQ_API_KEY !== "your-groq-api-key-here"
+    process.env.GROQ_API_KEY_MAIN &&
+    process.env.GROQ_API_KEY_MAIN !== "your-groq-api-key-here"
   ) {
-    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY_MAIN });
     console.log(
-      `✓ Groq AI enabled (SECONDARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
+      `✓ Groq AI enabled (PRIMARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
     );
   } else {
-    console.warn("⚠ Groq API key not configured");
+    console.warn("⚠ Groq MAIN API key not configured");
   }
   
-  // Initialize fallback Groq client with second API key
+  // SECONDARY: GROQ_API_KEY_FALLBACK
   if (
     process.env.GROQ_API_KEY_FALLBACK &&
     process.env.GROQ_API_KEY_FALLBACK !== "your-groq-api-key-here"
   ) {
     groqClientFallback = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK });
     console.log(
-      `✓ Groq fallback enabled (TERTIARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
+      `✓ Groq fallback enabled (SECONDARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
     );
   } else {
-    console.log("ℹ Groq fallback API key not configured (optional)");
+    console.log("ℹ Groq FALLBACK API key not configured (optional)");
+  }
+
+  // TERTIARY: GROQ_API_KEY_FALLBACK2
+  if (
+    process.env.GROQ_API_KEY_FALLBACK2 &&
+    process.env.GROQ_API_KEY_FALLBACK2 !== "your-groq-api-key-here"
+  ) {
+    groqClientFallback2 = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK2 });
+    console.log(
+      `✓ Groq fallback 2 enabled (TERTIARY) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
+    );
+  } else {
+    console.log("ℹ Groq FALLBACK2 API key not configured (optional)");
+  }
+
+  // FALLBACK #4: GROQ_API_KEY_FALLBACK3
+  if (
+    process.env.GROQ_API_KEY_FALLBACK3 &&
+    process.env.GROQ_API_KEY_FALLBACK3 !== "your-groq-api-key-here"
+  ) {
+    groqClientFallback3 = new Groq({ apiKey: process.env.GROQ_API_KEY_FALLBACK3 });
+    console.log(
+      `✓ Groq fallback 3 enabled (FALLBACK #4) - Model: ${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"}`,
+    );
+  } else {
+    console.log("ℹ Groq FALLBACK3 API key not configured (optional)");
   }
 } catch (error) {
   console.error("Failed to initialize Groq client:", error);
-}
-
-// Initialize Cerebras client (fallback)
-let cerebrasClient: Cerebras | null = null;
-try {
-  if (
-    process.env.CEREBRAS_API_KEY &&
-    process.env.CEREBRAS_API_KEY !== "your-cerebras-api-key-here"
-  ) {
-    cerebrasClient = new Cerebras({ apiKey: process.env.CEREBRAS_API_KEY });
-    console.log(
-      `✓ Cerebras fallback enabled - Model: ${process.env.CEREBRAS_MODEL || "llama-3.1-70b"}`,
-    );
-  } else {
-    console.warn("⚠ Cerebras API key not configured (fallback disabled)");
-  }
-} catch (error) {
-  console.error("Failed to initialize Cerebras client:", error);
 }
 
 // OpenAI removed - using only Gemini AI (free and reliable)
@@ -798,6 +820,281 @@ Respond in clear, professional English.
         lowerMsg,
       );
 
+    // ENHANCED: Helper function to check prerequisites across ALL programs
+    const checkPrerequisitesAcrossPrograms = async (
+      targetCourseName: string,
+      failedCourseName: string,
+      language: string,
+    ) => {
+      // Find ALL entries for the target course across ALL programs
+      const allTargetEntries = await prisma.curriculumEntry.findMany({
+        where: {
+          OR: [
+            {
+              subjectName: {
+                contains: targetCourseName,
+                mode: "insensitive",
+              },
+            },
+            {
+              courseCode: {
+                contains: targetCourseName,
+                mode: "insensitive",
+              },
+            },
+            {
+              subjectName: {
+                contains: targetCourseName.replace(/\s+/g, ""),
+                mode: "insensitive",
+              },
+            },
+            {
+              courseCode: {
+                contains: targetCourseName.replace(/\s+/g, ""),
+                mode: "insensitive",
+              },
+            },
+          ],
+        },
+        include: { UniversityProgram: true },
+        take: 20, // Increased limit to catch all programs
+      });
+
+      if (allTargetEntries.length === 0) {
+        return null; // Course not found
+      }
+
+      // Group by program
+      const entriesByProgram = new Map<string, typeof allTargetEntries>();
+      for (const entry of allTargetEntries) {
+        const programTitle = entry.UniversityProgram?.title || "Unknown Program";
+        if (!entriesByProgram.has(programTitle)) {
+          entriesByProgram.set(programTitle, []);
+        }
+        entriesByProgram.get(programTitle)!.push(entry);
+      }
+
+      // Process each program
+      const programResults: string[] = [];
+      let overallCanTake = true;
+      let overallIsPrerequisite = false;
+
+      for (const [programTitle, programEntries] of entriesByProgram) {
+        const targetEntry = programEntries[0]; // Use first entry from this program
+        const prereqs: string[] = targetEntry.prerequisites ?? [];
+
+        // Find failed course - first try same program, then all programs
+        let failedEntry: { courseCode: string; subjectName: string } | null = null;
+        let isPrerequisite = false;
+
+        // Try to find failed course in same program first
+        const failedResultsSameProgram = await prisma.curriculumEntry.findMany({
+          where: {
+            AND: [
+              {
+                OR: [
+                  {
+                    subjectName: {
+                      contains: failedCourseName.replace(/\?$/, ""),
+                      mode: "insensitive",
+                    },
+                  },
+                  {
+                    courseCode: {
+                      contains: failedCourseName.replace(/\?$/, ""),
+                      mode: "insensitive",
+                    },
+                  },
+                  {
+                    subjectName: {
+                      contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                      mode: "insensitive",
+                    },
+                  },
+                  {
+                    courseCode: {
+                      contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                      mode: "insensitive",
+                    },
+                  },
+                ],
+              },
+              {
+                programId: targetEntry.programId,
+              },
+            ],
+          },
+          select: { courseCode: true, subjectName: true },
+          take: 5,
+        });
+
+        let failedResults = failedResultsSameProgram;
+        if (failedResults.length === 0) {
+          // Search across all programs if not found in same program
+          failedResults = await prisma.curriculumEntry.findMany({
+            where: {
+              OR: [
+                {
+                  subjectName: {
+                    contains: failedCourseName.replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  courseCode: {
+                    contains: failedCourseName.replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  subjectName: {
+                    contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  courseCode: {
+                    contains: failedCourseName.replace(/\s+/g, "").replace(/\?$/, ""),
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+            select: { courseCode: true, subjectName: true },
+            take: 20,
+          });
+        }
+
+        // Check if failed course is a prerequisite
+        if (failedResults.length > 0) {
+          failedEntry = failedResults[0];
+
+          for (const f of failedResults) {
+            const fCodeLower = f.courseCode.toLowerCase().trim();
+            const fNameLower = f.subjectName.toLowerCase().trim();
+
+            const matchesPrereq = prereqs.some((p) => {
+              const pLower = p.toLowerCase().trim();
+              return (
+                pLower === fCodeLower ||
+                pLower.includes(fCodeLower) ||
+                fCodeLower.includes(pLower) ||
+                pLower.includes(fNameLower) ||
+                fNameLower.includes(pLower)
+              );
+            });
+
+            if (matchesPrereq) {
+              isPrerequisite = true;
+              failedEntry = f;
+              break;
+            }
+          }
+        }
+
+        // Fallback to string matching if no DB match
+        if (!isPrerequisite && failedResults.length === 0) {
+          const failedCourseLower = failedCourseName.toLowerCase().trim();
+          isPrerequisite = prereqs.some((p) => {
+            const pLower = p.toLowerCase().trim();
+            return (
+              pLower.includes(failedCourseLower) ||
+              failedCourseLower.includes(pLower) ||
+              pLower.replace(/\s+/g, "").includes(failedCourseLower.replace(/\s+/g, "")) ||
+              failedCourseLower.replace(/\s+/g, "").includes(pLower.replace(/\s+/g, ""))
+            );
+          });
+        }
+
+        // Build prerequisite display for this program
+        let prereqDisplay: string;
+        if (prereqs.length === 0) {
+          prereqDisplay =
+            language === "fil"
+              ? "Walang prerequisites ang kursong ito."
+              : "This course has no listed prerequisites.";
+        } else {
+          const prereqEntries = await prisma.curriculumEntry.findMany({
+            where: {
+              courseCode: { in: prereqs },
+              programId: targetEntry.programId,
+            },
+            select: { courseCode: true, subjectName: true },
+            distinct: ["courseCode"],
+          });
+
+          const codeToName = new Map(
+            prereqEntries.map((e) => [e.courseCode, e.subjectName]),
+          );
+
+          prereqDisplay = prereqs
+            .map((code) => {
+              const name = codeToName.get(code);
+              return name ? `${code} – ${name}` : `${code}`;
+            })
+            .join("\n");
+        }
+
+        // Build program-specific response
+        const failedEntryDisplay = failedEntry
+          ? `${failedEntry.subjectName} (${failedEntry.courseCode})`
+          : failedCourseName;
+        const targetDisplay = `${targetEntry.subjectName} (${targetEntry.courseCode})`;
+
+        let programResponse: string;
+        if (isPrerequisite) {
+          overallCanTake = false;
+          overallIsPrerequisite = true;
+          programResponse =
+            language === "fil"
+              ? `❌ **${programTitle}**: Hindi ka maaaring kumuha ng **${targetDisplay}** kung bumagsak ka sa **${failedEntryDisplay}**.`
+              : `❌ **${programTitle}**: You cannot take **${targetDisplay}** if you failed **${failedEntryDisplay}**.`;
+        } else {
+          programResponse =
+            language === "fil"
+              ? `✅ **${programTitle}**: Maaari kang kumuha ng **${targetDisplay}** kahit bumagsok ka sa **${failedEntryDisplay}**.`
+              : `✅ **${programTitle}**: You can take **${targetDisplay}** even if you failed **${failedEntryDisplay}**.`;
+        }
+
+        programResponse +=
+          language === "fil"
+            ? `\n\n📚 **Mga Prerequisites sa ${programTitle}:**\n${prereqDisplay}`
+            : `\n\n📚 **Prerequisites in ${programTitle}:**\n${prereqDisplay}`;
+
+        programResults.push(programResponse);
+      }
+
+      // Build final comprehensive response
+      const targetDisplay = `${allTargetEntries[0].subjectName} (${allTargetEntries[0].courseCode})`;
+      let finalResponse: string;
+
+      if (entriesByProgram.size === 1) {
+        // Single program - use existing format
+        finalResponse = programResults[0];
+      } else {
+        // Multiple programs - comprehensive answer
+        const summaryText =
+          language === "fil"
+            ? overallCanTake
+              ? `✅ **Buod**: Maaari kang kumuha ng **${targetDisplay}** sa lahat ng programang ito kahit bumagsok ka sa tinukoy na subject.`
+              : overallIsPrerequisite
+              ? `❌ **Buod**: Hindi ka maaaring kumuha ng **${targetDisplay}** sa ilan sa mga programang ito dahil sa prerequisite requirements.`
+              : `✅ **Buod**: Maaari kang kumuha ng **${targetDisplay}** sa lahat ng programang ito.`
+            : overallCanTake
+            ? `✅ **Summary**: You can take **${targetDisplay}** in all these programs even if you failed the specified subject.`
+            : overallIsPrerequisite
+            ? `❌ **Summary**: You cannot take **${targetDisplay}** in some of these programs due to prerequisite requirements.`
+            : `✅ **Summary**: You can take **${targetDisplay}** in all these programs.`;
+
+        finalResponse =
+          language === "fil"
+            ? `${summaryText}\n\n📋 **Detalyado ayon sa Programa:**\n\n${programResults.join("\n\n")}`
+            : `${summaryText}\n\n📋 **Detailed by Program:**\n\n${programResults.join("\n\n")}`;
+      }
+
+      return finalResponse;
+    };
+
     // EXPLICIT PREREQUISITE QUERY INTERCEPT
     // Handles two patterns:
     //   1. "what are the prerequisites of/for X"
@@ -811,19 +1108,111 @@ Respond in clear, professional English.
       // ── Pattern 1: Conditional enrollment check ────────────────────────────────
       // "Can I take <courseA> if I failed <courseB>"
       const conditionalMatch =
+        // Pattern: "can i take X if i failed Y?" (with optional ?)
         lowerMsg.match(
-          /can i (?:still )?take\s+(.+?)\s+if\s+(?:i\s+)?(?:failed|failed to pass|didn'?t pass|did not pass|flunked|hindi pumasa|bumagsak sa?)\s+(.+?)(?:\?|$)/i,
+          /(?:can i|pwede)\s+(?:still\s+)?take\s+(.+?)\s+if\s+(?:i\s+)?(?:failed|didn'?t pass|did not pass|flunked|hindi pumasa|bumagsak)\s+(.+?)(?:\?|$)/i,
         ) ||
+        // Pattern: "if i failed Y can i take X?" (with optional ?)
         lowerMsg.match(
-          /pwede (?:ba )?(?:akong )?kumuha (?:ng )?(.+?)\s+(?:kahit|kung)\s+(?:bumagsak|failed|hindi pumasa)\s+(?:ako\s+)?(?:sa\s+)?(.+?)(?:\?|$)/i,
+          /if\s+i\s+(?:failed|didn'?t pass|did not pass|flunked|hindi pumasa|bumagsak)\s+(.+?)\s+(?:can i|pwede)\s+(?:still\s+)?take\s+(.+?)(?:\?|$)/i,
+        ) ||
+        // Pattern for Filipino: "pwede ba akong kumuha ng X kung bumagsak ako sa Y?"
+        lowerMsg.match(
+          /pwede\s+(?:ba\s+)?(?:akong\s+)?kumuha\s+(?:ng\s+)?(.+?)\s+(?:kahit|kung)\s+(?:bumagsak|failed|hindi pumasa)\s+(?:ako\s+)?(?:sa\s+)?(.+?)(?:\?|$)/i,
         );
 
       if (conditionalMatch) {
-        const rawTargetCourse = conditionalMatch[1].trim(); // course user wants to take
-        const rawFailedCourse = conditionalMatch[2].trim(); // course user failed
+        // Determine which pattern matched and extract courses correctly
+        let rawTargetCourse: string;
+        let rawFailedCourse: string;
+
+        // For patterns that capture failed first, then target
+        if (
+          lowerMsg.match(
+            /if\s+i\s+(?:failed|didn'?t pass|did not pass|flunked|bumagsak)/i,
+          )
+        ) {
+          // Pattern: "if I failed X can I take Y"
+          rawFailedCourse = conditionalMatch[1].trim();
+          rawTargetCourse = conditionalMatch[2].trim();
+        } else {
+          // Pattern: "can I take X if I failed Y"
+          rawTargetCourse = conditionalMatch[1].trim();
+          rawFailedCourse = conditionalMatch[2].trim();
+        }
+
+        console.log(
+          `[Conditional] Raw target: "${rawTargetCourse}", Raw failed: "${rawFailedCourse}"`,
+        );
+
+        let targetProgram: string | null = null;
+
+        // Check for program mentions in the message
+        const programKeywords = [
+          "computer science",
+          "applied statistics",
+          "business applications",
+          "biology",
+          "environmental science",
+          "food technology",
+          "medical technology",
+        ];
+
+        for (const program of programKeywords) {
+          if (lowerMsg.includes(program)) {
+            targetProgram = program;
+            break;
+          }
+        }
+
+        // Also check for abbreviations
+        if (!targetProgram) {
+          const programAbbr: Record<string, string> = {
+            "bsm cs": "computer science",
+            "bsm as": "applied statistics",
+            "bsm ba": "business applications",
+            "bs bio": "biology",
+            bses: "environmental science",
+            "bs ft": "food technology",
+            "bs mt": "medical technology",
+          };
+
+          for (const [abbr, program] of Object.entries(programAbbr)) {
+            if (lowerMsg.includes(abbr)) {
+              targetProgram = program;
+              break;
+            }
+          }
+        }
+
+        console.log(
+          `[Conditional] Target program: ${targetProgram || "not specified"}`,
+        );
+
+        // Find the program ID if a program was specified
+        let programId: string | null = null;
+        if (targetProgram) {
+          const program = await prisma.universityProgram.findFirst({
+            where: {
+              title: { contains: targetProgram, mode: "insensitive" },
+              college: "College of Science",
+              isActive: true,
+            },
+          });
+
+          if (program) {
+            programId = program.id;
+            console.log(
+              `[Conditional] Filtering by program: ${program.title} (${program.id})`,
+            );
+          }
+        }
 
         // ── Normalise Roman-numeral / Arabic aliases ──────────────────────────────
         const normaliseCourseName = (s: string): string => {
+
+          const cleanS = s.replace(/[?.,!]$/, "").trim();
+
           const map: Record<string, string> = {
             // Thesis courses
             "thesis 1": "Thesis I",
@@ -834,6 +1223,7 @@ Respond in clear, professional English.
             "thesis ii": "Thesis II",
             "thesis iii": "Thesis III",
             "thesis iv": "Thesis IV",
+
             // Common course name variations
             "abstract algebra": "Abstract Algebra",
             "linear algebra": "Linear Algebra",
@@ -859,169 +1249,268 @@ Respond in clear, professional English.
             "database systems": "Database Systems",
             "artificial intelligence": "Artificial Intelligence",
             "machine learning": "Machine Learning",
-            // Additional common variations
-            "fundamental concept of mathematics":
-              "Fundamental Concept of Mathematics",
-            "fundamental concepts of mathematics":
-              "Fundamental Concept of Mathematics",
-            "fundamentals of mathematics": "Fundamental Concept of Mathematics",
-            "basic mathematics": "Fundamental Concept of Mathematics",
-            "college algebra": "College Algebra",
-            trigonometry: "Trigonometry",
-            "plane trigonometry": "Plane Trigonometry",
-            "spherical trigonometry": "Spherical Trigonometry",
-            "solid geometry": "Solid Geometry",
-            "analytic geometry": "Analytic Geometry",
-            "plane geometry": "Plane Geometry",
-            "modern geometry": "Modern Geometry",
-            "euclidean geometry": "Euclidean Geometry",
-            "non-euclidean geometry": "Non-Euclidean Geometry",
-            "number theory": "Number Theory",
-            "statistical theory": "Statistical Theory",
-            "operations research": "Operations Research",
-            "actuarial mathematics": "Actuarial Mathematics",
-            "numerical analysis": "Numerical Analysis",
-            "advanced calculus": "Advanced Calculus",
-            "multivariable calculus": "Multivariable Calculus",
-            "vector calculus": "Vector Calculus",
-            "partial differential equations": "Partial Differential Equations",
-            "ordinary differential equations":
-              "Ordinary Differential Equations",
+
+            // BSU specific mappings - Keep course codes as-is
+            "mat 207": "Abstract Algebra",
+            mat207: "Abstract Algebra",
+            "mat 204a": "Linear Algebra",
+            mat204a: "Linear Algebra",
+            "mcs 102a": "Programming I",
+            mcs102a: "Programming I",
+            "mcs 103a": "Programming II",
+            mcs103a: "Programming II",
+            "mcs 104a": "Database Management System",
+            mcs104a: "Database Management System",
+            "mcs 201a": "Data Structure and Algorithms",
+            mcs201a: "Data Structure and Algorithms",
           };
           return map[s.toLowerCase()] ?? s;
         };
 
+        // After normalizing the course names, also try to find by course code
+        const findCourseByCodeOrName = async (searchTerm: string) => {
+          // Try exact code match first
+          let entry = await prisma.curriculumEntry.findFirst({
+            where: {
+              courseCode: { equals: searchTerm, mode: "insensitive" },
+            },
+            include: { UniversityProgram: true },
+          });
+
+          if (!entry) {
+            // Try name match
+            entry = await prisma.curriculumEntry.findFirst({
+              where: {
+                subjectName: { contains: searchTerm, mode: "insensitive" },
+              },
+              include: { UniversityProgram: true },
+            });
+          }
+
+          return entry;
+        };
+
+        // Use this in your target and failed course resolution
+    
+
         const targetCourseName = normaliseCourseName(rawTargetCourse);
         const failedCourseName = normaliseCourseName(rawFailedCourse);
 
-        // ── Resolve target course from DB (name or code) ──────────────────────────
-        // Enhanced fuzzy matching for course names
+        // ENHANCED: Use cross-program checking instead of single-program approach
+        console.log(
+          `[Conditional] Using enhanced cross-program prerequisite checking for: "${targetCourseName}" vs "${failedCourseName}"`,
+        );
+
+        // Try our enhanced cross-program checking first
+        const crossProgramResult = await checkPrerequisitesAcrossPrograms(
+          targetCourseName,
+          failedCourseName,
+          language,
+        );
+
+        if (crossProgramResult) {
+          return crossProgramResult;
+        }
+
+        // Fallback to original logic if cross-program checking fails
+        console.log(
+          `[Conditional] Cross-program checking failed, falling back to original logic`,
+        );
+
+        // ── Resolve target course from DB with program filter ──────────────────────────
+        // Build the WHERE clause for target course
+        const targetWhereClause: any = {
+          OR: [
+            {
+              subjectName: {
+                contains: targetCourseName,
+                mode: "insensitive",
+              },
+            },
+            {
+              courseCode: { contains: targetCourseName, mode: "insensitive" },
+            },
+            // Additional fuzzy matching for common variations
+            {
+              subjectName: {
+                contains: targetCourseName.replace(/\s+/g, ""), // Remove spaces
+                mode: "insensitive",
+              },
+            },
+            {
+              courseCode: {
+                contains: targetCourseName.replace(/\s+/g, ""), // Remove spaces
+                mode: "insensitive",
+              },
+            },
+          ],
+        };
+
+        // CRITICAL: Add program filter if we have a program ID
+        if (programId) {
+          targetWhereClause.programId = programId;
+          console.log(
+            `[Conditional] Filtering target by programId: ${programId}`,
+          );
+        }
+
         const targetEntries = await prisma.curriculumEntry.findMany({
-          where: {
-            OR: [
-              {
-                subjectName: {
-                  contains: targetCourseName,
-                  mode: "insensitive",
-                },
-              },
-              {
-                courseCode: { contains: targetCourseName, mode: "insensitive" },
-              },
-              // Additional fuzzy matching for common variations
-              {
-                subjectName: {
-                  contains: targetCourseName.replace(/\s+/g, ""), // Remove spaces
-                  mode: "insensitive",
-                },
-              },
-              {
-                courseCode: {
-                  contains: targetCourseName.replace(/\s+/g, ""), // Remove spaces
-                  mode: "insensitive",
-                },
-              },
-            ],
-          },
+          where: targetWhereClause,
           include: { UniversityProgram: true },
           take: 10, // Increased limit for better matching
         });
 
-        if (targetEntries.length > 0) {
-          // Use the first match (most of the time they share the same prereqs across programs)
-          const targetEntry = targetEntries[0];
-          const prereqs: string[] = targetEntry.prerequisites ?? [];
+        console.log(
+          `[Conditional] Found ${targetEntries.length} target entries`,
+        );
 
-          // ── Resolve failed course code/name from DB ───────────────────────────
-          // We need to check whether the failed subject is IN the prerequisites list.
-          // Prerequisites are stored as course CODES (e.g. "MAT 204a").
-          // The user may type a name ("Abstract Algebra") or a code ("MAT 204a").
-          let failedEntry: { courseCode: string; subjectName: string } | null =
-            null;
-
-          const failedResults = await prisma.curriculumEntry.findMany({
+        // If no entries found with program filter, try without it
+        let finalTargetEntries = targetEntries;
+        if (targetEntries.length === 0 && programId) {
+          console.log(
+            `[Conditional] No entries with program filter, trying without filter`,
+          );
+          const fallbackEntries = await prisma.curriculumEntry.findMany({
             where: {
               OR: [
                 {
                   subjectName: {
-                    contains: failedCourseName,
+                    contains: targetCourseName,
                     mode: "insensitive",
                   },
                 },
                 {
                   courseCode: {
-                    contains: failedCourseName,
+                    contains: targetCourseName,
                     mode: "insensitive",
                   },
                 },
-                // Additional fuzzy matching for common variations
                 {
                   subjectName: {
-                    contains: failedCourseName.replace(/\s+/g, ""), // Remove spaces
+                    contains: targetCourseName.replace(/\s+/g, ""),
                     mode: "insensitive",
                   },
                 },
                 {
                   courseCode: {
-                    contains: failedCourseName.replace(/\s+/g, ""), // Remove spaces
+                    contains: targetCourseName.replace(/\s+/g, ""),
                     mode: "insensitive",
                   },
                 },
               ],
             },
-            select: { courseCode: true, subjectName: true },
-            take: 20, // Increased limit for better matching
+            include: { UniversityProgram: true },
+            take: 10,
           });
 
-          // ── Determine whether the failed course is a prerequisite ─────────────
-          failedEntry = null;
-          let isPrerequisite = false;
-
-          // Check if any of the failed results match any of the prerequisites
-          // We check the codes against each prerequisite
-          for (const f of failedResults) {
-            const fCodeLower = f.courseCode.toLowerCase().trim();
-            const fNameLower = f.subjectName.toLowerCase().trim();
-
-            const matchesPrereq = prereqs.some((p) => {
-              const pLower = p.toLowerCase().trim();
-              return (
-                pLower === fCodeLower ||
-                pLower.includes(fCodeLower) ||
-                fCodeLower.includes(pLower) ||
-                pLower.includes(fNameLower) ||
-                fNameLower.includes(pLower)
-              );
-            });
-
-            if (matchesPrereq) {
-              failedEntry = f; // Found the specific database entry the user actually failed that IS a prerequisite!
-              isPrerequisite = true;
-              break;
-            }
+          if (fallbackEntries.length > 0) {
+            console.log(
+              `[Conditional] Found ${fallbackEntries.length} entries without program filter`,
+            );
+            finalTargetEntries = fallbackEntries;
           }
+        }
 
-          // If no direct DB match found to a prereq, fall back to simple string/fuzzy matching
-          if (!isPrerequisite) {
-            if (failedResults.length > 0) {
-              failedEntry = failedResults[0]; // Just take the best guess for non-prereq fallback display
-            }
+        if (finalTargetEntries.length > 0) {
+          // Use the first match (most of the time they share the same prereqs across programs)
+          const targetEntry = finalTargetEntries[0];
+          const prereqs: string[] = targetEntry.prerequisites ?? [];
 
-            const failedCourseLower = failedCourseName.toLowerCase().trim();
-            isPrerequisite = prereqs.some((p) => {
-              const pLower = p.toLowerCase().trim();
-              return (
-                pLower.includes(failedCourseLower) ||
-                failedCourseLower.includes(pLower) ||
-                pLower
-                  .replace(/\s+/g, "")
-                  .includes(failedCourseLower.replace(/\s+/g, "")) ||
-                failedCourseLower
-                  .replace(/\s+/g, "")
-                  .includes(pLower.replace(/\s+/g, ""))
-              );
-            });
-          }
+          console.log(
+            `[Conditional] Selected target: ${targetEntry.subjectName} (${targetEntry.courseCode}) from program: ${targetEntry.UniversityProgram?.title}`,
+          );
+
+          // ── Resolve failed course code/name from DB ───────────────────────────
+           let failedEntry: { courseCode: string; subjectName: string } | null =
+             null;
+
+           const failedResults = await prisma.curriculumEntry.findMany({
+             where: {
+               OR: [
+                 {
+                   subjectName: {
+                     contains: failedCourseName.replace(/\?$/, ""),
+                     mode: "insensitive",
+                   },
+                 },
+                 {
+                   courseCode: {
+                     contains: failedCourseName.replace(/\?$/, ""),
+                     mode: "insensitive",
+                   },
+                 },
+                 // Additional fuzzy matching for common variations
+                 {
+                   subjectName: {
+                     contains: failedCourseName
+                       .replace(/\s+/g, "")
+                       .replace(/\?$/, ""),
+                     mode: "insensitive",
+                   },
+                 },
+                 {
+                   courseCode: {
+                     contains: failedCourseName
+                       .replace(/\s+/g, "")
+                       .replace(/\?$/, ""),
+                     mode: "insensitive",
+                   },
+                 },
+               ],
+             },
+             select: { courseCode: true, subjectName: true },
+             take: 20,
+           });
+
+           // ── Determine whether the failed course is a prerequisite ─────────────
+           failedEntry = null;
+           let isPrerequisite = false;
+
+           // Check if any of the failed results match any of the prerequisites
+           // We check the codes against each prerequisite
+           for (const f of failedResults) {
+             const fCodeLower = f.courseCode.toLowerCase().trim();
+             const fNameLower = f.subjectName.toLowerCase().trim();
+
+             const matchesPrereq = prereqs.some((p) => {
+               const pLower = p.toLowerCase().trim();
+               return (
+                 pLower === fCodeLower ||
+                 pLower.includes(fCodeLower) ||
+                 fCodeLower.includes(pLower) ||
+                 pLower.includes(fNameLower) ||
+                 fNameLower.includes(pLower)
+               );
+             });
+
+             if (matchesPrereq) {
+               failedEntry = f; // Found the specific database entry the user actually failed that IS a prerequisite!
+               isPrerequisite = true;
+               break;
+             }
+           }
+
+           // If no direct DB match found to a prereq, fall back to simple string/fuzzy matching
+           if (!isPrerequisite) {
+             if (failedResults.length > 0) {
+               failedEntry = failedResults[0]; // Just take the best guess for non-prereq fallback display
+             }
+
+             const failedCourseLower = failedCourseName.toLowerCase().trim();
+             isPrerequisite = prereqs.some((p) => {
+               const pLower = p.toLowerCase().trim();
+               return (
+                 pLower.includes(failedCourseLower) ||
+                 failedCourseLower.includes(pLower) ||
+                 pLower
+                   .replace(/\s+/g, "")
+                   .includes(failedCourseLower.replace(/\s+/g, "")) ||
+                 failedCourseLower
+                   .replace(/\s+/g, "")
+                   .includes(pLower.replace(/\s+/g, ""))
+               );
+             });
+           }
 
           // ── Enrich prereq list: resolve codes → "CODE – Name" ────────────────
           let prereqDisplay: string;
@@ -1081,46 +1570,61 @@ Respond in clear, professional English.
         }
         // If target course not found, fall through to Pattern 2 below
       }
-
       // ── Pattern 2: Plain prerequisite lookup ──────────────────────────────────
+      
       // "What are the prerequisites of/for X" / "prerequisites of Thesis I"
       let targetCourseCode: string | null = null;
       let targetSubjectName: string | null = null;
 
+      // In the prerequisite lookup section (Pattern 2)
       const ccMatch = lowerMsg.match(/\b([A-Z]{2,4}\s*\d{3}[a-z]?)\b/i);
       if (ccMatch) {
         targetCourseCode = ccMatch[1].trim();
       } else {
-        const rawTarget = lowerMsg
-          .replace(/.*prerequisites?\s*(of|for)?\s*/i, "")
-          .trim()
-          .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, "")
-          .trim();
+        // Also check for "Thesis I", "Calculus I", etc.
+        const thesisMatch = lowerMsg.match(/\b(Thesis\s+[I|IV]{1,2})\b/i);
+        if (thesisMatch) {
+          targetSubjectName = thesisMatch[1].trim();
+        } else {
+          // Fallback to extracting from text
+          const rawTarget = lowerMsg
+            .replace(/.*prerequisites?\s*(of|for)?\s*/i, "")
+            .trim()
+            .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, "")
+            .trim();
 
-        // Normalise number → Roman numeral aliases
-        const numberToRoman: Record<string, string> = {
-          "thesis 1": "Thesis I",
-          "thesis 2": "Thesis II",
-          "thesis 3": "Thesis III",
-          "thesis 4": "Thesis IV",
-        };
-        const normalisedTarget =
-          numberToRoman[rawTarget.toLowerCase()] ?? rawTarget;
+          // Normalise number → Roman numeral aliases
+          const numberToRoman: Record<string, string> = {
+            "thesis 1": "Thesis I",
+            "thesis 2": "Thesis II",
+            "thesis 3": "Thesis III",
+            "thesis 4": "Thesis IV",
+            "thesis i": "Thesis I",
+            "thesis ii": "Thesis II",
+            "thesis iii": "Thesis III",
+            "thesis iv": "Thesis IV",
+          };
+          const normalisedTarget =
+            numberToRoman[rawTarget.toLowerCase()] ?? rawTarget;
 
-        if (normalisedTarget.length > 0) {
-          const matchingSubjects = await prisma.curriculumEntry.findMany({
-            where: {
-              subjectName: { contains: normalisedTarget, mode: "insensitive" },
-            },
-            select: { subjectName: true },
-            distinct: ["subjectName"],
-          });
-          if (matchingSubjects.length > 0) {
-            targetSubjectName = matchingSubjects[0].subjectName;
+          if (normalisedTarget.length > 0) {
+            const matchingSubjects = await prisma.curriculumEntry.findMany({
+              where: {
+                subjectName: {
+                  contains: normalisedTarget,
+                  mode: "insensitive",
+                },
+              },
+              select: { subjectName: true, courseCode: true },
+              distinct: ["subjectName"],
+            });
+            if (matchingSubjects.length > 0) {
+              targetSubjectName = matchingSubjects[0].subjectName;
+              targetCourseCode = matchingSubjects[0].courseCode;
+            }
           }
         }
       }
-
       const prereqWhereClause: any = {};
       let isQueryValid = false;
 
@@ -1473,13 +1977,181 @@ Each program offers unique opportunities and career paths!
       { role: "user" as const, content: userMessage },
     ];
 
-    // Try OpenRouter first (PRIMARY)
+    // PRIMARY: Try Groq main first
+    if (groqClient) {
+      try {
+        console.log(
+          `[Groq Primary] Generating response... Model=${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Groq Primary] latency");
+        const completion = await groqClient.chat.completions.create({
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: buildMessages(),
+          max_tokens: 1500,
+          temperature: 0.7,
+        });
+        console.timeEnd("[Groq Primary] latency");
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log(
+          "[Groq Primary] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Groq MAIN API key response generated successfully");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
+      } catch (groqError: any) {
+        console.error(
+          "[Groq Primary][ERROR]:",
+          groqError?.status,
+          groqError?.code,
+          groqError?.message || groqError,
+        );
+        try {
+          console.error(
+            "[Groq Primary][ERROR] raw:",
+            JSON.stringify(groqError, null, 2),
+          );
+        } catch {}
+        console.log("[Fallback] Groq primary failed, trying Groq fallback...");
+      }
+    }
+
+    // SECONDARY: Try Groq fallback
+    if (groqClientFallback) {
+      try {
+        console.log(
+          `[Groq Fallback] Generating response... Model=${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Groq Fallback] latency");
+        const completion = await groqClientFallback.chat.completions.create({
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: buildMessages(),
+          max_tokens: 1500,
+          temperature: 0.7,
+        });
+        console.timeEnd("[Groq Fallback] latency");
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log(
+          "[Groq Fallback] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Groq FALLBACK API key response generated successfully");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
+      } catch (groqFallbackError: any) {
+        console.error(
+          "[Groq Fallback][ERROR]:",
+          groqFallbackError?.status,
+          groqFallbackError?.code,
+          groqFallbackError?.message || groqFallbackError,
+        );
+        try {
+          console.error(
+            "[Groq Fallback][ERROR] raw:",
+            JSON.stringify(groqFallbackError, null, 2),
+          );
+        } catch {}
+        console.log("[Fallback] Groq fallback failed, trying Groq fallback 2...");
+      }
+    }
+
+    // TERTIARY: Try Groq fallback 2
+    if (groqClientFallback2) {
+      try {
+        console.log(
+          `[Groq Fallback 2] Generating response... Model=${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Groq Fallback 2] latency");
+        const completion = await groqClientFallback2.chat.completions.create({
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: buildMessages(),
+          max_tokens: 1500,
+          temperature: 0.7,
+        });
+        console.timeEnd("[Groq Fallback 2] latency");
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log(
+          "[Groq Fallback 2] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Groq FALLBACK2 API key response generated successfully");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
+      } catch (groqFallback2Error: any) {
+        console.error(
+          "[Groq Fallback 2][ERROR]:",
+          groqFallback2Error?.status,
+          groqFallback2Error?.code,
+          groqFallback2Error?.message || groqFallback2Error,
+        );
+        try {
+          console.error(
+            "[Groq Fallback 2][ERROR] raw:",
+            JSON.stringify(groqFallback2Error, null, 2),
+          );
+        } catch {}
+        console.log("[Fallback] Groq fallback 2 failed, trying Groq fallback 3...");
+      }
+    }
+
+    // FALLBACK #4: Try Groq fallback 3
+    if (groqClientFallback3) {
+      try {
+        console.log(
+          `[Groq Fallback 3] Generating response... Model=${process.env.GROQ_MODEL || "llama-3.3-70b-versatile"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+        );
+        console.time("[Groq Fallback 3] latency");
+        const completion = await groqClientFallback3.chat.completions.create({
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: buildMessages(),
+          max_tokens: 1500,
+          temperature: 0.7,
+        });
+        console.timeEnd("[Groq Fallback 3] latency");
+        const choices = (completion as any)?.choices as Array<any> | undefined;
+        const text = choices?.[0]?.message?.content as string | undefined;
+        console.log(
+          "[Groq Fallback 3] OK preview:",
+          sanitizeLog((text || "").replace(/\s+/g, " ")),
+        );
+        console.log("✓ Groq FALLBACK3 API key response generated successfully");
+        return (
+          text ||
+          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
+        );
+      } catch (groqFallback3Error: any) {
+        console.error(
+          "[Groq Fallback 3][ERROR]:",
+          groqFallback3Error?.status,
+          groqFallback3Error?.code,
+          groqFallback3Error?.message || groqFallback3Error,
+        );
+        try {
+          console.error(
+            "[Groq Fallback 3][ERROR] raw:",
+            JSON.stringify(groqFallback3Error, null, 2),
+          );
+        } catch {}
+        console.log("[Fallback] Groq fallback 3 failed, trying OpenRouter final fallback...");
+      }
+    }
+
+    // FINAL FALLBACK #5: Try OpenRouter
     if (hasOpenRouter) {
       try {
         console.log(
-          `[OpenRouter] Generating response... Model=${openRouterModel} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
+          `[OpenRouter Final] Generating response... Model=${openRouterModel} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
         );
-        console.time("[OpenRouter] latency");
+        console.time("[OpenRouter Final] latency");
         const response = await axios.post(
           "https://openrouter.ai/api/v1/chat/completions",
           {
@@ -1497,30 +2169,29 @@ Each program offers unique opportunities and career paths!
             },
           },
         );
-        console.timeEnd("[OpenRouter] latency");
+        console.timeEnd("[OpenRouter Final] latency");
         const text = response.data?.choices?.[0]?.message?.content;
         if (text) {
           console.log(
-            "[OpenRouter] OK preview:",
+            "[OpenRouter Final] OK preview:",
             sanitizeLog((text || "").replace(/\s+/g, " ")),
           );
-          console.log("✓ OpenRouter AI response generated successfully");
+          console.log("✓ OpenRouter FINAL FALLBACK response generated successfully");
           return text;
         }
       } catch (openRouterError: any) {
         console.error(
-          "[OpenRouter][ERROR]:",
+          "[OpenRouter Final][ERROR]:",
           openRouterError?.response?.status,
           openRouterError?.response?.data?.error?.code,
           openRouterError?.message || openRouterError,
         );
         try {
           console.error(
-            "[OpenRouter][ERROR] raw:",
+            "[OpenRouter Final][ERROR] raw:",
             JSON.stringify(openRouterError.response?.data, null, 2),
           );
         } catch {}
-        console.log("[Fallback] OpenRouter failed, trying Groq primary...");
       }
     }
 
@@ -1606,61 +2277,25 @@ Each program offers unique opportunities and career paths!
           );
         } catch {}
         // Log the error but try Cerebras next
-        console.log("[Fallback] Groq fallback failed, trying Cerebras...");
+        console.log("[Fallback] Groq fallback failed...");
       }
     }
-    // Fallback to Cerebras if available
-    if (cerebrasClient) {
-      try {
-        console.log(
-          `[Cerebras] Generating response... Model=${process.env.CEREBRAS_MODEL || "llama-3.3-70b"} | lang=${sanitizeLog(language, 10)} | msgLen=${userMessage.length}`,
-        );
-        console.time("[Cerebras] latency");
-        const completion = await cerebrasClient.chat.completions.create({
-          model: process.env.CEREBRAS_MODEL || "llama-3.1-70b",
-          messages: buildMessages(),
-          max_tokens: 1500,
-          temperature: 0.7,
-        } as any);
-        console.timeEnd("[Cerebras] latency");
-        const choices = (completion as any)?.choices as Array<any> | undefined;
-        const text = choices?.[0]?.message?.content as string | undefined;
-        console.log(
-          "[Cerebras] OK preview:",
-          sanitizeLog((text || "").replace(/\s+/g, " ")),
-        );
-        console.log("✓ Cerebras AI response generated successfully (fallback)");
-        return (
-          text ||
-          "I apologize, but I had trouble generating a response. Could you rephrase your question?"
-        );
-      } catch (cerebrasError: any) {
-        console.error(
-          "[Cerebras][ERROR]:",
-          cerebrasError?.status,
-          cerebrasError?.code,
-          cerebrasError?.message || cerebrasError,
-        );
-        try {
-          console.error(
-            "[Cerebras][ERROR] raw:",
-            JSON.stringify(cerebrasError, null, 2),
-          );
-        } catch {}
-      }
-    }
+    
 
     // If all providers failed, provide helpful diagnostic message
     console.error(
-      "[AI] All providers failed. OpenRouter:",
-      !!hasOpenRouter,
-      "Groq primary:",
+      "[AI] All providers failed. Groq main:",
       !!groqClient,
       "Groq fallback:",
       !!groqClientFallback,
-      "Cerebras:",
-      !!cerebrasClient,
+      "Groq fallback 2:",
+      !!groqClientFallback2,
+      "Groq fallback 3:",
+      !!groqClientFallback3,
+      "OpenRouter final fallback:",
+      !!hasOpenRouter,
     );
+
     return language === "fil"
       ? `Paumanhin, ang AI service ay hindi available ngayon. Subukan ulit pagkatapos ng ilang segundo. 🔧`
       : `I'm having trouble connecting right now. 🔧 Please try again in a moment.`;
@@ -2645,26 +3280,388 @@ You can ask me:
       }
     }
 
-    // STEP 0.8: Check if user is asking about faculty consultation schedules/bookings
-const isFacultyScheduleQuery = false;
+    /// STEP 0.8: Check if user is asking about schedules
+
+    const isRoomScheduleQuery =
+      /(?:schedule|room)\s+(?:of|for)?\s*(?:fh|fs|room|lab)\s*\d+/i.test(
+        message,
+      ) ||
+      /(?:fh|fs|room|lab)\s*\d+\s+(?:schedule|room)/i.test(message) ||
+      (message.toLowerCase().includes("room") &&
+        message.toLowerCase().includes("schedule")) ||
+      /what(?:\s+is)?\s+(?:the\s+)?(?:room|schedule)\s+(?:for|of)?\s+(?:fh|fs|room|lab)\s*\d+/i.test(
+        message,
+      );
+
+    if (isRoomScheduleQuery) {
+      console.log(`[DEBUG] Room schedule query detected: "${message}"`);
+
+      try {
+        // Extract room number
+        let roomNumber: string | null = null;
+        const roomMatch =
+          message.match(/\b(?:fh|fs|room|lab)\s*(\d+[a-z]?)\b/i) ||
+          message.match(/\b(\d+)\s*(?:fh|fs|room|lab)\b/i);
+
+        if (roomMatch) {
+          // Get the room identifier (FH, FS, etc.) and number
+          const fullMatch = roomMatch[0];
+          const numberPart = roomMatch[1];
+
+          // Extract the prefix (FH, FS, etc.)
+          const prefixMatch = fullMatch.match(/\b(fh|fs|room|lab)/i);
+          const prefix = prefixMatch ? prefixMatch[1].toUpperCase() : "";
+
+          roomNumber = `${prefix} ${numberPart}`.trim();
+          console.log(`[Room Schedule] Extracted room: "${roomNumber}"`);
+        }
+
+        if (!roomNumber) {
+          console.log(
+            `[Room Schedule] Could not extract room number, falling through`,
+          );
+          // Fall through to normal flow
+        } else {
+          // Search ONLY in Room Schedules category
+          const roomSchedules = await prisma.fAQ.findMany({
+            where: {
+              isPublished: true,
+              category: "Room Schedules",
+              OR: [
+                {
+                  question: {
+                    contains: roomNumber,
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  question: {
+                    contains: roomNumber.replace(/\s/g, ""),
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  answer: {
+                    contains: roomNumber,
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  keywords: {
+                    hasSome: [
+                      roomNumber.toLowerCase(),
+                      roomNumber.replace(/\s/g, "").toLowerCase(),
+                    ],
+                  },
+                },
+              ],
+            },
+            orderBy: { helpful: "desc" },
+            take: 2,
+          });
+
+          console.log(
+            `[Room Schedule] Found ${roomSchedules.length} results for room ${roomNumber}`,
+          );
+
+          if (roomSchedules.length > 0) {
+            let scheduleResponse = "";
+
+            if (roomSchedules.length === 1) {
+              scheduleResponse = `📅 **${roomSchedules[0].question}**\n\n${roomSchedules[0].answer}`;
+            } else {
+              scheduleResponse = `📅 **Room Schedules Found for ${roomNumber.toUpperCase()}**\n\n`;
+              for (const schedule of roomSchedules) {
+                scheduleResponse += `**${schedule.question}**\n${schedule.answer}\n\n`;
+              }
+            }
+
+            scheduleResponse += `\n---\n\nDo you have any other questions about room schedules?`;
+
+            // Update view count
+            Promise.all(
+              roomSchedules.map((schedule) =>
+                prisma.fAQ
+                  .update({
+                    where: { id: schedule.id },
+                    data: { viewCount: { increment: 1 } },
+                  })
+                  .catch(() => {}),
+              ),
+            ).catch(() => {});
+
+            // Save interaction
+            const interaction = await prisma.aIInteraction.create({
+              data: {
+                userId,
+                type: AIInteractionType.QUESTION,
+                context: "room_schedule_query",
+                userMessage: message,
+                aiResponse: scheduleResponse,
+              },
+            });
+
+            return res.json({
+              response: scheduleResponse,
+              suggestions: [
+                "What other rooms have schedules?",
+                "Show me FH 106 schedule",
+                "What are the lab schedules?",
+              ],
+              interactionId: interaction.id,
+              timestamp: interaction.createdAt,
+              intent: "room_schedule_query",
+            });
+          } else {
+            // No room schedule found
+            const notFoundResponse = `I couldn't find a schedule for room ${roomNumber.toUpperCase()}. Please check the room number or try:\n\n• "What is the schedule for FH 107?"\n• "Show me FH 106 room schedule"\n• "What are the room schedules in Federizo Hall?"`;
+
+            const interaction = await prisma.aIInteraction.create({
+              data: {
+                userId,
+                type: AIInteractionType.QUESTION,
+                context: "room_schedule_not_found",
+                userMessage: message,
+                aiResponse: notFoundResponse,
+              },
+            });
+
+            return res.json({
+              response: notFoundResponse,
+              suggestions: [
+                "Show me all room schedules",
+                "What rooms are available?",
+              ],
+              interactionId: interaction.id,
+              timestamp: interaction.createdAt,
+              intent: "room_schedule_not_found",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Room schedule query error:", error);
+        // Fall through to normal AI response
+      }
+    }
+
+
+
+
+    // IMPORTANT: checked BEFORE general faculty queries and BEFORE RAG
     const facultyScheduleKeywords =
-      /schedule.*faculty|faculty.*schedule|booking.*faculty|faculty.*booking|available.*slot|slot.*available|when.*available|kailan.*available/i;
-    // const isFacultyScheduleQuery =
-    //   facultyScheduleKeywords.test(message) && !isConsultationRequest;
+      /(?:what|when|where|give me|show me|tell me|ano|ibigay|ipakita).*schedule|schedule\s+(?:of|for|ni|kay)|faculty.*schedule|schedule.*faculty|class\s+schedule|room\s+schedule|teaching\s+schedule|sir.*schedule|prof.*schedule|ma['']?am.*schedule/i;
+    
+    // Check if asking about a SPECIFIC PERSON'S schedule (not just room schedules)
+    const isFacultyNameQuery = /(?:schedule|teaching|class)\s+(?:of|for|ni|kay)\s+(?:sir|ma'am|prof|dr|maam)?\s*[A-Za-z]+/i.test(message) ||
+                              /(?:sir|ma'am|prof|dr|maam)\s+[A-Za-z]+\s+(?:schedule|teaching|class)/i.test(message) ||
+                              /[A-Za-z]+\s+(?:schedule|teaching|class)/i.test(message);
+    
+                              
+    const isFacultyScheduleQuery =
+      facultyScheduleKeywords.test(message) && !isConsultationRequest && isFacultyNameQuery;
 
     if (isFacultyScheduleQuery) {
       try {
-        // Extract faculty name from message
-        const nameMatch = message.match(
-          /(?:schedule|booking|available).*(?:of|for|ni|kay)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
+        const stripHonorifics = (s: string): string => {
+          return s
+            .replace(
+              /^(sir|ma['']?am|maam|prof(?:essor)?\.?|dr\.?|mr\.?|mrs\.?|ms\.?)\s+/i,
+              "",
+            )
+            .trim();
+        };
+
+        // Patterns that capture who/what the user is asking about.
+        // Order matters — more specific patterns first.
+        const extractionPatterns: RegExp[] = [
+          // "schedule of/for/ni/kay [honorific?] [Name]"
+          /schedule\s+(?:of|for|ni|kay)\s+((?:sir|ma['']?am|maam|prof(?:essor)?\.?|dr\.?)?\s*[A-Za-z][A-Za-z\s.'-]{1,40})/i,
+          // "give me / show me / what is the schedule of [Name]"
+          /(?:give me|show me|what is|ano ang)\s+(?:the\s+)?schedule\s+(?:of|for|ni|kay)\s+((?:sir|ma['']?am|maam|prof(?:essor)?\.?|dr\.?)?\s*[A-Za-z][A-Za-z\s.'-]{1,40})/i,
+          // "[Name]'s schedule"
+          /([A-Za-z][A-Za-z\s.'-]{1,30})'s?\s+schedule/i,
+          // "schedule of room FH 107" / "FH 106 schedule"
+          /(?:schedule\s+(?:of|for)\s+)?((?:fh|fs|room|lab)\s*\d+[a-z]?(?:\s*(?:avr|cs[-\s]?ar|r&e|physics))?)\s*(?:schedule|room)?/i,
+          // "Sir/Prof/Maam [Name] schedule" at start of sentence
+          /(?:sir|ma['']?am|maam|prof(?:essor)?\.?|dr\.?)\s+([A-Za-z][A-Za-z\s.'-]{1,30})\s+schedule/i,
+        ];
+
+        let searchTerm: string | null = null;
+        for (const pattern of extractionPatterns) {
+          const m = message.match(pattern);
+          if (m && m[1]) {
+            const candidate = stripHonorifics(m[1].trim());
+            // Reject pure stop-words or very short fragments
+            const stopWords = new Set([
+              "the",
+              "of",
+              "for",
+              "a",
+              "an",
+              "is",
+              "are",
+              "my",
+              "our",
+              "schedule",
+              "class",
+              "teaching",
+              "room",
+              "faculty",
+            ]);
+            const words = candidate
+              .split(/\s+/)
+              .filter((w) => w.length > 1 && !stopWords.has(w.toLowerCase()));
+            if (words.length > 0) {
+              searchTerm = words.join(" ");
+              break;
+            }
+          }
+        }
+
+        console.log(
+          `[STEP 0.8] isFacultyScheduleQuery=true | searchTerm="${searchTerm ?? "(none)"}"`,
         );
-        let facultyName = nameMatch ? nameMatch[1].trim() : "";
 
-        // Note: extractedEntities will be populated later in the flow
-        // For now, we'll just use the name from the message
+        // ── 2. If we couldn't extract a name, fall through to normal RAG ───────
+        //      (Don't return a giant list of every schedule.)
+        if (!searchTerm) {
+          console.log(
+            "[STEP 0.8] No specific name/room extracted — skipping to normal RAG flow",
+          );
+          // intentional fall-through; isFacultyScheduleQuery block does nothing
+        } else {
 
-        if (facultyName) {
-          const nameParts = facultyName.split(/\s+/);
+          
+          // Also check if the search term contains a room identifier
+          const hasRoomIdentifier =
+            /\b(?:fh|fs|room|lab|avr|physics|cs[-\s]?ar)\b/i.test(searchTerm);
+          const hasFacultyName = !hasRoomIdentifier && searchTerm.length > 2;
+
+          // Build category filter based on what we're searching for
+          let scheduleCategories: string[];
+          if (hasRoomIdentifier) {
+            scheduleCategories = ["Room Schedules"];
+          } else if (hasFacultyName) {
+            scheduleCategories = ["Faculty Schedules"];
+          } else {
+            // Fallback - search both (should rarely happen)
+            scheduleCategories = ["Faculty Schedules", "Room Schedules"];
+          }
+
+            console.log(
+              `[STEP 0.8] Searching in categories: ${scheduleCategories.join(", ")}`,
+            );
+          // ── 3. Query the FAQ table — NARROW by category AND by the search term ─
+
+          const faqResults = await prisma.fAQ.findMany({
+            where: {
+              isPublished: true,
+              category: { in: scheduleCategories },
+              OR: [
+                {
+                  question: {
+                    contains: searchTerm,
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  answer: {
+                    contains: searchTerm,
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  keywords: { hasSome: [searchTerm.toLowerCase()] },
+                },
+              ],
+            },
+            orderBy: { viewCount: "desc" },
+            take: 3, // At most 3 — should usually be 1 for a specific name
+          });
+
+          console.log(
+            `[STEP 0.8] FAQ results for "${searchTerm}": ${faqResults.length}`,
+          );
+
+          if (faqResults.length > 0) {
+            // ── 4. Build a clean response from the matched FAQ(s) ────────────────
+            //      If exactly one result: return its answer directly (no Q: prefix).
+            //      If multiple somehow matched: show each with its question header.
+
+            let scheduleResponse = "";
+
+            if (faqResults.length === 1) {
+              // Single match — just show the answer cleanly
+              scheduleResponse =
+                userLanguage === "fil"
+                  ? `📅 **Schedule**\n\n${faqResults[0].answer}`
+                  : `📅 **Schedule**\n\n${faqResults[0].answer}`;
+            } else {
+              scheduleResponse =
+                userLanguage === "fil"
+                  ? `📅 **Mga Schedule na Natagpuan**\n\n`
+                  : `📅 **Schedules Found**\n\n`;
+              for (const faq of faqResults) {
+                scheduleResponse += `**${faq.question}**\n${faq.answer}\n\n`;
+              }
+            }
+
+            scheduleResponse +=
+              userLanguage === "fil"
+                ? `\n---\n\nMay iba ka pa bang tanong?`
+                : `\n---\n\nDo you have any other questions?`;
+
+            // ── 5. Increment view counts (fire-and-forget) ─────────────────────
+            Promise.all(
+              faqResults.map((f) =>
+                prisma.fAQ
+                  .update({
+                    where: { id: f.id },
+                    data: { viewCount: { increment: 1 } },
+                  })
+                  .catch(() => {}),
+              ),
+            ).catch(() => {});
+
+            // ── 6. Save interaction & return ─────────────────────────────────────
+            const interaction = await prisma.aIInteraction.create({
+              data: {
+                userId,
+                type: AIInteractionType.QUESTION,
+                context: "schedule_faq_query",
+                userMessage: message,
+                aiResponse: scheduleResponse,
+              },
+            });
+
+            return res.json({
+              response: scheduleResponse,
+              suggestions:
+                userLanguage === "fil"
+                  ? [
+                      "Tingnan ang faculty list",
+                      "Paano mag-book ng consultation?",
+                      "Sino ang Dean ng COS?",
+                    ]
+                  : [
+                      "View faculty list",
+                      "How to book a consultation?",
+                      "Who is the Dean of COS?",
+                    ],
+              interactionId: interaction.id,
+              timestamp: interaction.createdAt,
+              intent: "schedule_faq_query",
+              faqSources: faqResults.map((f) => ({
+                id: f.id,
+                category: f.category,
+              })),
+            });
+          }
+
+          // ── 7. No FAQ found — fall back to FacultySchedule relation in DB ─────
+          //      This covers faculty whose schedule is stored in the FacultySchedule
+          //      table rather than (or in addition to) the FAQ table.
+          const nameParts = searchTerm.split(/\s+/).filter((p) => p.length > 1);
           const faculty = await prisma.faculty.findFirst({
             where: {
               OR: nameParts.flatMap((part: string) => [
@@ -2675,38 +3672,60 @@ const isFacultyScheduleQuery = false;
           });
 
           if (faculty) {
-            // Get existing bookings for this faculty
-            const existingBookings = await prisma.consultationBooking.findMany({
-              where: {
-                facultyId: faculty.id,
-                status: { in: ["PENDING", "CONFIRMED"] },
-                date: { gte: new Date() },
-              },
-              orderBy: { date: "asc" },
-              take: 10,
-              include: {
-                Student: {
-                  select: { firstName: true, lastName: true },
-                },
-              },
+            const teachingSchedules = await prisma.facultySchedule.findMany({
+              where: { facultyId: faculty.id, scheduleType: "CLASS" },
+              orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
             });
 
-            const bookingsList =
-              existingBookings.length > 0
-                ? existingBookings
-                    .map(
-                      (b) =>
-                        `• ${new Date(b.date).toLocaleDateString()} ${b.startTime}-${b.endTime} (${b.status})`,
-                    )
-                    .join("\n")
-                : userLanguage === "fil"
-                  ? "Walang existing bookings."
-                  : "No existing bookings.";
+            const fullName = `${faculty.firstName}${faculty.middleName ? " " + faculty.middleName : ""} ${faculty.lastName}`;
+            let scheduleResponse = `**${fullName}** — ${faculty.position}\n\n`;
 
-            const scheduleResponse =
-              userLanguage === "fil"
-                ? `**${faculty.firstName} ${faculty.lastName}** - ${faculty.position}\n\n📅 **Consultation Schedule:**\n• Araw: ${faculty.consultationDays?.join(", ") || "TBA"}\n• Oras: ${faculty.consultationStart || "TBA"} - ${faculty.consultationEnd || "TBA"}\n\n📋 **Existing Bookings:**\n${bookingsList}\n\nGusto mo bang mag-book ng consultation?`
-                : `**${faculty.firstName} ${faculty.lastName}** - ${faculty.position}\n\n📅 **Consultation Schedule:**\n• Days: ${faculty.consultationDays?.join(", ") || "TBA"}\n• Time: ${faculty.consultationStart || "TBA"} - ${faculty.consultationEnd || "TBA"}\n\n📋 **Existing Bookings:**\n${bookingsList}\n\nWould you like to book a consultation?`;
+            if (teachingSchedules.length > 0) {
+              scheduleResponse +=
+                userLanguage === "fil"
+                  ? `📅 **Teaching Schedule:**\n\n`
+                  : `📅 **Teaching Schedule:**\n\n`;
+
+              const dayOrder = [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+              ];
+              const byDay: Record<string, typeof teachingSchedules> = {};
+              for (const s of teachingSchedules) {
+                (byDay[s.dayOfWeek] ??= []).push(s);
+              }
+              for (const day of dayOrder) {
+                if (!byDay[day]) continue;
+                scheduleResponse += `**${day}:**\n`;
+                for (const s of byDay[day]) {
+                  scheduleResponse += `• ${s.startTime} - ${s.endTime}: ${s.subject}`;
+                  if (s.room) scheduleResponse += ` — ${s.room}`;
+                  scheduleResponse += "\n";
+                }
+                scheduleResponse += "\n";
+              }
+            } else {
+              scheduleResponse +=
+                userLanguage === "fil"
+                  ? "Walang teaching schedule sa database.\n\n"
+                  : "No teaching schedule found in the database.\n\n";
+            }
+
+            if (faculty.consultationDays?.length) {
+              scheduleResponse +=
+                userLanguage === "fil"
+                  ? `📞 **Consultation:** ${faculty.consultationDays.join(", ")} • ${faculty.consultationStart ?? "TBA"} - ${faculty.consultationEnd ?? "TBA"}\n\n`
+                  : `📞 **Consultation:** ${faculty.consultationDays.join(", ")} • ${faculty.consultationStart ?? "TBA"} - ${faculty.consultationEnd ?? "TBA"}\n\n`;
+            }
+
+            if (faculty.email) {
+              scheduleResponse += `📧 **Email:** ${faculty.email}\n\n`;
+            }
 
             const interaction = await prisma.aIInteraction.create({
               data: {
@@ -2720,40 +3739,36 @@ const isFacultyScheduleQuery = false;
 
             return res.json({
               response: scheduleResponse,
-              showConsultationBooking: true,
-              consultationData: {
-                faculty: [faculty],
-                selectedFaculty: faculty,
-                existingBookings: existingBookings.map((b) => ({
-                  date: b.date,
-                  startTime: b.startTime,
-                  endTime: b.endTime,
-                  status: b.status,
-                })),
-              },
+              showConsultationBooking: false,
               suggestions:
                 userLanguage === "fil"
                   ? [
                       "Book consultation",
                       "Tingnan ibang faculty",
-                      "Ano ang office hours?",
+                      "Sino ang Dean?",
                     ]
                   : [
                       "Book consultation",
                       "View other faculty",
-                      "What are the office hours?",
+                      "Who is the Dean?",
                     ],
               interactionId: interaction.id,
               timestamp: interaction.createdAt,
               intent: "faculty_schedule_query",
             });
           }
+
+          // ── 8. Neither FAQ nor DB row found — fall through to normal RAG ──────
+          console.log(
+            `[STEP 0.8] No schedule data found for "${searchTerm}" — falling through to RAG`,
+          );
         }
       } catch (error) {
         console.error("Faculty schedule query error:", error);
-        // Fall through to normal AI response
+        // fall through to normal AI response
       }
     }
+   
 
     // STEP 0.9: Detect gibberish/unclear input and ask for clarification
     const isGibberish = (text: string): boolean => {
@@ -3828,44 +4843,30 @@ const isFacultyScheduleQuery = false;
             "artificial intelligence": "Artificial Intelligence",
             "machine learning": "Machine Learning",
             // Additional common variations
-            "fundamental concept of mathematics":
-              "Fundamental Concept of Mathematics",
-            "fundamental concepts of mathematics":
-              "Fundamental Concept of Mathematics",
-            "fundamentals of mathematics": "Fundamental Concept of Mathematics",
-            "basic mathematics": "Fundamental Concept of Mathematics",
-            "college algebra": "College Algebra",
-            trigonometry: "Trigonometry",
-            "plane trigonometry": "Plane Trigonometry",
-            "spherical trigonometry": "Spherical Trigonometry",
-            "solid geometry": "Solid Geometry",
-            "analytic geometry": "Analytic Geometry",
-            "plane geometry": "Plane Geometry",
-            "modern geometry": "Modern Geometry",
-            "euclidean geometry": "Euclidean Geometry",
-            "non-euclidean geometry": "Non-Euclidean Geometry",
-            "number theory": "Number Theory",
-            "statistical theory": "Statistical Theory",
-            "operations research": "Operations Research",
-            "actuarial mathematics": "Actuarial Mathematics",
-            "numerical analysis": "Numerical Analysis",
-            "advanced calculus": "Advanced Calculus",
-            "multivariable calculus": "Multivariable Calculus",
-            "vector calculus": "Vector Calculus",
-            "partial differential equations": "Partial Differential Equations",
-            "ordinary differential equations":
-              "Ordinary Differential Equations",
-            // BSU specific mappings
-            "ths 101": "Thesis I",
-            "ths 102": "Thesis II",
-            "ths 103": "Thesis III",
-            "ths 104": "Thesis IV",
-            "mat 204a": "Linear Algebra",
-            "mat 207": "Abstract Algebra",
-            "mcs 102a": "Programming I",
-            "mcs 103a": "Programming II",
-            "mcs 104a": "Data Structures",
-            "mcs 201a": "Algorithms",
+            'fundamental concept of mathematics': 'Fundamental Concept of Mathematics',
+            'fundamental concepts of mathematics': 'Fundamental Concept of Mathematics',
+            'fundamentals of mathematics': 'Fundamental Concept of Mathematics',
+            'basic mathematics': 'Fundamental Concept of Mathematics',
+            'college algebra': 'College Algebra',
+            'trigonometry': 'Trigonometry',
+            'plane trigonometry': 'Plane Trigonometry',
+            'spherical trigonometry': 'Spherical Trigonometry',
+            'solid geometry': 'Solid Geometry',
+            'analytic geometry': 'Analytic Geometry',
+            'plane geometry': 'Plane Geometry',
+            'modern geometry': 'Modern Geometry',
+            'euclidean geometry': 'Euclidean Geometry',
+            'non-euclidean geometry': 'Non-Euclidean Geometry',
+            'number theory': 'Number Theory',
+            'statistical theory': 'Statistical Theory',
+            'operations research': 'Operations Research',
+            'actuarial mathematics': 'Actuarial Mathematics',
+            'numerical analysis': 'Numerical Analysis',
+            'advanced calculus': 'Advanced Calculus',
+            'multivariable calculus': 'Multivariable Calculus',
+            'vector calculus': 'Vector Calculus',
+            'partial differential equations': 'Partial Differential Equations',
+            'ordinary differential equations': 'Ordinary Differential Equations',
           };
           return map[s.toLowerCase()] ?? s;
         }
@@ -3913,16 +4914,14 @@ const isFacultyScheduleQuery = false;
             const entryNameNoSpaces = entryNameLower.replace(/\s+/g, "");
             const entryCodeNoSpaces = entryCodeLower.replace(/\s+/g, "");
 
-            if (
-              entryNameLower === targetNormLower ||
-              entryCodeLower === targetNormLower ||
-              entryNameLower === targetRawLower ||
-              entryCodeLower === targetRawLower ||
-              entryNameLower.includes(targetNormLower) ||
-              entryCodeLower.includes(targetNormLower) ||
-              entryNameNoSpaces.includes(targetNormNoSpaces) ||
-              entryCodeNoSpaces.includes(targetNormNoSpaces)
-            ) {
+            if (entryNameLower.includes(targetNormLower) ||
+                entryNameLower.includes(targetRawLower) ||
+                entryCodeLower.includes(targetNormLower) ||
+                entryCodeLower.includes(targetRawLower) ||
+                entryNameNoSpaces.includes(targetNormNoSpaces) ||
+                entryNameNoSpaces.includes(targetNoSpaces) ||
+                entryCodeNoSpaces.includes(targetNormNoSpaces) ||
+                entryCodeNoSpaces.includes(targetNoSpaces)) {
               targetEntry = entry;
               break;
             }
@@ -3934,101 +4933,50 @@ const isFacultyScheduleQuery = false;
                 ? `Paumanhin, hindi ko makita ang kursong "${targetCourseRaw}" sa aming database ng curriculum. Pakisuri ang tamang pangalan o code ng kursong ito.`
                 : `Sorry, I could not find a course matching "${targetCourseRaw}" in the current curriculum data. Please verify the exact course name or code and try again.`;
           } else {
-            // 2. Resolve the Failed Course to its Course Code (Course B)
-            let failedEntry = null;
+            const prerequisites = targetEntry.prerequisites || [];
+            let isPrerequisite = false;
+
+            // Check if failed course is in prerequisites with fuzzy matching
             const failedRawLower = failedCourseRaw.toLowerCase();
             const failedNormLower = failedNormalized.toLowerCase();
-            const failedNoSpaces = failedCourseRaw
-              .replace(/\s+/g, "")
-              .toLowerCase();
-            const failedNormNoSpaces = failedNormalized
-              .replace(/\s+/g, "")
-              .toLowerCase();
 
-            for (const entry of curriculumEntries) {
-              const entryNameLower = entry.subjectName.toLowerCase();
-              const entryCodeLower = entry.courseCode.toLowerCase();
-              const entryNameNoSpaces = entryNameLower.replace(/\s+/g, "");
-              const entryCodeNoSpaces = entryCodeLower.replace(/\s+/g, "");
+            for (const prereq of prerequisites) {
+              const prereqLower = prereq.toLowerCase();
+              const prereqParts = prereq.split(' – ');
+              const prereqName = prereqParts[1] || prereq;
+              const prereqCode = prereqParts[0] || '';
+              const prereqNameLower = prereqName.toLowerCase();
+              const prereqCodeLower = prereqCode.toLowerCase();
 
-              if (
-                entryNameLower === failedNormLower ||
-                entryCodeLower === failedNormLower ||
-                entryNameLower === failedRawLower ||
-                entryCodeLower === failedRawLower ||
-                entryNameLower.includes(failedNormLower) ||
-                entryCodeLower.includes(failedNormLower) ||
-                entryNameNoSpaces.includes(failedNormNoSpaces) ||
-                entryCodeNoSpaces.includes(failedNormNoSpaces)
-              ) {
-                failedEntry = entry;
+              if (prereqNameLower.includes(failedNormLower) ||
+                  prereqNameLower.includes(failedRawLower) ||
+                  prereqCodeLower.includes(failedNormLower) ||
+                  prereqCodeLower.includes(failedRawLower) ||
+                  prereqLower.includes(failedNormLower) ||
+                  prereqLower.includes(failedRawLower)) {
+                isPrerequisite = true;
                 break;
               }
             }
 
-            const prerequisites = targetEntry.prerequisites || [];
-            let isPrerequisite = false;
-            let displayFailedName = failedEntry
-              ? `${failedEntry.courseCode} – ${failedEntry.subjectName}`
-              : failedCourseRaw;
+            let response = '';
 
-            // 3. Check if failed course is in prerequisites
-            if (failedEntry) {
-              const failedCode = failedEntry.courseCode.toLowerCase();
-              isPrerequisite = prerequisites.some(
-                (p) => p.toLowerCase() === failedCode,
-              );
-            }
-
-            // Fallback: name matching in prerequisites list (in case DB stores names or mixed)
-            if (!isPrerequisite) {
-              for (const prereq of prerequisites) {
-                const prereqLower = prereq.toLowerCase();
-                if (
-                  prereqLower.includes(failedNormLower) ||
-                  prereqLower.includes(failedRawLower)
-                ) {
-                  isPrerequisite = true;
-                  break;
-                }
-              }
-            }
-
-            let response = "";
             if (isPrerequisite) {
-              response =
-                userLanguage === "fil"
-                  ? `❌ **Hindi**, hindi ka maaaring kumuha ng **${targetEntry.subjectName}** kung bumagsak ka sa **${displayFailedName}**.\n\nIto ay dahil ang **${displayFailedName}** ay isa sa mga kinakailangang prerequisite para sa **${targetEntry.subjectName}**. Kailangan mong pumasa sa lahat ng prerequisite subjects bago mag-enroll.\n\n`
-                  : `❌ **No**, you cannot take **${targetEntry.subjectName}** if you failed **${displayFailedName}**.\n\nThis is because **${displayFailedName}** is one of the required prerequisites for **${targetEntry.subjectName}**. You must pass all prerequisite subjects before enrolling.\n\n`;
+              response = userLanguage === 'fil'
+                ? `Hindi, hindi ka maaaring kumuha ng ${targetEntry.subjectName} kung bumagsak ka sa ${failedCourseRaw}.\n\nIto ay dahil ang ${failedCourseRaw} ay isa sa mga kinakailangang prerequisite para sa ${targetEntry.subjectName}. Dapat mong pasahan ang lahat ng prerequisite subjects bago mag-enroll.\n\n`
+                : `No, you cannot take ${targetEntry.subjectName} if you failed ${failedCourseRaw}.\n\nThis is because ${failedCourseRaw} is one of the required prerequisites for ${targetEntry.subjectName}. You must pass all prerequisite subjects before enrolling.\n\n`;
             } else {
-              response =
-                userLanguage === "fil"
-                  ? `✅ **Oo**, maaari kang kumuha ng **${targetEntry.subjectName}** kahit bumagsak ka sa **${displayFailedName}**.\n\nAng **${displayFailedName}** ay **hindi** kasama sa mga prerequisites ng **${targetEntry.subjectName}**, kaya maaari kang mag-enroll dito kahit bumagsak ka doon.\n\n`
-                  : `✅ **Yes**, you can take **${targetEntry.subjectName}** even if you failed **${displayFailedName}**.\n\n**${displayFailedName}** is **not** among the prerequisites for **${targetEntry.subjectName}**, so failing it does not block you from enrolling.\n\n`;
+              response = userLanguage === 'fil'
+                ? `Oo, maaari kang kumuha ng ${targetEntry.subjectName} kahit bumagsak ka sa ${failedCourseRaw}.\n\nAng ${failedCourseRaw} ay hindi prerequisite ng ${targetEntry.subjectName}.\n\n`
+                : `Yes, you can take ${targetEntry.subjectName} even if you failed ${failedCourseRaw}.\n\n${failedCourseRaw} is not a prerequisite for ${targetEntry.subjectName}.\n\n`;
             }
 
             if (prerequisites.length > 0) {
-              // Bulk-fetch names for all prereq codes in one query for better display
-              const prereqEntries = await prisma.curriculumEntry.findMany({
-                where: {
-                  courseCode: { in: prerequisites },
-                },
-                select: { courseCode: true, subjectName: true },
-                distinct: ["courseCode"],
-              });
-
-              const codeToName = new Map(
-                prereqEntries.map((e) => [e.courseCode.toLowerCase(), e.subjectName]),
-              );
-
-              response +=
-                userLanguage === "fil"
-                  ? `**Mga Prerequisites ng ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n`
-                  : `**Prerequisites for ${targetEntry.subjectName} (${targetEntry.courseCode}):**\n`;
-
-              for (const code of prerequisites) {
-                const name = codeToName.get(code.toLowerCase());
-                response += name ? `• ${code} – ${name}\n` : `• ${code}\n`;
+              response += userLanguage === 'fil'
+                ? `Narito ang mga prerequisites para sa ${targetEntry.subjectName}:\n\n`
+                : `Here are the prerequisites for ${targetEntry.subjectName}:\n\n`;
+              for (const prereq of prerequisites) {
+                response += `• ${prereq}\n`;
               }
             } else {
               response +=

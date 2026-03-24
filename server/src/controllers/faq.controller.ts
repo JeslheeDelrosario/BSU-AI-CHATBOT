@@ -1,7 +1,7 @@
-import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
-import { prisma } from '../lib/prisma';
-import FAQCacheService from '../services/faq-cache.service';
+import { Response } from "express";
+import { AuthRequest } from "../middleware/auth.middleware";
+import { prisma } from "../lib/prisma";
+import { FAQCacheService } from "../services/faq-cache.service";
 
 export const getAllFAQs = async (req: AuthRequest, res: Response) => {
   try {
@@ -16,15 +16,15 @@ export const getAllFAQs = async (req: AuthRequest, res: Response) => {
     if (search) {
       const searchTerm = search as string;
       where.OR = [
-        { question: { contains: searchTerm, mode: 'insensitive' } },
-        { answer: { contains: searchTerm, mode: 'insensitive' } },
+        { question: { contains: searchTerm, mode: "insensitive" } },
+        { answer: { contains: searchTerm, mode: "insensitive" } },
         { keywords: { has: searchTerm.toLowerCase() } },
       ];
     }
 
     const faqs = await prisma.fAQ.findMany({
       where,
-      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
       select: {
         id: true,
         category: true,
@@ -39,8 +39,8 @@ export const getAllFAQs = async (req: AuthRequest, res: Response) => {
 
     return res.json({ faqs, count: faqs.length });
   } catch (error) {
-    console.error('Get FAQs error:', error);
-    return res.status(500).json({ error: 'Server error fetching FAQs' });
+    console.error("Get FAQs error:", error);
+    return res.status(500).json({ error: "Server error fetching FAQs" });
   }
 };
 
@@ -53,7 +53,7 @@ export const getFAQById = async (req: AuthRequest, res: Response) => {
     });
 
     if (!faq) {
-      return res.status(404).json({ error: 'FAQ not found' });
+      return res.status(404).json({ error: "FAQ not found" });
     }
 
     await prisma.fAQ.update({
@@ -63,8 +63,8 @@ export const getFAQById = async (req: AuthRequest, res: Response) => {
 
     return res.json(faq);
   } catch (error) {
-    console.error('Get FAQ by ID error:', error);
-    return res.status(500).json({ error: 'Server error fetching FAQ' });
+    console.error("Get FAQ by ID error:", error);
+    return res.status(500).json({ error: "Server error fetching FAQ" });
   }
 };
 
@@ -73,15 +73,15 @@ export const getFAQCategories = async (req: AuthRequest, res: Response) => {
     const categories = await prisma.fAQ.findMany({
       where: { isPublished: true },
       select: { category: true },
-      distinct: ['category'],
-      orderBy: { category: 'asc' },
+      distinct: ["category"],
+      orderBy: { category: "asc" },
     });
 
-    const categoryList = categories.map(c => c.category);
+    const categoryList = categories.map((c) => c.category);
     return res.json({ categories: categoryList });
   } catch (error) {
-    console.error('Get FAQ categories error:', error);
-    return res.status(500).json({ error: 'Server error fetching categories' });
+    console.error("Get FAQ categories error:", error);
+    return res.status(500).json({ error: "Server error fetching categories" });
   }
 };
 
@@ -90,8 +90,10 @@ export const voteFAQ = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { helpful } = req.body;
 
-    if (typeof helpful !== 'boolean') {
-      return res.status(400).json({ error: 'Helpful vote must be a boolean value' });
+    if (typeof helpful !== "boolean") {
+      return res
+        .status(400)
+        .json({ error: "Helpful vote must be a boolean value" });
     }
 
     const faq = await prisma.fAQ.findUnique({
@@ -99,7 +101,7 @@ export const voteFAQ = async (req: AuthRequest, res: Response) => {
     });
 
     if (!faq) {
-      return res.status(404).json({ error: 'FAQ not found' });
+      return res.status(404).json({ error: "FAQ not found" });
     }
 
     const updated = await prisma.fAQ.update({
@@ -110,13 +112,13 @@ export const voteFAQ = async (req: AuthRequest, res: Response) => {
     });
 
     return res.json({
-      message: 'Thank you for your feedback!',
+      message: "Thank you for your feedback!",
       helpful: updated.helpful,
       notHelpful: updated.notHelpful,
     });
   } catch (error) {
-    console.error('Vote FAQ error:', error);
-    return res.status(500).json({ error: 'Server error recording vote' });
+    console.error("Vote FAQ error:", error);
+    return res.status(500).json({ error: "Server error recording vote" });
   }
 };
 
@@ -125,7 +127,9 @@ export const createFAQ = async (req: AuthRequest, res: Response) => {
     const { category, question, answer, keywords, order } = req.body;
 
     if (!category?.trim() || !question?.trim() || !answer?.trim()) {
-      return res.status(400).json({ error: 'Category, question, and answer are required' });
+      return res
+        .status(400)
+        .json({ error: "Category, question, and answer are required" });
     }
 
     const maxOrder = await prisma.fAQ.aggregate({
@@ -134,27 +138,36 @@ export const createFAQ = async (req: AuthRequest, res: Response) => {
     });
 
     const faq = await prisma.fAQ.create({
-      data: {
-        category: category.trim(),
-        question: question.trim(),
-        answer: answer.trim(),
-        keywords: keywords || [],
-        order: order !== undefined ? order : (maxOrder._max.order || 0) + 1,
-        updatedAt: new Date(),
-      },
-    });
+        data: {
+          category: category.trim(),
+          question: question.trim(),
+          answer: answer.trim(),
+          keywords: keywords || [],
+          order: order !== undefined ? order : (maxOrder._max.order || 0) + 1,
+          updatedAt: new Date(),
+        },
+      });
+
+    // Invalidate FAQ cache
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
+
+    // Invalidate FAQ cache
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
 
     return res.status(201).json(faq);
   } catch (error) {
-    console.error('Create FAQ error:', error);
-    return res.status(500).json({ error: 'Server error creating FAQ' });
+    console.error("Create FAQ error:", error);
+    return res.status(500).json({ error: "Server error creating FAQ" });
   }
 };
 
 export const updateFAQ = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { category, question, answer, keywords, isPublished, order } = req.body;
+    const { category, question, answer, keywords, isPublished, order } =
+      req.body;
 
     const data: any = {};
     if (category !== undefined) data.category = category.trim();
@@ -165,17 +178,22 @@ export const updateFAQ = async (req: AuthRequest, res: Response) => {
     if (order !== undefined) data.order = order;
 
     const faq = await prisma.fAQ.update({
-      where: { id },
-      data,
-    });
+        where: { id },
+        data,
+      });
 
+    // Invalidate FAQ cache
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
+
+    // Invalidate FAQ cache
     await FAQCacheService.invalidateFAQCache();
     await FAQCacheService.invalidateAIResponseCache();
 
     return res.json(faq);
   } catch (error) {
-    console.error('Update FAQ error:', error);
-    return res.status(500).json({ error: 'Server error updating FAQ' });
+    console.error("Update FAQ error:", error);
+    return res.status(500).json({ error: "Server error updating FAQ" });
   }
 };
 
@@ -184,16 +202,21 @@ export const deleteFAQ = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
     await prisma.fAQ.delete({
-      where: { id },
-    });
+        where: { id },
+      });
 
+    // Invalidate FAQ cache
     await FAQCacheService.invalidateFAQCache();
     await FAQCacheService.invalidateAIResponseCache();
 
-    return res.json({ success: true, message: 'FAQ deleted successfully' });
+    // Invalidate FAQ cache
+    await FAQCacheService.invalidateFAQCache();
+    await FAQCacheService.invalidateAIResponseCache();
+
+    return res.json({ success: true, message: "FAQ deleted successfully" });
   } catch (error) {
-    console.error('Delete FAQ error:', error);
-    return res.status(500).json({ error: 'Server error deleting FAQ' });
+    console.error("Delete FAQ error:", error);
+    return res.status(500).json({ error: "Server error deleting FAQ" });
   }
 };
 
@@ -208,48 +231,39 @@ export const getAdminFAQs = async (req: AuthRequest, res: Response) => {
     }
 
     if (published !== undefined) {
-      where.isPublished = published === 'true';
+      where.isPublished = published === "true";
     }
 
     if (search) {
       const searchTerm = search as string;
       where.OR = [
-        { question: { contains: searchTerm, mode: 'insensitive' } },
-        { answer: { contains: searchTerm, mode: 'insensitive' } },
+        { question: { contains: searchTerm, mode: "insensitive" } },
+        { answer: { contains: searchTerm, mode: "insensitive" } },
       ];
     }
 
     const faqs = await prisma.fAQ.findMany({
       where,
-      orderBy: [{ category: 'asc' }, { order: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ category: "asc" }, { order: "asc" }, { createdAt: "desc" }],
     });
 
     return res.json({ faqs, count: faqs.length });
   } catch (error) {
-    console.error('Get admin FAQs error:', error);
-    return res.status(500).json({ error: 'Server error fetching FAQs' });
-  }
-};
-
-export const invalidateCache = async (req: AuthRequest, res: Response) => {
-  try {
-    await FAQCacheService.invalidateFAQCache();
-    await FAQCacheService.invalidateAIResponseCache();
-    return res.json({ success: true, message: 'Cache invalidated successfully' });
-  } catch (error) {
-    console.error('Invalidate cache error:', error);
-    return res.status(500).json({ error: 'Server error invalidating cache' });
+    console.error("Get admin FAQs error:", error);
+    return res.status(500).json({ error: "Server error fetching FAQs" });
   }
 };
 
 export const getFAQAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const totalFAQs = await prisma.fAQ.count();
-    const publishedFAQs = await prisma.fAQ.count({ where: { isPublished: true } });
-    
+    const publishedFAQs = await prisma.fAQ.count({
+      where: { isPublished: true },
+    });
+
     const topViewed = await prisma.fAQ.findMany({
       where: { isPublished: true },
-      orderBy: { viewCount: 'desc' },
+      orderBy: { viewCount: "desc" },
       take: 5,
       select: {
         id: true,
@@ -261,7 +275,7 @@ export const getFAQAnalytics = async (req: AuthRequest, res: Response) => {
 
     const topHelpful = await prisma.fAQ.findMany({
       where: { isPublished: true },
-      orderBy: { helpful: 'desc' },
+      orderBy: { helpful: "desc" },
       take: 5,
       select: {
         id: true,
@@ -273,7 +287,7 @@ export const getFAQAnalytics = async (req: AuthRequest, res: Response) => {
     });
 
     const categoryCounts = await prisma.fAQ.groupBy({
-      by: ['category'],
+      by: ["category"],
       _count: { category: true },
       where: { isPublished: true },
     });
@@ -284,13 +298,13 @@ export const getFAQAnalytics = async (req: AuthRequest, res: Response) => {
       unpublishedFAQs: totalFAQs - publishedFAQs,
       topViewed,
       topHelpful,
-      categoryCounts: categoryCounts.map(c => ({
+      categoryCounts: categoryCounts.map((c) => ({
         category: c.category,
         count: c._count.category,
       })),
     });
   } catch (error) {
-    console.error('Get FAQ analytics error:', error);
-    return res.status(500).json({ error: 'Server error fetching analytics' });
+    console.error("Get FAQ analytics error:", error);
+    return res.status(500).json({ error: "Server error fetching analytics" });
   }
 };

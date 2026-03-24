@@ -5,9 +5,22 @@
 
 import { prisma } from '../lib/prisma';
 import { FAQCacheService } from './faq-cache.service';
+import fs from "fs";
+import path from "path";
 
 // Import modular components
 export { analyzeQueryScope } from '../modules/rag/scope-analyzer';
+
+
+let curriculumGuide: string = '';
+try {
+  const guidePath = path.join(__dirname, '../knowledge/curriculum-guide.md');
+  curriculumGuide = fs.readFileSync(guidePath, 'utf-8');
+  console.log('✅ Curriculum guide loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load curriculum guide:', error);
+  curriculumGuide = '';
+}
 
 export interface RAGContext {
   programs: ProgramContext[];
@@ -44,6 +57,15 @@ interface FacultyContext {
   officeHours: string | null;
   consultationDays: string[];
   subjects: string[];
+  teachingSchedule: TeachingSchedule[];
+}
+
+interface TeachingSchedule {
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  room: string;
 }
 
 interface CurriculumContext {
@@ -161,7 +183,7 @@ function detectQueryType(msg: string): string {
       msg.includes('associate dean') || msg.includes('chairperson') || 
       msg.includes('chair') || msg.includes('department head') ||
       msg.includes('program chair') || msg.includes('coordinator') ||
-      msg.includes('instructor')) {
+      msg.includes('instructor') || msg.includes('schedule')) {
     return 'faculty';
   }
   if (msg.includes('curriculum') || msg.includes('subject') || msg.includes('course') ||
@@ -240,6 +262,80 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
   // amazonq-ignore-next-line
   console.log(`🔍 Faculty search - original message: "${sanitizeForLogging(msg)}"`);
   
+  // CRITICAL: Check for schedule queries with faculty names FIRST
+  // Pattern: "schedule of [Name]" or "[Name]'s schedule" or "[Name] schedule"
+  const scheduleWithNameMatch = msg.match(/(?:schedule|teaching|class)\s+(?:of|for)?\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)\b/i) ||
+                                msg.match(/([A-Za-z]+(?:\s+[A-Za-z]+)*)\s+(?:schedule|teaching|class)/i) ||
+                                msg.match(/(?:sir|ma'am|maam|prof|professor|dr)\.?\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
+  
+  if (scheduleWithNameMatch && scheduleWithNameMatch[1]) {
+    const rawName = scheduleWithNameMatch[1].trim();
+    console.log(`🔍 Schedule query with faculty name detected: "${sanitizeForLogging(rawName)}"`);
+    
+    // Search by name for schedule queries - use OR conditions for flexible matching
+    const nameParts = rawName.split(/\s+/).filter(p => p.length > 0);
+    const orConditions: any[] = [];
+    
+    // Try all combinations of name parts
+    for (const part of nameParts) {
+      orConditions.push(
+        { firstName: { contains: part, mode: 'insensitive' as const } },
+        { lastName: { contains: part, mode: 'insensitive' as const } },
+        { middleName: { contains: part, mode: 'insensitive' as const } }
+      );
+    }
+    
+    // Also try first + last name combination
+    if (nameParts.length >= 2) {
+      orConditions.push({
+        AND: [
+          { firstName: { contains: nameParts[0], mode: 'insensitive' as const } },
+          { lastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' as const } }
+        ]
+      });
+    }
+    
+    const whereClause: any = {
+      college: { contains: 'College of Science', mode: 'insensitive' as const },
+      OR: orConditions
+    };
+    
+    const faculty = await prisma.faculty.findMany({
+      where: whereClause,
+      include: {
+        FacultySubject: {
+          include: { Subject: true }
+        },
+        FacultySchedule: {
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+        }
+      },
+      orderBy: [{ lastName: 'asc' }]
+    });
+    
+    console.log(`🔍 Schedule query found ${faculty.length} faculty members`);
+    
+    return faculty.map(f => ({
+      id: f.id,
+      fullName: `${f.firstName}${f.middleName ? ' ' + f.middleName : ''} ${f.lastName}`,
+      firstName: f.firstName,
+      lastName: f.lastName,
+      position: f.position,
+      college: f.college,
+      email: f.email,
+      officeHours: f.officeHours,
+      consultationDays: f.consultationDays,
+      subjects: f.FacultySubject.map((s: any) => s.Subject.name),
+      teachingSchedule: f.FacultySchedule.map((s: any) => ({
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        subject: s.subject || 'N/A',
+        room: s.room || 'TBA'
+      }))
+    }));
+  }
+  
   // Check for position mentions FIRST - before name extraction
   // IMPORTANT: More specific/longer keywords MUST come before shorter generic ones
   // (e.g. 'associate dean' before 'dean', 'program chair' before 'chair')
@@ -292,6 +388,12 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
           include: {
             Subject: true
           }
+        },
+        FacultySchedule: {
+          orderBy: [
+            { dayOfWeek: 'asc' },
+            { startTime: 'asc' }
+          ]
         }
       },
       orderBy: [
@@ -310,7 +412,14 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
       email: f.email,
       officeHours: f.officeHours,
       consultationDays: f.consultationDays,
-      subjects: f.FacultySubject.map((s: any) => s.Subject.name)
+      subjects: f.FacultySubject.map((s: any) => s.Subject.name),
+      teachingSchedule: f.FacultySchedule.map((s: any) => ({
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        subject: s.subject || 'N/A',
+        room: s.room || 'TBA'
+      }))
     }));
   }
 
@@ -413,6 +522,12 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
         include: {
           Subject: true
         }
+      },
+      FacultySchedule: {
+        orderBy: [
+          { dayOfWeek: 'asc' },
+          { startTime: 'asc' }
+        ]
       }
     },
     orderBy: [
@@ -431,7 +546,14 @@ async function fetchFaculty(msg: string, queryType: string): Promise<FacultyCont
     email: f.email,
     officeHours: f.officeHours,
     consultationDays: f.consultationDays,
-    subjects: f.FacultySubject.map((s: any) => s.Subject.name)
+    subjects: f.FacultySubject.map((s: any) => s.Subject.name),
+    teachingSchedule: f.FacultySchedule.map((s: any) => ({
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      subject: s.subject || 'N/A',
+      room: s.room || 'TBA'
+    }))
   }));
 }
 
@@ -678,56 +800,274 @@ async function fetchCurriculum(msg: string, queryType: string): Promise<Curricul
  * Fetch relevant FAQs with improved keyword matching
  */
 async function fetchFAQs(msg: string): Promise<FAQContext[]> {
-  // Extract meaningful keywords from user message
-  const stopWords = ['what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 'tell', 'explain', 'prof', 'prof.', 'professor', 'maam', "ma'am", 'sir', 'of', 'for'];
-  const keywords = msg.toLowerCase()
-    .replace(/[?.,!;:'"()]/g, '') // Strip punctuation
+  const lowerMsg = msg.toLowerCase();
+
+  // CRITICAL: Check if this is a faculty schedule query BEFORE ANY FAQ SEARCH
+  const isFacultyScheduleQuery =
+    lowerMsg.match(
+      /(?:schedule|teaching|class)\s+(?:of|for)?\s+([a-z]+(?:\s+[a-z]+)*)\b/i,
+    ) ||
+    lowerMsg.match(/([a-z]+(?:\s+[a-z]+)*)\s+(?:schedule|teaching|class)/i) ||
+    lowerMsg.match(
+      /(?:sir|ma'am|maam|prof|professor|dr)\.?\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    ) ||
+    (lowerMsg.includes("schedule") &&
+      (lowerMsg.includes("prof") ||
+        lowerMsg.includes("sir") ||
+        lowerMsg.includes("ma'am") ||
+        lowerMsg.includes("maam") ||
+        lowerMsg.includes("faculty") ||
+        lowerMsg.includes("instructor") ||
+        lowerMsg.includes("teacher")));
+
+  // Check if this is a room schedule query
+  const isRoomScheduleQuery =
+    lowerMsg.match(/(?:fh|fs|room|lab|building|hall)\s*\d+/i) ||
+    lowerMsg.match(/(?:room|classroom)\s+[a-z0-9]+\s*schedule/i) ||
+    (lowerMsg.includes("room") && lowerMsg.includes("schedule"));
+
+  // Extract faculty name if present
+  let facultyName: string | null = null;
+  let rawFacultyName: string | null = null;
+
+  const nameMatch =
+    lowerMsg.match(
+      /(?:schedule|teaching|class)\s+(?:of|for)?\s+([a-z]+(?:\s+[a-z]+)*)\b/i,
+    ) ||
+    lowerMsg.match(
+      /(?:sir|ma'am|maam|prof|professor|dr)\.?\s+([a-z]+(?:\s+[a-z]+)*)/i,
+    );
+
+  if (nameMatch && nameMatch[1]) {
+    rawFacultyName = nameMatch[1].trim();
+    facultyName = rawFacultyName.toLowerCase();
+    console.log(`[FAQ Retrieval] Extracted faculty name: "${facultyName}"`);
+  }
+
+  // CASE 1: FACULTY SCHEDULE QUERY
+  if (isFacultyScheduleQuery && !isRoomScheduleQuery) {
+    console.log(`[FAQ Retrieval] Faculty schedule query detected`);
+
+    // Extract keywords for faculty search
+    const stopWords = [
+      "what",
+      "is",
+      "are",
+      "the",
+      "a",
+      "an",
+      "how",
+      "when",
+      "where",
+      "who",
+      "why",
+      "can",
+      "do",
+      "does",
+      "i",
+      "my",
+      "me",
+      "about",
+      "tell",
+      "explain",
+      "prof",
+      "prof.",
+      "professor",
+      "maam",
+      "ma'am",
+      "sir",
+      "of",
+      "for",
+      "schedule",
+      "teaching",
+      "class",
+      "classes",
+      "give",
+      "me",
+    ];
+
+    let keywords = lowerMsg
+      .replace(/[?.,!;:'"()]/g, "")
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !stopWords.includes(word));
+
+    // Add faculty name as a keyword if available
+    if (facultyName) {
+      const nameParts = facultyName.split(/\s+/);
+      keywords.push(...nameParts);
+    }
+
+    // Remove duplicates
+    keywords = [...new Set(keywords)];
+
+    if (keywords.length === 0) {
+      console.log(`[FAQ Retrieval] No keywords extracted, returning empty`);
+      return [];
+    }
+
+    console.log(
+      `[FAQ Retrieval] Searching Faculty Schedules with keywords: ${keywords.join(", ")}`,
+    );
+
+    
+
+    // ONLY fetch FAQs from "Faculty Schedules" category
+    const facultySchedules = await FAQCacheService.searchFAQs(keywords, [
+      "Faculty Schedules",
+    ]);
+
+    console.log(
+      `[FAQ Retrieval] Faculty schedule query - Found: ${facultySchedules.length} FAQs`,
+    );
+    console.log(
+      `[FAQ Retrieval] Results:`,
+      facultySchedules.map((f) => ({
+        category: f.category,
+        question: f.question.substring(0, 50),
+      })),
+    );
+
+    // Update view count for retrieved FAQs
+    if (facultySchedules.length > 0) {
+      Promise.all(
+        facultySchedules.map((faq) =>
+          prisma.fAQ
+            .update({
+              where: { id: faq.id },
+              data: { viewCount: { increment: 1 } },
+            })
+            .catch(() => {}),
+        ),
+      ).catch(() => {});
+    }
+
+    return facultySchedules.map((f) => ({
+      category: f.category,
+      question: f.question,
+      answer: f.answer,
+    }));
+  }
+
+  // CASE 2: ROOM SCHEDULE QUERY
+  if (isRoomScheduleQuery) {
+    console.log(`[FAQ Retrieval] Room schedule query detected`);
+
+    // Extract room number if present
+    const roomMatch =
+      lowerMsg.match(/(?:fh|fs|room|lab)\s*(\d+[a-z]?)/i) ||
+      lowerMsg.match(/(?:room|classroom)\s+([a-z0-9]+)/i);
+
+    let keywords: string[] = [];
+
+    if (roomMatch && roomMatch[1]) {
+      const roomNumber = roomMatch[1].toLowerCase();
+      keywords.push(roomNumber);
+      console.log(`[FAQ Retrieval] Extracted room number: "${roomNumber}"`);
+    }
+
+    // Add common room keywords
+    keywords.push("room", "schedule");
+
+    // Also extract any room location like "FH", "FS"
+    const locationMatch = lowerMsg.match(/\b(fh|fs|avr)\b/i);
+    if (locationMatch) {
+      keywords.push(locationMatch[1].toLowerCase());
+    }
+
+    console.log(
+      `[FAQ Retrieval] Searching Room Schedules with keywords: ${keywords.join(", ")}`,
+    );
+
+    // ONLY fetch from "Room Schedules" category
+    const roomSchedules = await FAQCacheService.searchFAQs(keywords, [
+      "Room Schedules",
+    ]);
+
+    console.log(
+      `[FAQ Retrieval] Room schedule query - Found: ${roomSchedules.length} FAQs`,
+    );
+
+    if (roomSchedules.length > 0) {
+      Promise.all(
+        roomSchedules.map((faq) =>
+          prisma.fAQ
+            .update({
+              where: { id: faq.id },
+              data: { viewCount: { increment: 1 } },
+            })
+            .catch(() => {}),
+        ),
+      ).catch(() => {});
+    }
+
+    return roomSchedules.map((f) => ({
+      category: f.category,
+      question: f.question,
+      answer: f.answer,
+    }));
+  }
+
+  // CASE 3: GENERAL QUERY - search all categories
+  console.log(
+    `[FAQ Retrieval] General query detected - searching all categories`,
+  );
+
+  const stopWords = [
+    "what",
+    "is",
+    "are",
+    "the",
+    "a",
+    "an",
+    "how",
+    "when",
+    "where",
+    "who",
+    "why",
+    "can",
+    "do",
+    "does",
+    "i",
+    "my",
+    "me",
+    "about",
+    "tell",
+    "explain",
+  ];
+
+  const keywords = lowerMsg
+    .replace(/[?.,!;:'"()]/g, "")
     .split(/\s+/)
-    .filter(word => word.length > 2 && !stopWords.includes(word)); // Reduced min length to 2 for names
-
-  // IMPORTANT: For faculty schedule queries, also add the faculty name as a keyword
-  // Pattern: "schedule of [Name]" or "[Name]'s schedule"
-  const facultyNameMatch = msg.match(/(?:schedule|teaching|class)\s+(?:of|for)?\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)\b/i) ||
-                           msg.match(/([A-Za-z]+(?:\s+[A-Za-z]+)*)\s+(?:schedule|teaching|class)/i);
-  
-  if (facultyNameMatch && facultyNameMatch[1]) {
-    const facultyName = facultyNameMatch[1].toLowerCase().trim();
-    // Add faculty name parts as keywords if not already present
-    const nameParts = facultyName.split(/\s+/).filter(p => p.length > 2);
-    keywords.push(...nameParts.filter(p => !keywords.includes(p)));
-  }
-
-  // CRITICAL: For schedule queries, always include "schedule" as a keyword
-  if ((msg.toLowerCase().includes('schedule') || msg.toLowerCase().includes('teaching') || msg.toLowerCase().includes('class')) && !keywords.includes('schedule')) {
-    keywords.push('schedule');
-  }
+    .filter((word) => word.length > 2 && !stopWords.includes(word));
 
   if (keywords.length === 0) {
-    console.log(`[FAQ Retrieval] No keywords extracted from: "${sanitizeForLogging(msg.substring(0, 50))}..."`);
     return [];
   }
 
-  // Use cached FAQ search
+  console.log(`[FAQ Retrieval] General query keywords: ${keywords.join(", ")}`);
+
+  // Search all categories
   const faqs = await FAQCacheService.searchFAQs(keywords);
 
-  console.log(`[FAQ Retrieval] Query: "${sanitizeForLogging(msg.substring(0, 50))}..." | Found: ${faqs.length} FAQs | Keywords: ${keywords.join(', ')}`);
+  console.log(`[FAQ Retrieval] General query - Found: ${faqs.length} FAQs`);
 
-  // Update view count for retrieved FAQs (async, don't wait)
   if (faqs.length > 0) {
     Promise.all(
-      faqs.map(faq => 
-        prisma.fAQ.update({
-          where: { id: faq.id },
-          data: { viewCount: { increment: 1 } }
-        }).catch(() => {}) // Ignore errors for view count updates
-      )
-    ).catch(() => {}); // Fire and forget
+      faqs.map((faq) =>
+        prisma.fAQ
+          .update({
+            where: { id: faq.id },
+            data: { viewCount: { increment: 1 } },
+          })
+          .catch(() => {}),
+      ),
+    ).catch(() => {});
   }
 
-  return faqs.map(f => ({
+  return faqs.map((f) => ({
     category: f.category,
     question: f.question,
-    answer: f.answer
+    answer: f.answer,
   }));
 }
 
@@ -765,6 +1105,16 @@ async function fetchSubjects(msg: string): Promise<SubjectContext[]> {
 export function formatRAGContextForPrompt(context: RAGContext): string {
   let formatted = `\n## INFORMATION FROM BULACAN STATE UNIVERSITY - COLLEGE OF SCIENCE\n\n`;
 
+  const isPrerequisiteQuery =
+    context.metadata.queryType === "curriculum" ||
+    context.metadata.queryType === "general";
+
+     if (isPrerequisiteQuery && curriculumGuide) {
+       formatted += `### COMPLETE CURRICULUM GUIDE\n\n`;
+       formatted += curriculumGuide;
+       formatted += `\n\n`;
+     }
+
   // Programs section
   if (context.programs.length > 0) {
     formatted += `### PROGRAMS OFFERED\n`;
@@ -801,6 +1151,32 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
       }
       if (f.subjects.length > 0) {
         formatted += `- Subjects: ${f.subjects.join(', ')}\n`;
+      }
+      
+      // Add teaching schedule if available
+      if (f.teachingSchedule.length > 0) {
+        formatted += `- Teaching Schedule:\n`;
+        // Group schedules by day for better readability
+        const schedulesByDay = f.teachingSchedule.reduce((acc, schedule) => {
+          if (!acc[schedule.dayOfWeek]) acc[schedule.dayOfWeek] = [];
+          acc[schedule.dayOfWeek].push(schedule);
+          return acc;
+        }, {} as Record<string, typeof f.teachingSchedule>);
+        
+        // Sort days of week
+        const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        for (const day of dayOrder) {
+          if (schedulesByDay[day]) {
+            formatted += `  ${day}:\n`;
+            for (const schedule of schedulesByDay[day]) {
+              formatted += `    • ${schedule.startTime} - ${schedule.endTime}: ${schedule.subject}`;
+              if (schedule.room && schedule.room !== 'TBA') {
+                formatted += ` - ${schedule.room}`;
+              }
+              formatted += '\n';
+            }
+          }
+        }
       }
 
     }
