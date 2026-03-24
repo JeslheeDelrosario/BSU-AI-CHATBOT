@@ -1,7 +1,7 @@
 // server/prisma/seed-knowledge.ts
 // Seed script to populate FAQs, Room Schedules, and other knowledge data for AI responses
-
 import { PrismaClient } from "@prisma/client";
+import { formatFacultySchedule, parseTimeRange } from '../src/utils/schedule-formatter';
 
 const prisma = new PrismaClient();
 
@@ -735,15 +735,32 @@ async function seedFacultySchedules() {
     {
       category: "Faculty Schedules",
       question: "What is the schedule of Sir Arcel F. Galvez?",
-      answer:
-        "**Sir. GALVEZ, ARCEL F. - Schedule**\n\n**Monday:**\n• 9:00 AM - 11:00 AM: MCS 205 (BSM CS 2A G1) - FH 205\n• 11:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G2) - FH 206\n• 2:00 PM - 4:00 PM: MCS 206 (BSM CS 2B G2) - FH 206\n• 4:00 PM - 6:00 PM: MCS 206 (BSM CS 2B G1) - FH 206\n\n**Tuesday:**\n• 9:00 AM - 11:00 AM: MCS 205 (BSM CS 2A G2) - FH 205\n• 1:00 PM - 3:00 PM: MAS 307 (BSM AS 3A) - FH 206\n• 5:00 PM - 8:00 PM: FEL 401 (BSM AS 4A) - FH 207\n\n**Wednesday:**\n• 9:00 AM - 11:00 AM: MCS 205 (BSM CS 2A G1) - FH 205\n• 2:00 PM - 5:00 PM: MAS 307 (BSM AS 3A) - FH 205\n• 5:00 PM - 8:00 PM: MAS 307 (BSM AS 3B) - FH 205\n\n**Thursday:**\n• 2:00 PM - 5:00 PM: MCS 206 (BSM CS 2B G1) - FH 205\n• 5:00 PM - 8:00 PM: MCS 206 (BSM CS 2B G2) - FH 207",
+      answer: `Sir Arcel F. Galvez — Schedule
+
+Monday
+09:00 AM – 11:00 AM    MCS 205 (BSM CS 2A G1)    Room: FH 205
+11:00 AM – 01:00 PM    MCS 206 (BSM CS 2A G2)    Room: FH 206
+02:00 PM – 04:00 PM    MCS 206 (BSM CS 2B G2)    Room: FH 206
+04:00 PM – 06:00 PM    MCS 206 (BSM CS 2B G1)    Room: FH 206
+
+Tuesday
+09:00 AM – 11:00 AM    MCS 205 (BSM CS 2A G2)    Room: FH 205
+01:00 PM – 03:00 PM    MAS 307 (BSM AS 3A)       Room: FH 206
+05:00 PM – 08:00 PM    FEL 401 (BSM AS 4A)       Room: FH 207
+
+Wednesday
+09:00 AM – 11:00 AM    MCS 205 (BSM CS 2A G1)    Room: FH 205
+02:00 PM – 05:00 PM    MAS 307 (BSM AS 3A)       Room: FH 205
+05:00 PM – 08:00 PM    MAS 307 (BSM AS 3B)       Room: FH 205
+
+Thursday
+02:00 PM – 05:00 PM    MCS 206 (BSM CS 2B G1)    Room: FH 205
+05:00 PM – 08:00 PM    MCS 206 (BSM CS 2B G2)    Room: FH 207`,
+
       keywords: [
-        "What is the schedule of Sir arcel?",
-        "What is the schedule of Sir Arcel?",
-        "What is the schedule of Sir Arcel Galvez?",
-        "Give me the schedule of Sir Arcel Galvez?",
-        "what is the schedule of sir arcel galvez?",
-        "give me the schedule of sir Arcel galvez?",
+        "arcel galvez",
+        "sir arcel",
+        "sir arcel galvez",
         "galvez",
         "arcel",
         "mcs205",
@@ -751,7 +768,9 @@ async function seedFacultySchedules() {
         "mas307",
         "fel401",
         "schedule",
-        "faculty",
+        "faculty schedule",
+        "bsm cs",
+        "bsm as",
       ],
       isPublished: true,
     },

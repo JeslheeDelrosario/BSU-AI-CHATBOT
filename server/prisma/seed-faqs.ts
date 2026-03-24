@@ -430,11 +430,32 @@ const faqData = [
   },
   {
     category: "Admission Application",
+    question: "How much is the BSUAT fee?",
+    answer: "The BSU Admission Test (BSUAT) fee is ₱300.00 (non-refundable).",
+    keywords: ["BSUAT fee", "300", "cost", "price", "payment"],
+    order: 7.1,
+  },
+  {
+    category: "Admission Application",
+    question: "Where do I pay the BSUAT fee?",
+    answer: "The BSUAT fee must be paid at the Cashier's Office of Bulacan State University.",
+    keywords: ["pay", "cashier", "payment location", "where to pay"],
+    order: 7.2,
+  },
+  {
+    category: "Admission Application",
     question: "How do I get my BSUAT (Examination) schedule?",
     answer:
       "Once you have paid the fee, submit your official receipt and your completed application form to the Office of Admissions. They will then issue your examination schedule.",
     keywords: ["BSUAT schedule", "exam schedule", "admission test", "receipt"],
     order: 8,
+  },
+  {
+    category: "Admission Application",
+    question: "When will I get my examination schedule?",
+    answer: "Your examination schedule will be issued immediately after you submit your official receipt and completed application form to the Office of Admissions.",
+    keywords: ["exam schedule", "when", "release", "schedule date"],
+    order: 8.1,
   },
   {
     category: "Admission Application",
@@ -449,6 +470,28 @@ const faqData = [
       "verification",
     ],
     order: 9,
+  },
+  {
+  category: "Admission Application",
+  question: "What is the complete admission process summary?",
+  answer: `The BulSU admission process consists of:
+
+  1. **Application**: Secure and accomplish application form from Office of Admissions
+  2. **Payment**: Pay ₱300.00 BSUAT fee at Cashier's Office
+  3. **Schedule**: Submit receipt to get your examination schedule
+  4. **Take Exam**: Take the BSU Admission Test on your scheduled date
+  5. **Check Results**: View posted results on the scheduled release date
+  6. **Submit Documents**: Submit original documents if shortlisted
+  7. **Enroll**: Complete reservation and enrollment requirements
+
+  **Required Documents**:
+  - Application form with 2x2 ID pictures
+  - Form 138 (High School Card)
+  - NSO/PSA Birth Certificate
+  - Certificate of Good Moral Character
+  - Medical Permit from BSU Clinic`,
+    keywords: ["admission process", "steps", "summary", "overview", "how to apply"],
+    order: 10,
   },
 
   // Managing Your Academic Load FAQs

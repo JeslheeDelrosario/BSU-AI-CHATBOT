@@ -26,6 +26,19 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 
+let studentHandbook: string = '';
+try {
+  const handbookPath = path.join(__dirname, '../knowledge/student-handbook.md');
+  if (fs.existsSync(handbookPath)) {
+    studentHandbook = fs.readFileSync(handbookPath, 'utf-8');
+    console.log(`✅ Student handbook loaded in controller (${studentHandbook.length} chars)`);
+  } else {
+    console.error(`❌ Student handbook not found at: ${handbookPath}`);
+  }
+} catch (error) {
+  console.error('❌ Failed to load student handbook:', error);
+}
+
 let curriculumGuide: string = "";
 try {
   const guidePath = path.join(__dirname, "../knowledge/curriculum-guide.md");
@@ -2369,12 +2382,22 @@ export const askAITutor = async (req: AuthRequest, res: Response) => {
     const userLanguage = userSettings?.language || "en";
 
     // STEP 0: Check if user is requesting a quiz/practice exam
-    const quizKeywords =
-      /create|generate|make|give me|start|take|quiz|test|exam|practice|assessment|questions/i;
-    const isQuizRequest =
-      quizKeywords.test(message) &&
-      /quiz|test|exam|practice|assessment/i.test(message);
+    const isExplicitQuizRequest =
+      /(?:create|generate|make|give me|start)\s+(?:a\s+)?(?:quiz|test|exam|practice|assessment)/i.test(
+        message,
+      ) ||
+      /(?:quiz|test|exam|practice|assessment)\s+(?:about|on|for)\s+/i.test(
+        message,
+      );
 
+    // Exclude common non-quiz questions that contain "exam" but aren't quiz requests
+    const isNonQuizQuestion =
+      /(?:fee|schedule|requirement|admission|application|payment|how much|is there|what is|where|when|how to|process|documents)/i.test(
+        message,
+      );
+
+    // Final quiz request check
+    const isQuizRequest = isExplicitQuizRequest && !isNonQuizQuestion;
     if (isQuizRequest) {
       // Extract topic from message - handle typos and common variations
       let topic = message

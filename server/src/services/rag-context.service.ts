@@ -21,6 +21,21 @@ try {
   curriculumGuide = "";
 }
 
+// Load student handbook
+let studentHandbook: string = '';
+try {
+  const handbookPath = path.join(__dirname, '../knowledge/student-handbook.md');
+  if (fs.existsSync(handbookPath)) {
+    studentHandbook = fs.readFileSync(handbookPath, 'utf-8');
+    console.log(`✅ Student handbook loaded successfully (${studentHandbook.length} characters)`);
+  } else {
+    console.error(`❌ Student handbook not found at: ${handbookPath}`);
+  }
+} catch (error) {
+  console.error('❌ Failed to load student handbook:', error);
+  studentHandbook = '';
+}
+
 export interface RAGContext {
   programs: ProgramContext[];
   faculty: FacultyContext[];
@@ -211,6 +226,23 @@ export async function retrieveRAGContext(
  * Detect the type of query for optimized retrieval
  */
 function detectQueryType(msg: string): string {
+  if (
+    msg.includes("admission") ||
+    msg.includes("enroll") ||
+    msg.includes("requirement") ||
+    msg.includes("how to") ||
+    msg.includes("apply") ||
+    msg.includes("fee") ||
+    msg.includes("payment") ||
+    msg.includes("examination") ||
+    msg.includes("bsuat") ||
+    msg.includes("test") ||
+    msg.includes("schedule") ||
+    msg.includes("cost") ||
+    msg.includes("price")
+  ) {
+    return "faq";
+  }
   if (
     msg.includes("faculty") ||
     msg.includes("professor") ||
@@ -1300,10 +1332,19 @@ async function fetchSubjects(msg: string): Promise<SubjectContext[]> {
 export function formatRAGContextForPrompt(context: RAGContext): string {
   let formatted = `\n## INFORMATION FROM BULACAN STATE UNIVERSITY - COLLEGE OF SCIENCE\n\n`;
 
-  const isPrerequisiteQuery =
-    context.metadata.queryType === "curriculum" ||
-    context.metadata.queryType === "general";
+  // Check if this is a general/FAQ query that should include the student handbook
+  const isGeneralQuery = context.metadata.queryType === "general" || context.metadata.queryType === "faq" || context.faqs.length > 0;
 
+  // Include student handbook for general queries (admission, grading, scholarships, etc.)
+  if (isGeneralQuery && studentHandbook) {
+    formatted += `### COMPLETE STUDENT HANDBOOK\n\n`;
+    formatted += studentHandbook;
+    formatted += `\n\n`;
+  }
+  
+  const isPrerequisiteQuery = context.metadata.queryType === "curriculum" || context.metadata.queryType === "general";
+
+  // Include curriculum guide for curriculum/prerequisite queries
   if (isPrerequisiteQuery && curriculumGuide) {
     formatted += `### COMPLETE CURRICULUM GUIDE\n\n`;
     formatted += curriculumGuide;
