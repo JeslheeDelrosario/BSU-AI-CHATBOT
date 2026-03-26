@@ -49,6 +49,7 @@ try {
   curriculumGuide = "";
 }
 
+
 // Initialize OpenRouter client (FINAL FALLBACK - #5)
 const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 const openRouterModel =
@@ -164,16 +165,16 @@ const generateAIResponse = async (
     const languageInstruction =
       language === "fil"
         ? `
-## CRITICAL LANGUAGE REQUIREMENT
-You MUST respond ENTIRELY in Filipino (Tagalog). All your responses, explanations, questions, and information must be in Filipino.
-- Use natural, conversational Filipino
-- Technical terms can remain in English but explain them in Filipino
-- Be warm and friendly using Filipino expressions
-`
-        : `
-## LANGUAGE REQUIREMENT
-Respond in clear, professional English.
-`;
+      ## CRITICAL LANGUAGE REQUIREMENT
+      You MUST respond ENTIRELY in Filipino (Tagalog). All your responses, explanations, questions, and information must be in Filipino.
+      - Use natural, conversational Filipino
+      - Technical terms can remain in English but explain them in Filipino
+      - Be warm and friendly using Filipino expressions
+      `
+              : `
+      ## LANGUAGE REQUIREMENT
+      Respond in clear, professional English.
+      `;
 
     // Format the RAG context for the prompt
     const databaseContext = formatRAGContextForPrompt(ragContext);
@@ -584,13 +585,7 @@ Respond in clear, professional English.
         response += "\n";
       });
 
-      // Add helpful tip
-      response +=
-        language === "fil"
-          ? `💡 **Tip**: Sabihin "book consultation with [name]" para mag-schedule ng consultation.`
-          : `💡 **Tip**: Say "book consultation with [name]" to schedule a consultation appointment.`;
-
-      return response;
+      
     }
 
     // Detect faculty name inquiries (e.g., "who is [name]?")

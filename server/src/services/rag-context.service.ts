@@ -36,6 +36,139 @@ try {
   studentHandbook = '';
 }
 
+
+
+function extractKeywords(msg: string): string[] {
+  const stopWords = [
+    'what', 'is', 'are', 'the', 'a', 'an', 'how', 'when', 'where', 
+    'who', 'why', 'can', 'do', 'does', 'i', 'my', 'me', 'about', 
+    'tell', 'explain', 'please', 'help', 'want', 'need'
+  ];
+  return msg.toLowerCase()
+    .replace(/[?.,!;:'"()]/g, '')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !stopWords.includes(word));
+}
+
+// Check if a document should be included based on query
+function shouldIncludeDocument(context: RAGContext, docType: 'handbook' | 'curriculum'): boolean {
+  const msg = context.userMessage?.toLowerCase() || '';
+  
+  if (docType === 'handbook') {
+    // Only include handbook for admission, enrollment, rules, etc.
+    const handbookKeywords = [
+      'admission', 'enroll', 'requirement', 'apply', 'fee', 'payment',
+      'grade', 'grading', 'scholarship', 'rule', 'policy', 'discipline',
+      'attendance', 'uniform', 'dress code', 'student right', 'code of conduct',
+      'tuition', 'registration', 'transcript', 'withdrawal', 'leave of absence'
+    ];
+    return handbookKeywords.some(keyword => msg.includes(keyword));
+  }
+  
+  if (docType === 'curriculum') {
+    // Only include curriculum guide for subject-related queries
+    const curriculumKeywords = [
+      'curriculum', 'subject', 'course', 'prerequisite', 'year', 'semester',
+      'thesis', 'major', 'elective', 'unit', 'credit', 'schedule',
+      'class', 'enroll', 'take', 'offer', 'program', 'degree'
+    ];
+    return curriculumKeywords.some(keyword => msg.includes(keyword));
+  }
+  
+  return false;
+}
+
+// Get relevant sections from handbook based on query
+function getRelevantHandbookSections(query: string, handbook: string): string {
+  const keywords = extractKeywords(query);
+  
+  if (keywords.length === 0) {
+    // Return just the table of contents or first section if no keywords
+    const lines = handbook.split('\n');
+    const firstFewLines = lines.slice(0, 20).join('\n');
+    return firstFewLines + '\n\n[Use official handbook for complete information]';
+  }
+  
+  // Split handbook into sections (by ## or ### headers)
+  const sections = handbook.split(/(?=^#{1,3}\s)/m);
+  
+  // Score and select relevant sections
+  const scoredSections = sections
+    .map(section => {
+      const lowerSection = section.toLowerCase();
+      const score = keywords.reduce((total, kw) => 
+        total + (lowerSection.includes(kw) ? 1 : 0), 0
+      );
+      return { text: section, score };
+    })
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+  
+  // Take top 3 most relevant sections
+  const relevantSections = scoredSections.slice(0, 3);
+  
+  if (relevantSections.length === 0) {
+    // No relevant sections found, return a summary
+    return 'No specific handbook sections found for your query. Please refer to the official student handbook for detailed information.';
+  }
+  
+  // Join selected sections
+  let result = relevantSections.map(s => s.text).join('\n\n');
+  
+  // Trim to max tokens if still too large (roughly 3000 tokens = 12000 chars)
+  const MAX_CHARS = 8000;
+  if (result.length > MAX_CHARS) {
+    result = result.substring(0, MAX_CHARS) + '\n\n[Content truncated due to length. Please refer to the official handbook for complete information.]';
+  }
+  
+  return result;
+}
+
+// Get relevant sections from curriculum guide based on query
+function getRelevantCurriculumSections(query: string, curriculumGuide: string): string {
+  const keywords = extractKeywords(query);
+  
+  if (keywords.length === 0) {
+    // Return just the first part of the guide
+    const lines = curriculumGuide.split('\n');
+    const firstFewLines = lines.slice(0, 30).join('\n');
+    return firstFewLines + '\n\n[Use official curriculum guide for complete information]';
+  }
+  
+  // Split curriculum guide into sections
+  const sections = curriculumGuide.split(/(?=^#{1,3}\s)/m);
+  
+  // Score and select relevant sections
+  const scoredSections = sections
+    .map(section => {
+      const lowerSection = section.toLowerCase();
+      const score = keywords.reduce((total, kw) => 
+        total + (lowerSection.includes(kw) ? 1 : 0), 0
+      );
+      return { text: section, score };
+    })
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+  
+  // Take top 3 most relevant sections
+  const relevantSections = scoredSections.slice(0, 3);
+  
+  if (relevantSections.length === 0) {
+    return 'No specific curriculum information found for your query. Please refer to the official curriculum guide for complete program details.';
+  }
+  
+  // Join selected sections
+  let result = relevantSections.map(s => s.text).join('\n\n');
+  
+  // Trim to max tokens
+  const MAX_CHARS = 8000;
+  if (result.length > MAX_CHARS) {
+    result = result.substring(0, MAX_CHARS) + '\n\n[Content truncated due to length. Please refer to the official curriculum guide for complete information.]';
+  }
+  
+  return result;
+}
+
 export interface RAGContext {
   programs: ProgramContext[];
   faculty: FacultyContext[];
@@ -49,6 +182,7 @@ export interface RAGContext {
     retrievedAt: string;
     queryType: string;
   };
+   userMessage?: string; 
 }
 
 interface ProgramContext {
@@ -212,6 +346,7 @@ export async function retrieveRAGContext(
     curriculum,
     faqs,
     relevantSubjects: subjects,
+    userMessage,
     metadata: {
       totalPrograms: programs.length,
       totalFaculty: faculty.length,
@@ -795,9 +930,8 @@ async function fetchCurriculum(
   msg: string,
   queryType: string,
 ): Promise<CurriculumContext[]> {
-  console.log(
-    `[fetchCurriculum] Starting - message: "${sanitizeForLogging(msg.substring(0, 60))}..."`,
-  );
+  // For general queries, limit to top 5 most relevant
+  const takeLimit = queryType === 'general' ? 5 : 30;
 
   // ─────────────────────────────────────────────────────────────────────────
   // NEW BLOCK: Detect "can I take X if I failed Y" BEFORE anything else.
@@ -1332,39 +1466,22 @@ async function fetchSubjects(msg: string): Promise<SubjectContext[]> {
 export function formatRAGContextForPrompt(context: RAGContext): string {
   let formatted = `\n## INFORMATION FROM BULACAN STATE UNIVERSITY - COLLEGE OF SCIENCE\n\n`;
 
-  // Check if this is a general/FAQ query that should include the student handbook
-  const isGeneralQuery = context.metadata.queryType === "general" || context.metadata.queryType === "faq" || context.faqs.length > 0;
+   // Don't auto-load full documents - check if they're actually relevant
+  const shouldIncludeHandbook = shouldIncludeDocument(context, 'handbook');
+  const shouldIncludeCurriculumGuide = shouldIncludeDocument(context, 'curriculum');
 
-  // Include student handbook for general queries (admission, grading, scholarships, etc.)
-  if (isGeneralQuery && studentHandbook) {
-    formatted += `### COMPLETE STUDENT HANDBOOK\n\n`;
-    formatted += studentHandbook;
+  // Only include if relevant and userMessage exists
+  if (shouldIncludeHandbook && studentHandbook && context.userMessage) {
+    // Consider truncating or summarizing
+    formatted += `### STUDENT HANDBOOK (RELEVANT SECTIONS)\n\n`;
+    formatted += getRelevantHandbookSections(context.userMessage, studentHandbook);
     formatted += `\n\n`;
   }
   
-  const isPrerequisiteQuery = context.metadata.queryType === "curriculum" || context.metadata.queryType === "general";
-
-  // Include curriculum guide for curriculum/prerequisite queries
-  if (isPrerequisiteQuery && curriculumGuide) {
-    formatted += `### COMPLETE CURRICULUM GUIDE\n\n`;
-    formatted += curriculumGuide;
+  if (shouldIncludeCurriculumGuide && curriculumGuide && context.userMessage) {
+    formatted += `### CURRICULUM GUIDE (RELEVANT SECTIONS)\n\n`;
+    formatted += getRelevantCurriculumSections(context.userMessage, curriculumGuide);
     formatted += `\n\n`;
-  }
-
-  // Programs section
-  if (context.programs.length > 0) {
-    formatted += `### PROGRAMS OFFERED\n`;
-    for (const p of context.programs) {
-      formatted += `\n**${p.title}**${p.abbreviation ? ` (${p.abbreviation})` : ""}\n`;
-      formatted += `- College: ${p.college}\n`;
-      if (p.description) {
-        formatted += `- Description: ${p.description}\n`;
-      }
-      if (p.careerPaths && p.careerPaths.length > 0) {
-        formatted += `- Career Paths: ${p.careerPaths.join(", ")}\n`;
-      }
-    }
-    formatted += "\n";
   }
 
   // Faculty section

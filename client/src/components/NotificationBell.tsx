@@ -37,19 +37,31 @@ export default function NotificationBell() {
   };
 
   const getNotificationIcon = (type: string) => {
-    const icons: Record<string, string> = {
-      NEW_POST: '📄',
-      NEW_COMMENT: '💬',
-      ROLE_ASSIGNED: '👑',
-      JOIN_REQUEST_APPROVED: '✅',
-      JOIN_REQUEST_REJECTED: '❌',
-      ASSIGNMENT_DUE: '⏰',
-      MENTION: '🔔',
-      CLASSROOM_INVITE: '📧',
-      MEMBER_JOINED: '👋'
-    };
-    return icons[type] || '🔔';
+  const icons: Record<string, string> = {
+    NEW_POST: '📄',
+    NEW_COMMENT: '💬',
+    ROLE_ASSIGNED: '👑',
+    JOIN_REQUEST_APPROVED: '✅',
+    JOIN_REQUEST_REJECTED: '❌',
+    ASSIGNMENT_DUE: '⏰',
+    MENTION: '🔔',
+    CLASSROOM_INVITE: '📧',
+    MEMBER_JOINED: '👋',
+    CONSULTATION_CONFIRMED: '✅',
+    CONSULTATION_REJECTED: '❌',
+    CONSULTATION_CANCELLED: '❌',        // Changed to red X for better clarity
+    CONSULTATION_REMINDER: '⏰',
+    
+    
+    // NEW TYPE ADDED HERE
+    CONSULTATION_REQUEST: '📩',          // Envelope icon for new request
+    
+    // Fallback
+    default: '🔔'
   };
+  
+  return icons[type] || icons.default;
+};
 
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString);

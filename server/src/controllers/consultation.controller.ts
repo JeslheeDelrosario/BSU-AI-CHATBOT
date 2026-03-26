@@ -5,6 +5,7 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ConsultationStatus } from '@prisma/client';
+import { NotificationService } from '../services/notification.service';
 import { 
   invalidateBookingCache,
   invalidateFacultyCache,
@@ -16,13 +17,83 @@ import {
   getBookingRules,
 } from '../services/faculty-consultation.service';
 
+// Helper to safely get the real User.id from a Faculty record
+async function getFacultyUserId(facultyId: string): Promise<string | null> {
+  try {
+    // Try direct lookup
+    const faculty = await prisma.faculty.findUnique({
+      where: { id: facultyId },
+      select: { userId: true, email: true }
+    });
+
+    if (!faculty) return null;
+
+    // Priority 1: Direct userId field (best)
+    if (faculty.userId) {
+      return faculty.userId;
+    }
+
+    // Priority 2: Find by email
+    if (faculty.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: faculty.email },
+        select: { id: true }
+      });
+      if (user) return user.id;
+    }
+
+    console.warn(`Could not resolve userId for faculty ${facultyId}`);
+    return null;
+  } catch (err) {
+    console.error('Error resolving faculty userId:', err);
+    return null;
+  }
+}
+
+// Helper to safely get User.id from Faculty.id
+async function resolveFacultyUserId(facultyId: string): Promise<string | null> {
+  try {
+    const faculty = await prisma.faculty.findUnique({
+      where: { id: facultyId },
+      select: { 
+        userId: true, 
+        email: true,
+        firstName: true,
+        lastName: true 
+      }
+    });
+
+    if (!faculty) {
+      console.warn(`Faculty not found: ${facultyId}`);
+      return null;
+    }
+
+    if (faculty.userId) return faculty.userId;
+
+    if (faculty.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: faculty.email },
+        select: { id: true }
+      });
+      if (user) return user.id;
+    }
+
+    console.warn(`Could not resolve userId for faculty ${facultyId} (${faculty.firstName || ''} ${faculty.lastName || ''})`);
+    return null;
+  } catch (err) {
+    console.error(`Error resolving faculty userId ${facultyId}:`, err);
+    return null;
+  }
+}
+
+// Book a consultation with comprehensive validation
+// Book a consultation with comprehensive validation
 // Book a consultation with comprehensive validation
 export const bookConsultation = async (req: AuthRequest, res: Response) => {
   try {
     const studentId = req.user!.id;
     const { facultyId, date, startTime, endTime, topic, notes } = req.body;
 
-    // Basic field validation
     if (!facultyId || !date || !startTime || !endTime || !topic) {
       return res.status(400).json({ 
         error: 'Missing required fields',
@@ -30,16 +101,13 @@ export const bookConsultation = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Topic length validation
     if (topic.length < 5 || topic.length > 500) {
       return res.status(400).json({ error: 'Topic must be between 5 and 500 characters' });
     }
 
-    // Parse date in LOCAL timezone (not UTC) to match client-side parsing
     const [year, month, day] = (date as string).split('-').map(Number);
     const bookingDate = new Date(year, month - 1, day);
     
-    // Use comprehensive validation service
     const validation = await validateBookingRequest(
       studentId,
       facultyId,
@@ -56,8 +124,7 @@ export const bookConsultation = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Include warnings in response if any
-    const responseWarnings = validation.warnings;
+    const responseWarnings = validation.warnings || [];
 
     // Create the booking
     const booking = await prisma.consultationBooking.create({
@@ -73,26 +140,45 @@ export const bookConsultation = async (req: AuthRequest, res: Response) => {
         updatedAt: new Date()
       },
       include: {
-        Faculty: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true
-          }
-        },
-        Student: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true
-          }
-        }
+        Faculty: { select: { firstName: true, lastName: true, email: true } },
+        Student: { select: { firstName: true, lastName: true } }
       }
     });
 
-    // TODO: Send email notification to faculty
+    // ==================== NOTIFICATION TO FACULTY ====================
+    // Try to resolve faculty userId safely
+    let facultyUserId: string | null = null;
 
-    // Invalidate cache for this faculty and student
+    const facultyRecord = await prisma.faculty.findUnique({
+      where: { id: booking.facultyId },
+      select: { userId: true, email: true }
+    });
+
+    if (facultyRecord?.userId) {
+      facultyUserId = facultyRecord.userId;
+    } else if (facultyRecord?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: facultyRecord.email },
+        select: { id: true }
+      });
+      if (user) facultyUserId = user.id;
+    }
+
+    if (facultyUserId) {
+      const studentName = `${booking.Student?.firstName || ''} ${booking.Student?.lastName || ''}`.trim() || 'A student';
+
+      await NotificationService.notifyNewConsultationRequest({
+        facultyId: facultyUserId,
+        studentName,
+        topic: booking.topic,
+        date: bookingDate.toISOString().split('T')[0],
+        startTime: booking.startTime
+      });
+    } else {
+      console.warn(`⚠️ Could not resolve userId for faculty ${booking.facultyId}. Notification skipped.`);
+    }
+    // =================================================================
+
     await invalidateBookingCache(facultyId, studentId);
 
     return res.status(201).json({
@@ -101,9 +187,12 @@ export const bookConsultation = async (req: AuthRequest, res: Response) => {
       booking,
       warnings: responseWarnings.length > 0 ? responseWarnings : undefined,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Book consultation error:', error);
-    return res.status(500).json({ error: 'Failed to book consultation' });
+    return res.status(500).json({ 
+      error: 'Failed to book consultation',
+      details: error.message 
+    });
   }
 };
 
@@ -152,7 +241,8 @@ export const getFacultyBookings = async (req: AuthRequest, res: Response) => {
           select: {
             firstName: true,
             lastName: true,
-            email: true
+            email: true,
+            
           }
         }
       },
@@ -204,7 +294,8 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
           select: {
             firstName: true,
             lastName: true,
-            email: true
+            email: true,
+            userId: true
           }
         },
         Student: {
@@ -216,6 +307,26 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    // Send notification based on status change
+    if (status === 'CONFIRMED') {
+      await NotificationService.notifyConsultationConfirmed({
+        studentId: updated.studentId,
+        facultyName: `${updated.Faculty.firstName} ${updated.Faculty.lastName}`,
+        topic: booking.topic,
+        date: booking.date.toISOString().split('T')[0],
+        startTime: booking.startTime,
+        meetingLink: updated.meetingLink || undefined,
+        location: updated.location || undefined
+      });
+    } else if (status === 'CANCELLED') {
+      await NotificationService.notifyConsultationRejected({
+        studentId: updated.studentId,
+        facultyName: `${updated.Faculty.firstName} ${updated.Faculty.lastName}`,
+        topic: booking.topic,
+        reason: notes || undefined
+      });
+    }
 
     // TODO: Send email notification to student
 
@@ -230,13 +341,31 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
 };
 
 // Cancel booking (for student)
+// Cancel booking (for student)
 export const cancelBooking = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const studentId = req.user!.id;
 
     const booking = await prisma.consultationBooking.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        Faculty: {
+          select: { 
+            id: true,
+            firstName: true, 
+            lastName: true, 
+            email: true,
+            userId: true   // ← Important: get userId if Faculty has this field
+          }
+        },
+        Student: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
     });
 
     if (!booking) {
@@ -251,6 +380,7 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Cannot cancel this booking' });
     }
 
+    // Update the booking status
     const updated = await prisma.consultationBooking.update({
       where: { id },
       data: {
@@ -259,19 +389,52 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // TODO: Send email notification to faculty
+    // ==================== SAFE NOTIFICATION TO FACULTY ====================
+    let facultyUserId: string | null = null;
 
-    // Invalidate cache for this faculty and student
+    // Priority 1: Use direct userId from Faculty model (if it exists)
+    if (booking.Faculty?.userId) {
+      facultyUserId = booking.Faculty.userId;
+    } 
+    // Priority 2: Fallback - Find user by email
+    else if (booking.Faculty?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: booking.Faculty.email },
+        select: { id: true }
+      });
+      if (user) facultyUserId = user.id;
+    }
+
+    // Send notification only if we found the correct userId
+    if (facultyUserId) {
+      const studentName = `${booking.Student?.firstName || ''} ${booking.Student?.lastName || ''}`.trim() || 'A student';
+
+      await NotificationService.notifyConsultationCancelled({
+        facultyId: facultyUserId,           // ← Now passing real User.id
+        studentName,
+        topic: booking.topic,
+        date: booking.date.toISOString().split('T')[0],
+        startTime: booking.startTime
+      });
+    } else {
+      console.warn(`Could not resolve userId for faculty ${booking.facultyId}. Skipping notification.`);
+    }
+    // =================================================================
+
+    // Invalidate cache
     await invalidateBookingCache(booking.facultyId, studentId);
 
     return res.json(updated);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Cancel booking error:', error);
-    return res.status(500).json({ error: 'Failed to cancel booking' });
+    return res.status(500).json({ 
+      error: 'Failed to cancel booking',
+      details: error.message 
+    });
   }
 };
 
-// ─── Faculty: update own consultation schedule ────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Faculty: update own consultation schedule Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export const updateMySchedule = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
@@ -336,7 +499,7 @@ export const updateMySchedule = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ─── Faculty: get own faculty profile + upcoming bookings ─────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Faculty: get own faculty profile + upcoming bookings Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export const getMyFacultyProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
@@ -395,7 +558,7 @@ export const getMyFacultyProfile = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ─── Faculty: get weekly calendar view (bookings for a date range) ────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Faculty: get weekly calendar view (bookings for a date range) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export const getFacultyCalendar = async (req: AuthRequest, res: Response) => {
   try {
     const { facultyId, weekStart } = req.query;
@@ -443,9 +606,9 @@ export const getFacultyCalendar = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ─── Admin: get/update consultation configuration ─────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Admin: get/update consultation configuration Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Config is stored as a special FAQ entry with key "CONSULTATION_CONFIG"
-// (avoids a new migration — uses existing flexible storage)
+// (avoids a new migration Ã¢â‚¬â€ uses existing flexible storage)
 const CONSULTATION_CONFIG_KEY = 'CONSULTATION_CONFIG';
 
 export const getConsultationConfig = async (req: AuthRequest, res: Response) => {
@@ -607,7 +770,7 @@ export const getAvailableSlots = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ─── Slot Locking (Admin/Faculty) ──────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Slot Locking (Admin/Faculty) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 // Lock a consultation slot
 export const lockConsultationSlot = async (req: AuthRequest, res: Response) => {
@@ -670,7 +833,7 @@ export const unlockConsultationSlot = async (req: AuthRequest, res: Response) =>
   }
 };
 
-// ─── Booking History & Analytics (Admin) ───────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Booking History & Analytics (Admin) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 // Get booking history with filters
 export const getBookingHistoryEndpoint = async (req: AuthRequest, res: Response) => {

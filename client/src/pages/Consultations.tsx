@@ -205,15 +205,34 @@ export default function Consultations() {
       setShowBookingModal(false);
       fetchMyBookings();
     } catch (error: any) {
-      const msg = error.response?.data?.error || 'Failed to book consultation';
-      if (error.response?.status === 409) {
-        setTimeError(settings.language === 'fil'
-          ? 'Ang oras na ito ay occupied na. Pumili ng ibang oras.'
-          : 'This time slot is already booked. Please choose a different time.');
-      } else {
-        setToast({ message: msg, type: 'error' });
-      }
-    } finally {
+  const responseData = error.response?.data;
+  
+  if (responseData?.errors && Array.isArray(responseData.errors)) {
+    // Show the first main error
+    const mainError = responseData.errors[0];
+    setToast({ 
+      message: mainError, 
+      type: 'error' 
+    });
+    
+    // Optional: also show timeError for slot conflicts
+    if (mainError.includes('time slot') || mainError.includes('occupied')) {
+      setTimeError(mainError);
+    }
+  } 
+  else if (responseData?.error) {
+    setToast({ 
+      message: responseData.error, 
+      type: 'error' 
+    });
+  } 
+  else {
+    setToast({ 
+      message: settings.language === 'fil' ? 'May error sa pag-book. Subukan ulit.' : 'Failed to book consultation. Please try again.', 
+      type: 'error' 
+    });
+  }
+} finally {
       setBookingLoading(false);
     }
   };
@@ -450,14 +469,20 @@ export default function Consultations() {
                         {getStatusIcon(booking.status)}
                         {booking.status}
                       </div>
-                      {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
-                        <button
-                          onClick={() => handleCancelBooking(booking.id)}
-                          className="text-xs text-red-500 hover:text-red-600 font-medium hover:underline"
-                        >
-                          {settings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
-                        </button>
-                      )}
+                      {booking.status === 'PENDING' ? (
+  <button
+    onClick={() => handleCancelBooking(booking.id)}
+    className="text-xs text-red-500 hover:text-red-600 font-medium hover:underline"
+  >
+    {settings.language === 'fil' ? 'Kanselahin' : 'Cancel'}
+  </button>
+) : (
+  <span className="text-xs text-slate-400">
+    {booking.status === 'COMPLETED' 
+      ? (settings.language === 'fil' ? 'Nakumpleto na' : 'Completed')
+      : (settings.language === 'fil' ? 'Hindi na maaaring kanselahin' : 'Cannot cancel')}
+  </span>
+)}
                     </div>
                     <p className="font-semibold text-slate-900 dark:text-white text-sm mb-1">{booking.topic}</p>
                     {booking.Faculty && (

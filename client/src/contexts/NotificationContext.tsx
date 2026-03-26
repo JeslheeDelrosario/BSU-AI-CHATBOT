@@ -1,3 +1,4 @@
+// client\src\contexts\NotificationContext.tsx
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import api from '../lib/api';
 
@@ -33,17 +34,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
+
     try {
       setLoading(true);
       const [notifRes, countRes] = await Promise.all([
-        api.get('/notifications?limit=50'),
-        api.get('/notifications/unread-count')
+        api.get('/notifications?limit=50').catch(() => ({ data: { notifications: [] } })),
+        api.get('/notifications/unread-count').catch(() => ({ data: { count: 0 } }))
       ]);
       
-      setNotifications(notifRes.data.notifications);
-      setUnreadCount(countRes.data.count);
+      setNotifications(notifRes.data.notifications || []);
+      setUnreadCount(countRes.data.count || 0);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -52,11 +56,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const fetchUnreadCount = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
+
     try {
       const res = await api.get('/notifications/unread-count');
-      setUnreadCount(res.data.count);
-    } catch (error) {
+      setUnreadCount(res.data.count || 0);
+    } catch (error: any) {
       console.error('Failed to fetch unread count:', error);
+      // Don't let one failed request break the whole notification system
+      setUnreadCount(0); // safe fallback
     }
   }, []);
 

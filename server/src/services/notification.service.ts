@@ -1,3 +1,4 @@
+// server\src\services\notification.service.ts
 import { prisma } from '../lib/prisma';
 
 export enum NotificationType {
@@ -9,7 +10,12 @@ export enum NotificationType {
   ASSIGNMENT_DUE = 'ASSIGNMENT_DUE',
   MENTION = 'MENTION',
   CLASSROOM_INVITE = 'CLASSROOM_INVITE',
-  MEMBER_JOINED = 'MEMBER_JOINED'
+  MEMBER_JOINED = 'MEMBER_JOINED',
+  CONSULTATION_CONFIRMED = 'CONSULTATION_CONFIRMED',
+  CONSULTATION_REJECTED = 'CONSULTATION_REJECTED',
+  CONSULTATION_CANCELLED = 'CONSULTATION_CANCELLED',
+  CONSULTATION_REMINDER = 'CONSULTATION_REMINDER',
+  CONSULTATION_REQUEST = 'CONSULTATION_REQUEST'
 }
 
 interface NotificationData {
@@ -224,6 +230,104 @@ export class NotificationService {
       link: `/classrooms/${params.classroomId}`,
       metadata: {
         newMemberId: params.newMemberId
+      }
+    });
+  }
+
+  static async notifyConsultationConfirmed(params: {
+    studentId: string;
+    facultyName: string;
+    topic: string;
+    date: string;
+    startTime: string;
+    meetingLink?: string;
+    location?: string;
+  }) {
+    const meetingInfo = params.meetingLink 
+      ? `Meeting Link: ${params.meetingLink}`
+      : params.location 
+      ? `Location: ${params.location}`
+      : '';
+
+    await this.createNotification({
+      userId: params.studentId,
+      title: '✅ Consultation Confirmed',
+      message: `Your consultation request with ${params.facultyName} for "${params.topic}" has been confirmed for ${params.date} at ${params.startTime}. ${meetingInfo}`,
+      type: NotificationType.CONSULTATION_CONFIRMED,
+      link: '/consultations',
+      metadata: {
+        facultyName: params.facultyName,
+        topic: params.topic,
+        date: params.date,
+        startTime: params.startTime,
+        meetingLink: params.meetingLink,
+        location: params.location
+      }
+    });
+  }
+
+  static async notifyConsultationRejected(params: {
+    studentId: string;
+    facultyName: string;
+    topic: string;
+    reason?: string;
+  }) {
+    const reasonText = params.reason ? ` Reason: ${params.reason}` : '';
+
+    await this.createNotification({
+      userId: params.studentId,
+      title: '❌ Consultation Rejected',
+      message: `Your consultation request with ${params.facultyName} for "${params.topic}" has been rejected.${reasonText}`,
+      type: NotificationType.CONSULTATION_REJECTED,
+      link: '/consultations',
+      metadata: {
+        facultyName: params.facultyName,
+        topic: params.topic,
+        reason: params.reason
+      }
+    });
+  }
+
+  static async notifyConsultationCancelled(params: {
+    facultyId: string;
+    studentName: string;
+    topic: string;
+    date: string;
+    startTime: string;
+  }) {
+    await this.createNotification({
+      userId: params.facultyId,
+      title: '📅 Consultation Cancelled',
+      message: `${params.studentName} has cancelled their consultation for "${params.topic}" scheduled for ${params.date} at ${params.startTime}`,
+      type: NotificationType.CONSULTATION_CANCELLED,
+      link: '/consultations',
+      metadata: {
+        studentName: params.studentName,
+        topic: params.topic,
+        date: params.date,
+        startTime: params.startTime
+      }
+    });
+  }
+
+  static async notifyNewConsultationRequest(params: {
+    facultyId: string;
+    studentName: string;
+    topic: string;
+    date: string;
+    startTime: string;
+  }) {
+    await this.createNotification({
+      userId: params.facultyId,
+      title: '📩 New Consultation Request',           // Better title + icon
+      message: `${params.studentName} has requested a consultation for "${params.topic}" on ${params.date} at ${params.startTime}`,
+      type: NotificationType.CONSULTATION_REQUEST,    // ← Use the new type
+      link: '/consultations',
+      metadata: {
+        studentName: params.studentName,
+        topic: params.topic,
+        date: params.date,
+        startTime: params.startTime
       }
     });
   }

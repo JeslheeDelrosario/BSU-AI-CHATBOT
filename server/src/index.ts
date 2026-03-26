@@ -44,6 +44,7 @@ import roomLayoutRoutes from './routes/roomLayout.routes';
 import googleSsoRoutes from './routes/googleSso.routes';
 import aiSettingsRoutes from './routes/ai-settings.routes';
 import facultyAccountsRoutes from './routes/faculty-accounts.routes';
+import facultyRoutes from './routes/faculty.routes';
 import { authenticateToken } from './middleware/auth.middleware';
 
 // Initialize Redis connection
@@ -203,6 +204,7 @@ app.use('/api/admin/consultations', adminConsultationRoutes);
 app.use('/api/auth/google', googleSsoRoutes);
 app.use('/api/admin/ai', aiSettingsRoutes);
 app.use('/api/admin/faculty-accounts', authenticateToken, facultyAccountsRoutes);
+app.use('/api/admin/faculty', authenticateToken, facultyRoutes);
 
 // Health check route
 app.get('/api/health', (_req, res) => {

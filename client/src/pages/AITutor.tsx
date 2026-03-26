@@ -5,7 +5,7 @@ import {
   Send, Bot, User, Plus, Trash2, X, Menu, MessageSquare, MoreVertical, 
   Star, Edit2, ArrowDown, Search, AlertTriangle, Smile, Pin, PinOff,
   Palette, Bell, Clock, Sparkles, Calendar,
-  CheckCircle2, XCircle, WifiOff, Copy, Check
+  CheckCircle2, XCircle, WifiOff, Copy, Check,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -110,6 +110,29 @@ const getMessageDivider = (timestamp?: string, language: string = 'en') => {
   if (isToday) return language === 'fil' ? 'Ngayon' : 'Today';
   if (isYesterday) return language === 'fil' ? 'Kahapon' : 'Yesterday';
   return messageDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+// Utility function to categorize chats by time period
+const getChatTimePeriod = (chat: Chat, language: string = 'en'): string => {
+  const chatDate = new Date(chat.updatedAt);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const threeDaysAgo = new Date(today);
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const oneWeekAgo = new Date(today);
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  
+  const isToday = chatDate.toDateString() === today.toDateString();
+  const isYesterday = chatDate.toDateString() === yesterday.toDateString();
+  const isLast3Days = chatDate >= threeDaysAgo && chatDate < today;
+  const isLastWeek = chatDate >= oneWeekAgo && chatDate < threeDaysAgo;
+  
+  if (isToday) return language === 'fil' ? 'Ngayon' : 'Today';
+  if (isYesterday) return language === 'fil' ? 'Kahapon' : 'Yesterday';
+  if (isLast3Days) return language === 'fil' ? 'Nakaraang 3 araw' : 'Last 3 days';
+  if (isLastWeek) return language === 'fil' ? 'Nakaraang linggo' : 'Last week';
+  return language === 'fil' ? 'Mas maaga' : 'Older';
 };
 
 export default function AITutor() {
@@ -818,23 +841,68 @@ export default function AITutor() {
         .scrollbar-cyberpunk::-webkit-scrollbar-thumb:hover { 
           background: linear-gradient(180deg, #0891b2, #9333ea); 
         }
-        @keyframes bounce-delay-100 {
-          0%, 80%, 100% { transform: scale(0); }
-          40% { transform: scale(1); }
+
+        /* Prevent headings from being bold */
+        .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+          font-weight: normal;
+          font-size: 1rem;
+          margin-top: 1.5em;
+          margin-bottom: 0.5em;
         }
-        @keyframes bounce-delay-200 {
-          0%, 80%, 100% { transform: scale(0); }
-          40% { transform: scale(1); }
+
+        /* Prevent strong tags inside headings from being bold */
+        .prose :where(h1, h2, h3, h4, h5, h6) strong {
+          font-weight: normal;
         }
-        .animate-bounce-delay-100 {
-          animation: bounce-delay-100 1.4s infinite ease-in-out;
-          animation-delay: 0.16s;
+
+        /* Prevent strong tags in paragraphs from being bold (optional) */
+        .prose p strong {
+          font-weight: 600;
         }
-        .animate-bounce-delay-200 {
-          animation: bounce-delay-200 1.4s infinite ease-in-out;
-          animation-delay: 0.32s;
-        }
-      `}</style>
+
+        .prose {
+        white-space: pre-wrap;
+      }
+
+      .prose :where(p, ul, ol, h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+        margin-top: 0;
+        margin-bottom: 0.5em;
+      }
+
+      .prose :where(li):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+        margin-top: 0;
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      .prose :where(ul, ol):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+        margin-top: 0;
+        margin-bottom: 0;
+        padding-left: 1.5em;
+      }
+
+      .prose :where(br):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+        display: none;
+      }
+
+      @keyframes bounce-delay-100 {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+      }
+      @keyframes bounce-delay-200 {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+      }
+      .animate-bounce-delay-100 {
+        animation: bounce-delay-100 1.4s infinite ease-in-out;
+        animation-delay: 0.16s;
+      }
+      .animate-bounce-delay-200 {
+        animation: bounce-delay-200 1.4s infinite ease-in-out;
+        animation-delay: 0.32s;
+      }
+    `}</style>
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
@@ -897,12 +965,12 @@ export default function AITutor() {
 
       {/* ===== REDESIGNED SIDEBAR (LEFT SIDE) ===== */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800
-        shadow-2xl transform transition-transform duration-300 ease-out flex flex-col
+        fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-gradient-to-b from-white via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-black border-r border-cyan-400/15 dark:border-cyan-500/10
+        shadow-2xl shadow-cyan-500/10 transform transition-transform duration-300 ease-out flex flex-col
         ${chatHistoryOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* TISA Branding Header */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+        <div className="p-4 border-b border-cyan-400/10 dark:border-cyan-500/8 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 dark:from-cyan-500/5 dark:to-purple-500/5 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -971,41 +1039,57 @@ export default function AITutor() {
                 )
               : chats;
 
-            return filteredChats.length === 0 ? (
-              <div className="text-center mt-12 px-4">
-                <MessageSquare className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {searchQuery.trim() 
-                    ? (accessibilitySettings.language === 'fil' ? 'Walang nahanap' : 'No results found')
-                    : (accessibilitySettings.language === 'fil' ? 'Wala pang mga chat' : 'No chats yet')
-                  }
-                </p>
-                {!searchQuery.trim() && (
-                  <p className="text-xs text-slate-400 mt-1">{accessibilitySettings.language === 'fil' ? 'Magsimula ng bagong usapan' : 'Start a new conversation'}</p>
-                )}
-              </div>
-            ) : (
+            if (filteredChats.length === 0) {
+              return (
+                <div className="text-center mt-12 px-4">
+                  <MessageSquare className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {searchQuery.trim() 
+                      ? (accessibilitySettings.language === 'fil' ? 'Walang nahanap' : 'No results found')
+                      : (accessibilitySettings.language === 'fil' ? 'Wala pang mga chat' : 'No chats yet')
+                    }
+                  </p>
+                  {!searchQuery.trim() && (
+                    <p className="text-xs text-slate-400 mt-1">{accessibilitySettings.language === 'fil' ? 'Magsimula ng bagong usapan' : 'Start a new conversation'}</p>
+                  )}
+                </div>
+              );
+            }
+
+            // Group chats by time period
+            const timePeriods = ['Today', 'Yesterday', 'Last 3 days', 'Last week', 'Older'];
+            const timePeriodsFil = ['Ngayon', 'Kahapon', 'Nakaraang 3 araw', 'Nakaraang linggo', 'Mas maaga'];
+            const periodLabels = accessibilitySettings.language === 'fil' ? timePeriodsFil : timePeriods;
+            
+            const groupedChats: { [key: string]: Chat[] } = {};
+            periodLabels.forEach(period => {
+              groupedChats[period] = [];
+            });
+            
+            filteredChats.forEach(chat => {
+              const period = getChatTimePeriod(chat, accessibilitySettings.language);
+              if (groupedChats[period]) {
+                groupedChats[period].push(chat);
+              }
+            });
+
+            return (
               <>
-                {filteredChats.filter(c => c.isStarred).length > 0 && (
-                  <>
-                    <div className="px-3 py-2">
-                      <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        {accessibilitySettings.language === 'fil' ? 'Naka-star' : 'Starred'}
-                      </h3>
+                {periodLabels.map(period => {
+                  const chatsInPeriod = groupedChats[period];
+                  if (chatsInPeriod.length === 0) return null;
+                  
+                  return (
+                    <div key={period}>
+                      <div className="px-3 py-2 mt-2">
+                        <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                          {period}
+                        </h3>
+                      </div>
+                      {chatsInPeriod.map(chat => renderChatItem(chat))}
                     </div>
-                    {filteredChats.filter(c => c.isStarred).map(chat => renderChatItem(chat))}
-                  </>
-                )}
-                {filteredChats.filter(c => !c.isStarred).length > 0 && (
-                  <>
-                    <div className="px-3 py-2 mt-2">
-                      <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        {accessibilitySettings.language === 'fil' ? 'Kamakailan' : 'Recents'}
-                      </h3>
-                    </div>
-                    {filteredChats.filter(c => !c.isStarred).map(chat => renderChatItem(chat))}
-                  </>
-                )}
+                  );
+                })}
               </>
             );
           })()}
@@ -1029,7 +1113,7 @@ export default function AITutor() {
         </div>
 
         {/* Desktop Conversation Header Bar */}
-        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex-shrink-0 relative z-50">
+        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b border-cyan-400/15 dark:border-cyan-500/10 bg-gradient-to-r from-white/80 via-slate-50/80 to-slate-100/80 dark:from-slate-950/80 dark:via-slate-950/80 dark:to-black/80 backdrop-blur-xl flex-shrink-0 relative z-50 shadow-lg shadow-cyan-500/5">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
               <Bot className="w-5 h-5 text-white" />
@@ -1104,37 +1188,40 @@ export default function AITutor() {
 
         {/* Messages Container */}
         <div ref={messagesContainerRef} className={`flex-1 overflow-y-auto scrollbar-cyberpunk pt-16 lg:pt-0 relative ${currentBgClass}`}>
-          <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+          <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
             {messages.length === 0 ? (
-              <div className="text-center mt-20">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-500/20 to-purple-600/20 rounded-full mb-6 shadow-xl border border-cyan-500/30">
-                  <Bot className="w-12 h-12 text-cyan-400" />
+              <div className="text-center mt-16 px-4">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-full mb-8 shadow-xl border border-cyan-500/30 animate-in fade-in scale-95 duration-500">
+                  <Bot className="w-14 h-14 text-cyan-500" />
                 </div>
-                <h2 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-3">
-                  TISA AI Tutor
+                <h2 className="text-5xl font-black bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent mb-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  TISA
                 </h2>
-                <p className="text-base text-slate-600 dark:text-slate-400">
+                <p className="text-lg text-slate-600 dark:text-slate-400 mb-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
                   {accessibilitySettings.language === 'fil' 
-                    ? 'Ang iyong Student Assistant. Magtanong tungkol sa College of Science.'
-                    : 'Your Student Assistant. Ask anything about College of Science.'}
+                    ? 'Ang iyong Student Assistant'
+                    : 'Your Student Assistant'}
                 </p>
-                
+                <p className="text-sm text-slate-500 dark:text-slate-500 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
+                  {accessibilitySettings.language === 'fil' 
+                    ? 'Magtanong tungkol sa College of Science'
+                    : 'Ask anything about College of Science'}
+                </p>
                 {/* Connection Error State */}
                 {connectionError && (
-                  <div className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300">
-                    <WifiOff className="w-4 h-4" />
-                    {accessibilitySettings.language === 'fil' ? 'Hindi makakonekta sa server' : 'Unable to connect to server'}
-                    <button onClick={() => window.location.reload()} className="ml-2 px-2 py-0.5 text-xs bg-red-100 dark:bg-red-900/40 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors" title="Retry">
+                  <div className="mt-8 inline-flex items-center gap-2.5 px-5 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-700 dark:text-red-300 shadow-sm animate-in fade-in scale-95 duration-300">
+                    <WifiOff className="w-5 h-5 flex-shrink-0" />
+                    <span>{accessibilitySettings.language === 'fil' ? 'Hindi makakonekta sa server' : 'Unable to connect to server'}</span>
+                    <button onClick={() => window.location.reload()} className="ml-2 px-3 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/40 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors">
                       Retry
                     </button>
                   </div>
                 )}
-                
                 {/* Greeting Message */}
                 {showGreeting && greeting && (
-                  <div className="mt-8 max-w-2xl mx-auto">
-                    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-lg">
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                  <div className="mt-10 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-lg">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-left [&>p]:text-slate-900 dark:[&>p]:text-slate-100 [&>p]:leading-relaxed">
                         <div className="text-slate-900 dark:text-slate-100 whitespace-pre-line">
                           {greeting.split('**').map((part, i) => 
                             i % 2 === 0 ? part : <strong key={i}>{part}</strong>
@@ -1144,14 +1231,13 @@ export default function AITutor() {
                     </div>
                   </div>
                 )}
-                
                 {/* Smart Suggestions Bubbles */}
                 {suggestions.length > 0 && (
-                  <div className="mt-6 max-w-2xl mx-auto">
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">
-                      {accessibilitySettings.language === 'fil' ? 'Mga mungkahing tanong:' : 'Suggested questions:'}
+                  <div className="mt-8 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500">
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-4 text-center">
+                      {accessibilitySettings.language === 'fil' ? '💡 Mga mungkahing tanong:' : '💡 Suggested questions:'}
                     </p>
-                    <div className="flex flex-wrap gap-2 justify-center">
+                    <div className="flex flex-col gap-2.5">
                       {suggestions.map((suggestion, idx) => (
                         <button
                           key={idx}
@@ -1159,8 +1245,9 @@ export default function AITutor() {
                             setInput('');
                             sendMessage(suggestion);
                           }}
-                          className="px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-sm text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm hover:shadow-md"
+                          className="px-5 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-slate-100 transition-all hover:scale-105 hover:shadow-md shadow-sm font-medium text-left"
                         >
+                          <span className="text-slate-400 mr-2">→</span>
                           {suggestion}
                         </button>
                       ))}
@@ -1205,12 +1292,12 @@ export default function AITutor() {
                         </div>
                       ) : (
                       <div 
-                        className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} group/msg`}
+                        className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} group/msg animate-in fade-in slide-in-from-bottom-2 duration-300`}
                         onMouseEnter={() => setHoveredMsgIdx(i)}
                         onMouseLeave={() => setHoveredMsgIdx(null)}
                       >
-                        <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center shadow-lg
-                          ${msg.role === 'ai' ? 'bg-gradient-to-br from-cyan-500 to-purple-600' : 'bg-gradient-to-br from-purple-500 to-pink-600'}`}
+                        <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center shadow-md flex-none
+                          ${msg.role === 'ai' ? 'bg-gradient-to-br from-cyan-500 to-blue-600' : 'bg-gradient-to-br from-purple-500 to-pink-500'}`}
                         >
                           {msg.role === 'ai' ? <Bot className="w-5 h-5 text-white" /> : <User className="w-5 h-5 text-white" />}
                         </div>
@@ -1404,7 +1491,7 @@ export default function AITutor() {
                                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                 </div>
                                 {msg.timestamp && (
-                                  <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1">
+                                  <div className="text-[11px] text-blue-700 dark:text-slate-400 mt-1.5 flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
                                     {formatTimestamp(msg.timestamp)}
                                   </div>
@@ -1522,30 +1609,22 @@ export default function AITutor() {
                               </div>
                             </div>
                           ) : (
-                            <div className="relative inline-block max-w-full">
-                              <div className={`px-4 py-3 rounded-2xl shadow-md ${msg.isPinned ? 'ring-2 ring-amber-400/50' : ''}
+                            <div className="relative inline-block max-w-full group/bubble">
+                              <div className={`px-5 py-3.5 rounded-3xl shadow-sm transition-all ${msg.isPinned ? 'ring-2 ring-amber-400/50' : ''}
                                 ${msg.role === 'ai'
-                                  ? 'bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
-                                  : 'bg-gradient-to-r from-cyan-500/10 to-purple-600/10 border border-cyan-500/20 dark:border-cyan-500/30'
+                                  ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100'
+                                  : 'bg-gradient-to-br from-cyan-500 to-blue-900 text-white shadow-lg'
                                 }`}
                               >
                                 {msg.role === 'ai' ? (
-                                  <div className="prose prose-sm lg:prose-base dark:prose-invert max-w-none
-                                    [&>p]:text-slate-900 dark:[&>p]:text-slate-100 [&>p]:leading-relaxed
-                                    [&>strong]:text-slate-900 dark:[&>strong]:text-white [&>strong]:font-semibold
-                                    [&>em]:text-slate-700 dark:[&>em]:text-slate-300
-                                    [&>code]:text-slate-900 dark:[&>code]:text-slate-100 [&>code]:bg-slate-100 dark:[&>code]:bg-slate-900 [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded
-                                    [&>pre]:bg-slate-100 dark:[&>pre]:bg-slate-900 [&>pre]:border [&>pre]:border-slate-200 dark:[&>pre]:border-slate-700
-                                    [&>ul]:text-slate-900 dark:[&>ul]:text-slate-100 [&>ol]:text-slate-900 dark:[&>ol]:text-slate-100
-                                    [&>h1]:text-slate-900 dark:[&>h1]:text-white [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h3]:text-slate-900 dark:[&>h3]:text-white
-                                  ">
+                                  <div className="prose prose-sm lg:prose-base dark:prose-invert max-w-none break-words [&>p]:text-slate-900 dark:[&>p]:text-slate-100 [&>p]:leading-relaxed">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                   </div>
                                 ) : (
-                                  <p className="text-base lg:text-[17px] leading-relaxed text-slate-900 dark:text-slate-100">{msg.content}</p>
+                                  <p className="text-base lg:text-[17px] leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
                                 )}
                                 {msg.timestamp && (
-                                  <div className={`text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                  <div className={`text-[11px] text-black dark:text-white mt-1.5 flex items-center gap-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                                     <Clock className="w-3 h-3" />
                                     {formatTimestamp(msg.timestamp)}
                                     {msg.isPinned && <Pin className="w-3 h-3 text-amber-500 ml-1" />}
@@ -1554,12 +1633,12 @@ export default function AITutor() {
                               </div>
                               {/* Message Action Toolbar */}
                               {hoveredMsgIdx === i && (
-                                <div className={`absolute -top-8 ${msg.role === 'user' ? 'right-0' : 'left-0'} flex items-center gap-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg px-1 py-0.5 z-10`}>
-                                  <button onClick={() => copyMessage(msg.content, i)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors" title={accessibilitySettings.language === 'fil' ? 'Kopyahin' : 'Copy'}>
-                                    {copiedMsgIdx === i ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                <div className={`absolute -top-10 ${msg.role === 'user' ? 'right-0' : 'left-0'} flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full shadow-lg px-2 py-1.5 z-10 backdrop-blur-sm`}>
+                                  <button onClick={() => copyMessage(msg.content, i)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors" title={accessibilitySettings.language === 'fil' ? 'Kopyahin' : 'Copy'}>
+                                    {copiedMsgIdx === i ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                                   </button>
-                                  <button onClick={() => togglePinMessage(i)} className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors" title={msg.isPinned ? (accessibilitySettings.language === 'fil' ? 'I-unpin' : 'Unpin') : (accessibilitySettings.language === 'fil' ? 'I-pin' : 'Pin')}>
-                                    {msg.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                                  <button onClick={() => togglePinMessage(i)} className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors" title={msg.isPinned ? (accessibilitySettings.language === 'fil' ? 'I-unpin' : 'Unpin') : (accessibilitySettings.language === 'fil' ? 'I-pin' : 'Pin')}>
+                                    {msg.isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                                   </button>
                                 </div>
                               )}
@@ -1573,25 +1652,24 @@ export default function AITutor() {
                 })}
 
                 {loading && (
-                  <div className="flex gap-4">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg flex items-center justify-center">
+                  <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md flex items-center justify-center flex-none">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
-                    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 px-4 py-3 rounded-2xl shadow-md">
-                      <div className="flex gap-1.5">
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce-delay-100"></div>
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce-delay-200"></div>
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-5 py-3.5 rounded-3xl shadow-sm">
+                      <div className="flex gap-2">
+                        <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-bounce"></div>
+                        <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-bounce-delay-100"></div>
+                        <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-bounce-delay-200"></div>
                       </div>
                     </div>
                   </div>
                 )}
-                
                 {/* Smart Follow-up Suggestions After Messages */}
                 {!loading && messages.length > 0 && suggestions.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
-                      {accessibilitySettings.language === 'fil' ? 'Susunod na tanong:' : 'Follow-up questions:'}
+                  <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">
+                      {accessibilitySettings.language === 'fil' ? '💬 Susunod na tanong' : '💬 Follow-up questions'}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {suggestions.map((suggestion, idx) => (
@@ -1601,7 +1679,7 @@ export default function AITutor() {
                             setInput('');
                             sendMessage(suggestion);
                           }}
-                          className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-600/10 hover:from-cyan-500/20 hover:to-purple-600/20 border border-cyan-500/30 dark:border-cyan-500/40 rounded-full text-xs text-slate-900 dark:text-slate-100 transition-all hover:scale-105 shadow-sm"
+                          className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full text-xs text-slate-900 dark:text-slate-100 transition-all hover:scale-105 hover:shadow-md shadow-sm font-medium"
                         >
                           {suggestion}
                         </button>
@@ -1618,7 +1696,7 @@ export default function AITutor() {
           {showScrollButton && (
             <button
               onClick={scrollToBottom}
-              className="fixed bottom-24 right-8 z-30 p-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
+              className="fixed bottom-28 right-8 z-30 p-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full shadow-lg hover:shadow-cyan-500/40 transform hover:scale-110 active:scale-95 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4"
               aria-label="Scroll to bottom"
             >
               <ArrowDown className="w-5 h-5" />
@@ -1626,14 +1704,14 @@ export default function AITutor() {
           )}
         </div>
 
-        {/* Input Bar with Emoji Picker */}
-        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+        {/* Input Bar with Emoji Picker - Cyberpunk Theme */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-white via-slate-50 to-slate-100 dark:from-black dark:via-slate-950 dark:to-slate-900 border-t border-cyan-400/15 dark:border-cyan-500/10 shadow-lg shadow-cyan-500/5">
           <div className="max-w-3xl mx-auto px-4 py-4">
-            <div className="flex gap-3 items-end">
+            <div className="flex gap-2.5 items-end">
               <div className="relative">
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="p-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                          className="p-2.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200 hover:scale-110"
                   title={accessibilitySettings.language === 'fil' ? 'Emoji' : 'Emoji'}
                 >
                   <Smile className="w-5 h-5" />
@@ -1641,38 +1719,67 @@ export default function AITutor() {
                 {showEmojiPicker && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
-                    <div className="absolute bottom-14 left-0 z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-3">
-                      <div className="grid grid-cols-4 gap-1">
+                    <div className="absolute bottom-full left-0 mb-2 z-50 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 animate-in fade-in zoom-in-95 duration-150 w-48">
+                      <div className="grid grid-cols-4 gap-1.5">
                         {EMOJI_OPTIONS.map(emoji => (
-                          <button key={emoji} onClick={() => { setInput(prev => prev + emoji); setShowEmojiPicker(false); }} className="w-10 h-10 flex items-center justify-center text-xl hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                          <button 
+                            key={emoji} 
+                            onClick={() => { 
+                              setInput(prev => prev + emoji); 
+                              setShowEmojiPicker(false);
+                              textareaRef.current?.focus();
+                            }} 
+                            className="w-10 h-10 flex items-center justify-center text-2xl hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all hover:scale-110"
+                          >
                             {emoji}
                           </button>
                         ))}
+                      </div>
+                      {/* Optional: Add more emojis section */}
+                      <div className="border-t border-slate-100 dark:border-slate-700 mt-2 pt-2">
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {['😊', '🌟', '📚', '🎓', '💡', '✅', '🔥', '💪'].map(emoji => (
+                            <button 
+                              key={emoji} 
+                              onClick={() => { 
+                                setInput(prev => prev + emoji); 
+                                setShowEmojiPicker(false);
+                                textareaRef.current?.focus();
+                              }} 
+                              className="w-10 h-10 flex items-center justify-center text-xl hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all hover:scale-110"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </>
                 )}
               </div>
+              
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder={accessibilitySettings.language === 'fil' ? 'Magtanong kay TISA ng kahit ano...' : 'Ask TISA anything...'}
-                className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base lg:text-[17px] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm resize-none overflow-hidden min-h-[48px] max-h-[200px]"
+                        className="flex-1 px-5 py-3 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-base lg:text-[17px] text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all resize-none overflow-hidden min-h-[48px] max-h-[200px] font-medium"
                 disabled={loading}
                 rows={1}
               />
+              
               <button
                 onClick={() => sendMessage()}
                 disabled={loading || !input.trim()}
-                className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-cyan-500/30 transform hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 flex-none"
                 title={accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}
               >
                 <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">{accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}</span>
+                <span className="hidden sm:inline text-sm">{accessibilitySettings.language === 'fil' ? 'Ipadala' : 'Send'}</span>
               </button>
             </div>
+    
           </div>
         </div>
       </div>

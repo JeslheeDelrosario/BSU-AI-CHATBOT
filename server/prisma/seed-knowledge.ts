@@ -500,28 +500,62 @@ async function seedRoomSchedules() {
   console.log("🔄 Seeding Room Schedules...");
 
   // Store room schedules as FAQs for AI to access - create individual FAQs for better matching
-  const roomScheduleFAQs = [
-    {
-      category: "Room Schedules",
-      question: "What is the schedule for FH 106 room?",
-      answer:
-        "**FH 106 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: ECO 105 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: ECO 105 (BSB 1B) - CARPIO, ALFREDO\n• 1:00 PM - 4:00 PM: ECB 405 (BSB 2B) - JAVIER, RAYMUNDO\n• 4:00 PM - 7:00 PM: ECB 405 (BSB 2A) - JAVIER, RAYMUNDO\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1B) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 1:00 PM - 4:00 PM: ECB 405 L (BSB 2A) - JAVIER, RAYMUNDO\n• 4:00 PM - 7:00 PM: ECB 405 (BSB 2B) - JAVIER, RAYMUNDO\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: ZOO 103L (ZOO 103Lab) - VITUG, LAWRENCE V.\n• 10:00 AM - 1:00 PM: ECO 105L (BSB 1C) - ARRIETA, THELMA\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 4:00 PM - 7:00 PM: ECB 405 L (BSB 2A) - JAVIER, RAYMUNDO\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: ZOO 103L (ZOO 103Lab) - VITUG, LAWRENCE V.\n• 10:00 AM - 1:00 PM: CB 405 L (BSB 4B) - TADIOSA, EDWIN R.\n• 1:00 PM - 4:00 PM: EVO 303 L (BSB 3B) - CLEMENTE, RICHARD FRANC\n• 4:00 PM - 7:00 PM: STS 101 (BSB 1C) - CARPIO, ALFREDO\n\n**Friday:**\n• 7:00 AM - 10:00 AM: CHE 207/207L (BSFT 2B) - BASILIO, ELEONOR\n• 10:00 AM - 11:30 AM: AAH 101a - LEON, SHEILA MARIE\n• 11:30 AM - 1:00 PM: RLW 101 - MONTEMAYOR, LUZVIMINDA\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1C) - ARRIETA, THELMA\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: NSTP 11 (BSB 1A) - BERNARDO, EMIL\n• 10:00 AM - 1:00 PM: NSTP 11 (BSB 1B) - DELA CRUZ, CHESALON",
-      keywords: [
-        "fh106",
-        "fh 106",
-        "room 106",
-        "federizo hall",
-        "room schedule",
-        "classroom",
-        "fh",
-      ],
-      isPublished: true,
-    },
+  // Store room schedules as FAQs for AI to access - create individual FAQs for better matching
+const roomScheduleFAQs = [
+  {
+    category: "Room Schedules",
+    question: "What is the schedule for FH 106 room?",
+    answer: `**FH 106 Schedule**
+
+    **Monday:**
+    • 7:00 AM - 10:00 AM: ECO 105 (BSB 1A) - CARPIO, ALFREDO
+    • 10:00 AM - 1:00 PM: ECO 105 (BSB 1B) - CARPIO, ALFREDO
+    • 1:00 PM - 4:00 PM: ECB 405 (BSB 2B) - JAVIER, RAYMUNDO
+    • 4:00 PM - 7:00 PM: ECB 405 (BSB 2A) - JAVIER, RAYMUNDO
+
+    **Tuesday:**
+    • 7:00 AM - 10:00 AM: STS 101 (BSB 1B) - CARPIO, ALFREDO
+    • 10:00 AM - 1:00 PM: ECO 105L (BSB 1A) - CARPIO, ALFREDO
+    • 1:00 PM - 4:00 PM: ECB 405 L (BSB 2A) - JAVIER, RAYMUNDO
+    • 4:00 PM - 7:00 PM: ECB 405 (BSB 2B) - JAVIER, RAYMUNDO
+
+    **Wednesday:**
+    • 7:00 AM - 10:00 AM: ZOO 103L (ZOO 103Lab) - VITUG, LAWRENCE V.
+    • 10:00 AM - 1:00 PM: ECO 105L (BSB 1C) - ARRIETA, THELMA
+    • 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO
+    • 4:00 PM - 7:00 PM: ECB 405 L (BSB 2A) - JAVIER, RAYMUNDO
+
+    **Thursday:**
+    • 7:00 AM - 10:00 AM: ZOO 103L (ZOO 103Lab) - VITUG, LAWRENCE V.
+    • 10:00 AM - 1:00 PM: CB 405 L (BSB 4B) - TADIOSA, EDWIN R.
+    • 1:00 PM - 4:00 PM: EVO 303 L (BSB 3B) - CLEMENTE, RICHARD FRANC
+    • 4:00 PM - 7:00 PM: STS 101 (BSB 1C) - CARPIO, ALFREDO
+
+    **Friday:**
+    • 7:00 AM - 10:00 AM: CHE 207/207L (BSFT 2B) - BASILIO, ELEONOR
+    • 10:00 AM - 11:30 AM: AAH 101a - LEON, SHEILA MARIE
+    • 11:30 AM - 1:00 PM: RLW 101 - MONTEMAYOR, LUZVIMINDA
+    • 1:00 PM - 4:00 PM: ECO 105L (BSB 1C) - ARRIETA, THELMA
+
+    **Saturday:**
+    • 7:00 AM - 10:00 AM: NSTP 11 (BSB 1A) - BERNARDO, EMIL
+    • 10:00 AM - 1:00 PM: NSTP 11 (BSB 1B) - DELA CRUZ, CHESALON`,
+    keywords: [
+      "fh106",
+      "fh 106",
+      "room 106",
+      "federizo hall",
+      "room schedule",
+      "classroom",
+      "fh",
+    ],
+    isPublished: true,
+  },
     {
       category: "Room Schedules",
       question: "What is the schedule for FH 107 room?",
       answer:
-        "**FH 107 (Physics Lab) Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3B) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4B) - TADIOSA, EDWIN R.\n• 1:00 PM - 4:00 PM: PHY 202a (BSM BA 2B) - PEÑADO, ROSARIO\n• 3:00 PM - 4:30 PM: UTS 101 - Rotaquio, Marionne\n• 4:30 PM - 6:00 PM: BST 305 \n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PHY 202a (BSM AS 2B) - PEÑADO, ROSARIO\n• 10:00 AM - 1:00 PM: ErS 102L (BSES 1A PCM) - ARRIETA, THELMA\n• 1:00 PM - 4:00 PM: PHY 202a (BSM BA 2A) - PEÑADO, ROSARIO\n• 4:00 PM - 5:00 PM: PHY 202a - REYES, MA THERESA F.\n• 5:00 PM - 8:00 PM: PHY 202a - REYES, MA THERESA F.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: CHE 105/105L (BSFT 1A) - TUAZON, DEBBIE ANN S.\n• 10:00 AM - 1:00 PM: ErS 102L (BSES 1A CCDM) - SANTOS, KARL KENNETH\n• 1:00 PM - 4:00 PM: GIS 201 (BSES PCM 2A) - SANTOS, KARL KENNETH\n• 4:00 PM - 7:00 PM: GIS 201 (BSES CCDM 2A) - SANTOS, KARL KENNETH\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: CHE 306/306L (BSFT 2A) - BARRE, ATHEENA CAMMARA T.\n• 10:00 AM - 1:00 PM: ErS 102L (BSES 1A CCDM) - SANTOS, KARL KENNETH\n• 1:00 PM - 4:00 PM: ErS 102L (BSES 1A PCM) - ARRIETA, THELMA\n• 4:00 PM - 7:00 PM: PHY 202a (BSM AS 2A) - REYES, MA THERESA F.\n\n**Friday:**\n• 7:00 AM - 9:00 AM: MAT 103 - REYES, JO ANN\n• 10:00 AM - 1:00 PM: PHY 202a - PEÑADO, ROSARIO\n• 1:00 PM - 4:00 PM: PHY 202a (BSM BA 2B) - PEÑADO, ROSARIO\n• 4:00 PM - 7:00 PM: CHE 306/306L (BSFT 2B) - BARRE, ATHEENA CAMMARA T.",
+        "**FH 107 (Physics Lab) Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3B) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4B) - TADIOSA, EDWIN R.\n• 1:00 PM - 4:00 PM: PHY 202a (BSM BA 2B) - PEÑADO, ROSARIO\n• 3:00 PM - 4:30 PM: UTS 101 - Rotaquio, Marionne\n• 4:30 PM - 6:00 PM: BST 305 - Mandap, Marco \n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PHY 202a (BSM AS 2B) - PEÑADO, ROSARIO\n• 10:00 AM - 1:00 PM: ErS 102L (BSES 1A PCM) - ARRIETA, THELMA\n• 1:00 PM - 4:00 PM: PHY 202a (BSM BA 2A) - PEÑADO, ROSARIO\n• 4:00 PM - 5:00 PM: PHY 202a - REYES, MA THERESA F.\n• 5:00 PM - 8:00 PM: PHY 202a - REYES, MA THERESA F.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: CHE 105/105L (BSFT 1A) - TUAZON, DEBBIE ANN S.\n• 10:00 AM - 1:00 PM: ErS 102L (BSES 1A CCDM) - SANTOS, KARL KENNETH\n• 1:00 PM - 4:00 PM: GIS 201 (BSES PCM 2A) - SANTOS, KARL KENNETH\n• 4:00 PM - 7:00 PM: GIS 201 (BSES CCDM 2A) - SANTOS, KARL KENNETH\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: CHE 306/306L (BSFT 2A) - BARRE, ATHEENA CAMMARA T.\n• 10:00 AM - 1:00 PM: ErS 102L (BSES 1A CCDM) - SANTOS, KARL KENNETH\n• 1:00 PM - 4:00 PM: ErS 102L (BSES 1A PCM) - ARRIETA, THELMA\n• 4:00 PM - 7:00 PM: PHY 202a (BSM AS 2A) - REYES, MA THERESA F.**\n\n**Friday:**\n• 7:00 AM - 9:00 AM: MAT 103 - REYES, JO ANN\n• 10:00 AM - 1:00 PM: PHY 202a - PEÑADO, ROSARIO\n• 1:00 PM - 4:00 PM: PHY 202a (BSM BA 2B) - PEÑADO, ROSARIO\n• 4:00 PM - 7:00 PM: CHE 306/306L (BSFT 2B) - BARRE, ATHEENA CAMMARA T.\n",
       keywords: [
         "fh107",
         "fh 107",
@@ -538,7 +572,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 108 room?",
       answer:
-        "**FH 108 Schedule**\n\n**Monday:**\n• 8:00 AM - 10:00 AM: MAT 204 - ARELLANO, MA C.\n• 10:00 AM - 12:00 PM: MAT 204 - ARELLANO, MA C.\n• 10:00 AM - 12:00 PM: FST 408 - SALUNGA, ANNA DOMINIQUE\n• 1:00 PM - 2:30 PM: UTS 101 - ANG, MARIA CELINA\n• 3:00 PM - 5:00 PM: PHY 101 - INGCO, FREYA G.\n• 5:00 PM - 6:30 PM: FST 408 - NICOLAS, JOSIE\n• 6:30 PM - 8:00 PM: FBT 405 - NICOLAS, JOSIE\n\n**Tuesday:**\n• 8:30 AM - 10:00 AM: THE 301 - TUAZON, DEBBIE ANN S.\n• 10:00 AM - 1:00 PM: FFP 310 - SALUNGA\n• 2:30 PM - 4:00 PM: SSP 101d - JENNET, NATIVIDAD\n• 5:00 PM - 6:30 PM: SSP 101c - AGUSTIN, ALSON\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: FCH 208/208L (BSFT 2B) - BARRE, ATHEENA CAMMARA T.\n• 10:00 AM - 1:00 PM: STS 101 - DELA CRUZ, MARISSA D.\n• 1:00 PM - 4:00 PM: MAT 204 - ARELLANO, MA C.\n• 4:00 PM - 6:00 PM: STS 101 - SANTIAGO, LEO\n\n**Thursday:**\n• 8:30 AM - 10:00 AM: TCW 101 - JOSE, DENMARK Q.\n• 10:00 AM - 1:00 PM: MAT 204 - ARELLANO, MA C.\n• 1:00 PM - 4:00 PM: STS 101 - DELA CRUZ, MARISSA D.\n• 6:30 PM - 8:00 PM: UTS 101 - ANG, MARIA CELINA\n\n**Friday:**\n• 7:00 AM - 10:00 AM: FES 408 (BSFT 4B) - DE GUZMAN, MARICEL\n• 10:00 AM - 12:00 PM: FES 408 - DE GUZMAN, MARICEL\n• 1:00 PM - 2:30 PM: SSP 101d - JENNET, NATIVIDAD\n• 2:30 PM - 3:30 PM: PID 101 - SOTIO, JAMIE M.",
+        "**FH 108 Schedule**\n\n**Monday:**\n• 8:00 AM - 10:00 AM: MAT 204 - ARELLANO, MA C.\n• 10:00 AM - 12:00 PM: MAT 204 - ARELLANO, MA C.\n• 10:00 AM - 12:00 PM: FST 408 - SALUNGA, ANNA DOMINIQUE\n• 1:00 PM - 2:30 PM: UTS 101 - ANG, MARIA CELINA\n• 3:00 PM - 5:00 PM: PHY 101 - INGCO, FREYA G.\n• 5:00 PM - 6:30 PM: FST 408 - NICOLAS, JOSIE\n• 6:30 PM - 8:00 PM: FBT 405 - NICOLAS, JOSIE\n\n**Tuesday:**\n• 8:30 AM - 10:00 AM: THE 301 - TUAZON, DEBBIE ANN S.\n• 10:00 AM - 1:00 PM: FFP 310 - SALUNGA\n• 2:30 PM - 4:00 PM: SSP 101d - JENNET, NATIVIDAD\n• 5:00 PM - 6:30 PM: SSP 101c - AGUSTIN, ALSON\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: FCH 208/208L (BSFT 2B) - BARRE, ATHEENA CAMMARA T.\n• 10:00 AM - 1:00 PM: STS 101 - DELA CRUZ, MARISSA D.\n• 1:00 PM - 4:00 PM: MAT 204 - ARELLANO, MA C.\n• 4:00 PM - 6:00 PM: STS 101 - SANTIAGO, LEO\n\n**Thursday:**\n• 8:30 AM - 10:00 AM: TCW 101 - JOSE, DENMARK Q.\n• 10:00 AM - 1:00 PM: MAT 204 - ARELLANO, MA C.\n• 1:00 PM - 4:00 PM: STS 101 - DELA CRUZ, MARISSA D.\n• 6:30 PM - 8:00 PM: UTS 101 - ANG, MARIA CELINA**\n\n**Friday:**\n• 7:00 AM - 10:00 AM: FES 408 (BSFT 4B) - DE GUZMAN, MARICEL\n• 10:00 AM - 12:00 PM: FES 408 - DE GUZMAN, MARICEL\n• 1:00 PM - 2:30 PM: SSP 101d - JENNET, NATIVIDAD\n• 2:30 PM - 3:30 PM: PID 101 - SOTIO, JAMIE M.",
       keywords: [
         "fh108",
         "fh 108",
@@ -554,7 +588,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 110 room?",
       answer:
-        "**FH 110 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: INV 204 (BSB 3A) - LEE, MARY YLANE S.\n• 10:00 AM - 1:00 PM: INV 204 (BSB 3B) - LEE, MARY YLANE S.\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n• 1:00 PM - 2:30 PM: CHE 301L - TUAZON\n• 2:30 PM - 4:00 PM: FedAAN H 101 - DE LEON, SHIELA MARIE\n• 4:00 PM - 5:30 PM: PID 101 - RAMOS, DANTE B.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: CHE 105/105L (BSFT 1B) - TUAZON, DEBBIE ANN S.\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3A) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: MIC 205 (BSB 2B) - DIZON, SARAH JOY\n• 1:00 PM - 4:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MIC 205L (BSB 2B) - DIZON, SARAH JOY\n• 2:00 PM - 8:00 PM: GEN 301 L - DIZON, SARAH JOY\n• 4:00 PM - 8:00 PM: GEN 301L",
+        "**FH 110 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: INV 204 (BSB 3A) - LEE, MARY YLANE S.\n• 10:00 AM - 1:00 PM: INV 204 (BSB 3B) - LEE, MARY YLANE S.\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n• 1:00 PM - 2:30 PM: CHE 301L - TUAZON\n• 2:30 PM - 4:00 PM: FedAAN H 101 - DE LEON, SHIELA MARIE\n• 4:00 PM - 5:30 PM: PID 101 - RAMOS, DANTE B.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: CHE 105/105L (BSFT 1B) - TUAZON, DEBBIE ANN S.\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3A) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: MIC 205 (BSB 2B) - DIZON, SARAH JOY\n• 1:00 PM - 4:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.**\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MIC 205L (BSB 2B) - DIZON, SARAH JOY\n• 2:00 PM - 8:00 PM: GEN 301 L - DIZON, SARAH JOY\n• 4:00 PM - 8:00 PM: GEN 301L",
       keywords: [
         "What is the schedule for FH 110 room?",
         "FH110",
@@ -573,7 +607,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH CS-AR room?",
       answer:
-        "**FH CS-AR Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: BSM C 107 - Michael Santos\n• 10:00 AM - 1:00 PM: BSM AS 1A - MARCELINO, LYCAD D.\n• 1:00 PM - 4:00 PM: MAT 107 - Michael Santos\n• 4:00 PM - 7:00 PM: BSM BA 2A - Ortiguero, Freddie\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: BSM BA 2A - CAMARA, EVELYN\n• 10:00 AM - 1:00 PM: UTS 101 - Rotaquio, Marionne\n• 10:00 AM - 1:00 PM: BSM AS 2B - CAMARA, EVELYN\n• 1:00 PM - 4:00 PM: MAT 104 - Regalado, Chereilyn\n• 4:00 PM - 7:00 PM: NSTP 11 (BSM CS 1A G2) - Marcelino, Jon Jon\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: MAT 302 (Petition class) - Geronimo, Paul\n• 10:00 AM - 1:00 PM: NSTP 11 - Dela Cruz, Julieta\n• 1:00 PM - 4:00 PM: MAT 403 - ROBERTO, YOLANDA C.\n• 4:00 PM - 7:00 PM: BSM BA 4B - YOLANDA C. ROBERTO\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: BSM AS 3A - CARCOSIA, IMELDA\n• 10:00 AM - 1:00 PM: MAT 105 (BSM AS 1A) - CARCOSIA, IMELDA\n• 1:00 PM - 4:00 PM: MAT 104 - Regalado, CHERIELYN\n• 4:00 PM - 7:00 PM: NSTP 11 (FSM 1C) - Marcelino, Jon Jon\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ELEC II (BSB 4B) - CARCOSIA, IMELDA\n• 10:00 AM - 1:00 PM: MAT 205 (BSM AS 2A/2B) - VIOLA, JOSELITO\n• 1:00 PM - 4:00 PM: MAT 206 - CAMARA, EVELYN\n• 4:00 PM - 7:00 PM: UTS 101 (BSES 1A) - Lodrigito, Mark Anthony",
+        "**FH CS-AR Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: BSM C 107 - Michael Santos\n• 10:00 AM - 1:00 PM: BSM AS 1A - MARCELINO, LYCAD D.\n• 1:00 PM - 4:00 PM: MAT 107 - Michael Santos\n• 4:00 PM - 7:00 PM: BSM BA 2A - Ortiguero, Freddie\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: BSM BA 2A - CAMARA, EVELYN\n• 10:00 AM - 1:00 PM: UTS 101 - Rotaquio, Marionne\n• 10:00 AM - 1:00 PM: BSM AS 2B - CAMARA, EVELYN\n• 1:00 PM - 4:00 PM: MAT 104 - Regalado, Chereilyn\n• 4:00 PM - 7:00 PM: NSTP 11 (BSM CS 1A G2) - Marcelino, Jon Jon\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: MAT 302 (Petition class) - Geronimo, Paul\n• 10:00 AM - 1:00 PM: NSTP 11 - Dela Cruz, Julieta\n• 1:00 PM - 4:00 PM: MAT 403 - ROBERTO, YOLANDA C.\n• 4:00 PM - 7:00 PM: BSM BA 4B - YOLANDA C. ROBERTO\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: BSM AS 3A - CARCOSIA, IMELDA\n• 10:00 AM - 1:00 PM: MAT 105 (BSM AS 1A) - CARCOSIA, IMELDA\n• 1:00 PM - 4:00 PM: MAT 104 - Regalado, CHERIELYN\n• 4:00 PM - 7:00 PM: NSTP 11 (FSM 1C) - Marcelino, Jon Jon**\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ELEC II (BSB 4B) - CARCOSIA, IMELDA\n• 10:00 AM - 1:00 PM: MAT 205 (BSM AS 2A/2B) - VIOLA, JOSELITO\n• 1:00 PM - 4:00 PM: MAT 206 - CAMARA, EVELYN\n• 4:00 PM - 7:00 PM: UTS 101 (BSES 1A) - Lodrigito, Mark Anthony",
       keywords: [
         "fh cs-ar",
         "cs-ar",
@@ -589,7 +623,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FS CS R&E room?",
       answer:
-        "**FS CS R&E (Computer Science Research & Extension) Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: PID 101 (BSM AS 1B) - RAMOS, DANTE B.\n• 10:00 AM - 1:00 PM: MAT 405 (BSM AS 4B) - CLEMENTE, CARLA M.\n• 1:00 PM - 4:00 PM: MAT 405 (BSM AS 4A) - CLEMENTE, CARLA M.\n• 4:00 PM - 7:00 PM: BSM CS 4A - G2 - DUQUE, RAINILYN\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: RPH 101 (BSM BA 2B) - ORTIGUERO, FREDDIE\n• 10:00 AM - 1:00 PM: MAT 405 (BSM BA 4B) - ROBERTO, YOLANDA C.\n• 1:00 PM - 4:00 PM: MBA 204 (BSM BA 2B) - AURE, BENEDICT\n\n**Wednesday:**\n• 7:00 AM - 8:30 AM: BSM AS 2B - MACALISING, AARON\n• 8:30 AM - 10:00 AM: RLW (BSES 3A 2S 25-26) - CRUZ, TEODULO\n• 10:00 AM - 1:00 PM: BSM AS 2A - CAMARA, EVELYN\n• 1:00 PM - 4:00 PM: MAT 205 (BSM BA 2B) - VIOLA, JOSELITO\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: NSTP 11 (BSM AS 1A) - CAMPITA, ELJAY\n• 10:00 AM - 1:00 PM: MAT 206 (BSM BA 2A) - CAMARA, EVELYN\n• 1:00 PM - 4:00 PM: TCW 101 (BSFT 3A) - CERVANTES, NICOLE\n• 4:00 PM - 7:00 PM: FCS 401 (BSFT 1B) - MARTINEZ, MARIBETH\n\n**Friday:**\n• 7:00 AM - 10:00 AM: GEN 301 - DIZON, SARAH JOY\n• 10:00 AM - 1:00 PM: BSFT 4A - CAMARA, EVELYN",
+        "**FS CS R&E (Computer Science Research & Extension) Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: PID 101 (BSM AS 1B) - RAMOS, DANTE B.\n• 10:00 AM - 1:00 PM: MAT 405 (BSM AS 4B) - CLEMENTE, CARLA M.\n• 1:00 PM - 4:00 PM: MAT 405 (BSM AS 4A) - CLEMENTE, CARLA M.\n• 4:00 PM - 7:00 PM: BSM CS 4A - G2 - DUQUE, RAINILYN\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: RPH 101 (BSM BA 2B) - ORTIGUERO, FREDDIE\n• 10:00 AM - 1:00 PM: MAT 405 (BSM BA 4B) - ROBERTO, YOLANDA C.\n• 1:00 PM - 4:00 PM: MBA 204 (BSM BA 2B) - AURE, BENEDICT\n\n**Wednesday:**\n• 7:00 AM - 8:30 AM: BSM AS 2B - MACALISING, AARON\n• 8:30 AM - 10:00 AM: RLW (BSES 3A 2S 25-26) - CRUZ, TEODULO\n• 10:00 AM - 1:00 PM: BSM AS 2A - CAMARA, EVELYN\n• 1:00 PM - 4:00 PM: MAT 205 (BSM BA 2B) - VIOLA, JOSELITO\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: NSTP 11 (BSM AS 1A) - CAMPITA, ELJAY\n• 10:00 AM - 1:00 PM: MAT 206 (BSM BA 2A) - CAMARA, EVELYN\n• 1:00 PM - 4:00 PM: TCW 101 (BSFT 3A) - CERVANTES, NICOLE\n• 4:00 PM - 7:00 PM: FCS 401 (BSFT 1B) - MARTINEZ, MARIBETH**\n\n**Friday:**\n• 7:00 AM - 10:00 AM: GEN 301 - DIZON, SARAH JOY\n• 10:00 AM - 1:00 PM: BSFT 4A - CAMARA, EVELYN",
       keywords: [
         "fs cs r&e",
         "cs r&e",
@@ -605,7 +639,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 202 room?",
       answer:
-        "**FH 202 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: MAT 201 (BSES CCDM 2A)\n• 10:00 AM - 1:00 PM: PAL 101 (BSM CS 1A-G)\n• 1:00 PM - 4:00 PM: PAL 101 (BSM CS 1B-G)\n• 4:00 PM - 7:00 PM: STS 101 (BSM CS 3B-G2)\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAL 101 (BSM CS 1B-G2)\n• 10:00 AM - 1:00 PM: MST 101a (BSM CS 3A-G)\n• 1:00 PM - 4:00 PM: PCM 101 (BSM CS 1B-G)\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: MAT 402 (BSM CS 4B-G)\n• 10:00 AM - 1:00 PM: SSP 101d (BSM AS 4B)\n• 1:00 PM - 4:00 PM: RLW 101 (BSM BA 4B)\n• 4:00 PM - 7:00 PM: MST 101a (BSM BA 2A)\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: MAT 101a (BSM AS 3B)\n• 10:00 AM - 1:00 PM: MST 101a (BSM BA 3B)\n• 1:00 PM - 4:00 PM: PAL 101 (BSM CS 1B-G)\n• 4:00 PM - 7:00 PM: MST 101a (BSM BA 2B)\n\n**Friday:**\n• 7:00 AM - 10:00 AM: BSB 1B N\n• 10:00 AM - 1:00 PM: BSM CS 4A-G2 N\n• 1:00 PM - 4:00 PM: BSM CS 1A-G2 N",
+        "**FH 202 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: MAT 201 (BSES CCDM 2A)\n• 10:00 AM - 1:00 PM: PAL 101 (BSM CS 1A-G)\n• 1:00 PM - 4:00 PM: PAL 101 (BSM CS 1B-G)\n• 4:00 PM - 7:00 PM: STS 101 (BSM CS 3B-G2)\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAL 101 (BSM CS 1B-G2)\n• 10:00 AM - 1:00 PM: MST 101a (BSM CS 3A-G)\n• 1:00 PM - 4:00 PM: PCM 101 (BSM CS 1B-G)\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: MAT 402 (BSM CS 4B-G)\n• 10:00 AM - 1:00 PM: SSP 101d (BSM AS 4B)\n• 1:00 PM - 4:00 PM: RLW 101 (BSM BA 4B)\n• 4:00 PM - 7:00 PM: MST 101a (BSM BA 2A)\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: MAT 101a (BSM AS 3B)\n• 10:00 AM - 1:00 PM: MST 101a (BSM BA 3B)\n• 1:00 PM - 4:00 PM: PAL 101 (BSM CS 1B-G)\n• 4:00 PM - 7:00 PM: MST 101a (BSM BA 2B)**\n\n**Friday:**\n• 7:00 AM - 10:00 AM: BSB 1B N\n• 10:00 AM - 1:00 PM: BSM CS 4A-G2 N\n• 1:00 PM - 4:00 PM: BSM CS 1A-G2 N",
       keywords: [
         "fh202",
         "fh 202",
@@ -621,7 +655,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH AVR A room?",
       answer:
-        "**FH AVR A (Audio-Visual Room A) Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: BSM AS 2A - MACALISIANG, AARON\n• 10:00 AM - 1:00 PM: BSM BA 4A - ROBERTO, YOLANDA C.\n• 1:00 PM - 4:00 PM: MAT 403 (BSM AS 4B) - ROBERTO, YOLANDA C.\n• 4:00 PM - 8:00 PM: BSB A 1C - ANTONIO, ELYSSA\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: BSM AS 2B-G - CAMARA, EVELYN\n• 10:00 AM - 1:00 PM: BSM BA 2A - VIOLA, JOSELITO\n• 1:00 PM - 4:00 PM: MAT 205 - VIOLA, JOSELITO\n• 4:00 PM - 8:00 PM: BSM AS 2A - ROBERTO, YOLANDA C.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: BSM AS 3B - MORALES, IMELDA\n• 10:00 AM - 1:00 PM: BSM BA 4A - ROBERTO, YOLANDA C.\n• 1:00 PM - 4:00 PM: MAT 206 - CAMARA, EVELYN\n• 4:00 PM - 8:00 PM: BSM CS 1A G2 - MARCELINO, LYCAD D.\n\n**Thursday:**\n• 7:30 AM - 8:30 AM: BSM AS 3B - MORALES, IMELDA\n• 8:30 AM - 10:00 AM: BSM CS 2A G2 - VIOLA, JOSELITO\n• 10:00 AM - 1:00 PM: BSM AS 2B - VIOLA, JOSELITO\n• 1:00 PM - 4:00 PM: EFL 301 (BSM BA 3B) - DELA CRUZ, BERNADETTE\n• 5:00 PM - 6:30 PM: BSM BA 2B - DELA CRUZ, BERNADETTE\n• 6:30 PM - 8:00 PM: BSM BA 2A - DELA CRUZ, BERNADETTE\n\n**Friday:**\n• 7:00 AM - 10:00 AM: BSM CS 1B G2 - VIOLA, JOSELITO\n• 10:00 AM - 1:00 PM: BSM CS 3B G2 - HARRIS DELA CRUZ\n• 1:00 PM - 3:00 PM: BSM CS 2B G2 - VIOLA, JOSELITO\n• 3:00 PM - 5:00 PM: MAS 307 (BSM AS 3B) - GALVEZ, ARCEL F.",
+        "**FH AVR A (Audio-Visual Room A) Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: BSM AS 2A - MACALISIANG, AARON\n• 10:00 AM - 1:00 PM: BSM BA 4A - ROBERTO, YOLANDA C.\n• 1:00 PM - 4:00 PM: MAT 403 (BSM AS 4B) - ROBERTO, YOLANDA C.\n• 4:00 PM - 8:00 PM: BSB A 1C - ANTONIO, ELYSSA\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: BSM AS 2B-G - CAMARA, EVELYN\n• 10:00 AM - 1:00 PM: BSM BA 2A - VIOLA, JOSELITO\n• 1:00 PM - 4:00 PM: MAT 205 - VIOLA, JOSELITO\n• 4:00 PM - 8:00 PM: BSM AS 2A - ROBERTO, YOLANDA C.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: BSM AS 3B - MORALES, IMELDA\n• 10:00 AM - 1:00 PM: BSM BA 4A - ROBERTO, YOLANDA C.\n• 1:00 PM - 4:00 PM: MAT 206 - CAMARA, EVELYN\n• 4:00 PM - 8:00 PM: BSM CS 1A G2 - MARCELINO, LYCAD D.\n\n**Thursday:**\n• 7:30 AM - 8:30 AM: BSM AS 3B - MORALES, IMELDA\n• 8:30 AM - 10:00 AM: BSM CS 2A G2 - VIOLA, JOSELITO\n• 10:00 AM - 1:00 PM: BSM AS 2B - VIOLA, JOSELITO\n• 1:00 PM - 4:00 PM: EFL 301 (BSM BA 3B) - DELA CRUZ, BERNADETTE\n• 5:00 PM - 6:30 PM: BSM BA 2B - DELA CRUZ, BERNADETTE\n• 6:30 PM - 8:00 PM: BSM BA 2A - DELA CRUZ, BERNADETTE**\n\n**Friday:**\n• 7:00 AM - 10:00 AM: BSM CS 1B G2 - VIOLA, JOSELITO\n• 10:00 AM - 1:00 PM: BSM CS 3B G2 - HARRIS DELA CRUZ\n• 1:00 PM - 3:00 PM: BSM CS 2B G2 - VIOLA, JOSELITO\n• 3:00 PM - 5:00 PM: MAS 307 (BSM AS 3B) - GALVEZ, ARCEL F.",
       keywords: [
         "fh avr a",
         "avr a",
@@ -638,7 +672,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 205 room?",
       answer:
-        "**FH 205 Schedule**\n\n**Monday:**\n• 10:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G1) - GALVEZ, ARCEL F.\n• 1:00 PM - 4:00 PM: MCS 206 (BSM CS 2B G2) - GALVEZ, ARCEL F.\n• 4:00 PM - 7:00 PM: MCS 206 (BSM CS 2B G1) - GALVEZ, ARCEL F.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: BSM AS 4B G - DELA CRUZ, AARHUS M.\n• 10:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G2) - GALVEZ, ARCEL F.\n• 1:00 PM - 4:00 PM: MAS 304 (BSM AS 3B) - VALEROSO, JOSHUA\n• 4:00 PM - 7:00 PM: MAS 304 (BSM AS 3A) - VALEROSO, JOSHUA\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: BSM CS 4B G2 - DELA CRUZ, AARHUS\n• 10:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G1) - GALVEZ, ARCEL F.\n• 1:00 PM - 4:00 PM: MAS 307 (BSM AS 3A) - GALVEZ, ARCEL F.\n• 4:00 PM - 7:00 PM: MAS 307 (BSM AS 3B) - GALVEZ, ARCEL F.\n\n**Thursday:**\n• 7:00 AM - 8:30 AM: BSM CS 3B - DELA CRUZ, HARRIS\n• 8:30 AM - 11:30 AM: BSM CS 3A G2 - DELA CRUZ, HARRIS\n• 10:00 AM - 11:30 AM: BSM CS 3A - DELA CRUZ, HARRIS\n• 11:30 AM - 1:00 PM: BSM AS 3B - DELA CRUZ, HARRIS\n• 1:00 PM - 4:00 PM: MCS 206 (BSM CS 2B G1) - GALVEZ, ARCEL F.\n• 4:00 PM - 7:00 PM: MCS 206 (BSM CS 2B G2) - GALVEZ, ARCEL F.\n\n**Friday:**\n• 7:00 AM - 8:30 AM: BSM AS 3B - DELA CRUZ, HARRIS\n• 10:00 AM - 1:00 PM: BSM AS 3A - CLEMENTE, CARLA M.\n• 2:00 PM - 5:00 PM: BST 305L (BSM 3B)\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MAT 306 (BSM BA 3A) - DELA CRUZ, HARRIS\n• 10:00 AM - 1:00 PM: MAT 306 (BSM BA 3B) - DELA CRUZ, HARRIS",
+        "**FH 205 Schedule**\n\n**Monday:**\n• 10:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G1) - GALVEZ, ARCEL F.\n• 1:00 PM - 4:00 PM: MCS 206 (BSM CS 2B G2) - GALVEZ, ARCEL F.\n• 4:00 PM - 7:00 PM: MCS 206 (BSM CS 2B G1) - GALVEZ, ARCEL F.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: BSM AS 4B G - DELA CRUZ, AARHUS M.\n• 10:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G2) - GALVEZ, ARCEL F.\n• 1:00 PM - 4:00 PM: MAS 304 (BSM AS 3B) - VALEROSO, JOSHUA\n• 4:00 PM - 7:00 PM: MAS 304 (BSM AS 3A) - VALEROSO, JOSHUA\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: BSM CS 4B G2 - DELA CRUZ, AARHUS\n• 10:00 AM - 1:00 PM: MCS 206 (BSM CS 2A G1) - GALVEZ, ARCEL F.\n• 1:00 PM - 4:00 PM: MAS 307 (BSM AS 3A) - GALVEZ, ARCEL F.\n• 4:00 PM - 7:00 PM: MAS 307 (BSM AS 3B) - GALVEZ, ARCEL F.\n\n**Thursday:**\n• 7:00 AM - 8:30 AM: BSM CS 3B - DELA CRUZ, HARRIS\n• 8:30 AM - 11:30 AM: BSM CS 3A G2 - DELA CRUZ, HARRIS\n• 10:00 AM - 11:30 AM: BSM CS 3A - DELA CRUZ, HARRIS\n• 11:30 AM - 1:00 PM: BSM AS 3B - DELA CRUZ, HARRIS\n• 1:00 PM - 4:00 PM: MCS 206 (BSM CS 2B G1) - GALVEZ, ARCEL F.\n• 4:00 PM - 7:00 PM: MCS 206 (BSM CS 2B G2) - GALVEZ, ARCEL F.**\n\n**Friday:**\n• 7:00 AM - 8:30 AM: BSM AS 3B - DELA CRUZ, HARRIS\n• 10:00 AM - 1:00 PM: BSM AS 3A - CLEMENTE, CARLA M.\n• 2:00 PM - 5:00 PM: BST 305L (BSM 3B) - MANDAP, MARCO**\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MAT 306 (BSM BA 3A) - DELA CRUZ, HARRIS\n• 10:00 AM - 1:00 PM: MAT 306 (BSM BA 3B) - DELA CRUZ, HARRIS",
       keywords: [
         "fh205",
         "fh 205",
@@ -654,7 +688,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 206 room?",
       answer:
-        "**FH 206 Schedule**\n\n**Monday:**\n• 7:00 AM - 8:30 AM: BSM AS 4B - VALEROSO, JOSHUA\n• 8:30 AM - 10:00 AM: AAH 101a - VALEROSO, JOSHUA\n• 10:00 AM - 11:30 AM: BSM AS 4A - VALEROSO, JOSHUA\n• 11:30 AM - 1:00 PM: BSM CS 4A G2 - VALEROSO, JOSHUA\n• 1:00 PM - 2:30 PM: BSM CS 4B - DUQUE, RAINILYN\n• 2:30 PM - 4:00 PM: BSM BA 4B - VALEROSO, JOSHUA\n• 4:00 PM - 5:30 PM: BSM CS 2A G2 - Ellenita Manalaysay\n\n**Tuesday:**\n• 8:30 AM - 10:00 AM: AAH 101a - DE LEON, SHIELA\n• 10:00 AM - 1:00 PM: BSM CS 2B - Manalaysay Ellenita\n• 1:00 PM - 2:30 PM: MAS 307 - GALVEZ, ARCEL\n• 2:30 PM - 4:00 PM: MAS 204a - CLEMENTE, CARLA\n• 4:00 PM - 5:30 PM: MAT 204a - ESTRELLA, BENEDICT\n\n**Wednesday:**\n• 7:00 AM - 8:30 AM: BSM CS 2A - CAMARA, EVELYN\n• 8:30 AM - 10:00 AM: MAT 306 - DELA CRUZ, HARRIS\n• 11:30 AM - 1:00 PM: BSM CS 4A - Valeroso Joshua\n• 1:00 PM - 2:30 PM: MAT 206 - VALEROSO, JOSHUA\n• 2:30 PM - 4:00 PM: BSM BA 4A - VALEROSO, JOSHUA\n• 4:00 PM - 5:30 PM: BSM AS 4A - VALEROSO, JOSHUA\n• 5:30 PM - 8:00 PM: BSM AS 4B - VALEROSO, JOSHUA\n\n**Thursday:**\n• 11:30 AM - 1:00 PM: BSM CS 3A - SANTOS, EDGARDO\n• 1:00 PM - 2:30 PM: ESM 206 - VITUG, LAWRENCE\n• 4:00 PM - 5:30 PM: MAT 204a - ESTRELLA, BENEDICT\n\n**Friday:**\n• 10:00 AM - 11:30 AM: MAT 307 - SANTOS, DR. EDGARDO\n• 1:00 PM - 2:30 PM: MAT 307 - ROBERTO, YOLANDA\n• 2:30 PM - 4:00 PM: BSM CS 3B G2 - ROBERTO, YOLANDA\n• 4:00 PM - 5:30 PM: MAT 204a - ESTRELLA, BENEDICT",
+        "**FH 206 Schedule**\n\n**Monday:**\n• 7:00 AM - 8:30 AM: BSM AS 4B - VALEROSO, JOSHUA\n• 8:30 AM - 10:00 AM: AAH 101a - VALEROSO, JOSHUA\n• 10:00 AM - 11:30 AM: BSM AS 4A - VALEROSO, JOSHUA\n• 11:30 AM - 1:00 PM: BSM CS 4A G2 - VALEROSO, JOSHUA\n• 1:00 PM - 2:30 PM: BSM CS 4B - DUQUE, RAINILYN\n• 2:30 PM - 4:00 PM: BSM BA 4B - VALEROSO, JOSHUA\n• 4:00 PM - 5:30 PM: BSM CS 2A G2 - Ellenita Manalaysay\n\n**Tuesday:**\n• 8:30 AM - 10:00 AM: AAH 101a - DE LEON, SHIELA\n• 10:00 AM - 1:00 PM: BSM CS 2B - Manalaysay Ellenita\n• 1:00 PM - 2:30 PM: MAS 307 - GALVEZ, ARCEL\n• 2:30 PM - 4:00 PM: MAS 204a - CLEMENTE, CARLA\n• 4:00 PM - 5:30 PM: MAT 204a - ESTRELLA, BENEDICT\n\n**Wednesday:**\n• 7:00 AM - 8:30 AM: BSM CS 2A - CAMARA, EVELYN\n• 8:30 AM - 10:00 AM: MAT 306 - DELA CRUZ, HARRIS\n• 11:30 AM - 1:00 PM: BSM CS 4A - Valeroso Joshua\n• 1:00 PM - 2:30 PM: MAT 206 - VALEROSO, JOSHUA\n• 2:30 PM - 4:00 PM: BSM BA 4A - VALEROSO, JOSHUA\n• 4:00 PM - 5:30 PM: BSM AS 4A - VALEROSO, JOSHUA\n• 5:30 PM - 8:00 PM: BSM AS 4B - VALEROSO, JOSHUA\n\n**Thursday:**\n• 11:30 AM - 1:00 PM: BSM CS 3A - SANTOS, EDGARDO\n• 1:00 PM - 2:30 PM: ESM 206 - VITUG, LAWRENCE\n• 4:00 PM - 5:30 PM: MAT 204a - ESTRELLA, BENEDICT**\n\n**Friday:**\n• 10:00 AM - 11:30 AM: MAT 307 - SANTOS, DR. EDGARDO\n• 1:00 PM - 2:30 PM: MAT 307 - ROBERTO, YOLANDA\n• 2:30 PM - 4:00 PM: BSM CS 3B G2 - ROBERTO, YOLANDA\n• 4:00 PM - 5:30 PM: MAT 204a - ESTRELLA, BENEDICT",
       keywords: [
         "fh206",
         "fh 206",
@@ -670,7 +704,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 207 room?",
       answer:
-        "**FH 207 Schedule**\n\n**Monday:**\n• 7:00 AM - 9:00 AM: MCS 103a (BSM CS 1A G2) - ANGELES, DEO STEPHANIE\n• 9:00 AM - 11:00 AM: MCS 103a (BSM CS 1A G1) - ANGELES, DEO STEPHANIE\n• 11:00 AM - 1:00 PM: MCS 103a (BSM CS 1B G1) - ANGELES, DEO STEPHANIE\n• 1:00 PM - 3:00 PM: MAS 203a (BSM AS 2B) - MAGTULIS, MARYANN C\n• 3:00 PM - 4:00 PM: MAT 405 (BSM CS 4B G1) - DUQUE, RAINILYN\n• 4:00 PM - 6:00 PM: MAS 203a (BSM AS 2A) - MAGTULIS, MARYANN C\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: MCS 103a (BSM CS 1B G1) - ANGELES, DEO STEPHANIE\n• 10:00 AM - 1:00 PM: MCS 103a (BSM CS 1B G2) - ANGELES, DEO STEPHANIE\n• 2:00 PM - 5:00 PM: MAS 203a (BSM AS 2A) - MAGTULIS, MARYANN C\n• 5:00 PM - 8:00 PM: FEL 401 (BSM AS 4A) - GALVEZ, ARCEL F\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: MCS 103a (BSM CS 1A G1) - ANGELES, DEO STEPHANIE\n• 10:00 AM - 1:00 PM: MAS 204a (BSM AS 2B) - CLEMENTE, CARLA M\n• 2:00 PM - 5:00 PM: MAS 204a (BSM AS 2A) - CLEMENTE, CARLA M\n• 5:00 PM - 8:00 PM: MAS 103 (BSM AS 1A) - MAGTULIS, MARYANN C\n\n**Thursday:**\n• 7:00 AM - 8:30 AM: BSM CS 3A G1 - DELA CRUZ, AARHUS M M\n• 8:30 AM - 10:00 AM: MAT 305 (BSM CS 3B G1) - DELA CRUZ, AARHUS M M\n• 10:00 AM - 1:00 PM: MAS 305 (BSM AS 3A) - MANGARAN, ARMELE\n• 2:00 PM - 5:00 PM: MAS 305 (BSM AS 3B) - MANGARAN, ARMELE\n• 5:00 PM - 8:00 PM: MAS 103 (BSM AS 1B) - MAGTULIS, MARYANN C\n\n**Friday:**\n• 7:00 AM - 8:30 AM: BSM AS 3A - DELA CRUZ, AARHUS M M\n• 8:30 AM - 10:00 AM: MAT 305 (BSM AS 3B) - DELA CRUZ, AARHUS M M\n• 10:00 AM - 1:00 PM: MCS 103a (BSM CS 1A G2) - ANGELES, DEO STEPHANIE\n• 2:00 PM - 5:00 PM: MAS 306 (BSM AS 3A) - CLEMENTE, CARLA M\n• 5:00 PM - 8:00 PM: FEL 401 (BSM AS 4B) - GALVEZ, ARCEL F\n\n**Saturday:**\n• 10:00 AM - 1:00 PM: MBA 306 (BSM BA 3A)\n• 1:00 PM - 4:00 PM: MBA 306 (BSM BA 3B)",
+        "**FH 207 Schedule**\n\n**Monday:**\n• 7:00 AM - 9:00 AM: MCS 103a (BSM CS 1A G2) - ANGELES, DEO STEPHANIE\n• 9:00 AM - 11:00 AM: MCS 103a (BSM CS 1A G1) - ANGELES, DEO STEPHANIE\n• 11:00 AM - 1:00 PM: MCS 103a (BSM CS 1B G1) - ANGELES, DEO STEPHANIE\n• 1:00 PM - 3:00 PM: MAS 203a (BSM AS 2B) - MAGTULIS, MARYANN C\n• 3:00 PM - 4:00 PM: MAT 405 (BSM CS 4B G1) - DUQUE, RAINILYN\n• 4:00 PM - 6:00 PM: MAS 203a (BSM AS 2A) - MAGTULIS, MARYANN C\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: MCS 103a (BSM CS 1B G1) - ANGELES, DEO STEPHANIE\n• 10:00 AM - 1:00 PM: MCS 103a (BSM CS 1B G2) - ANGELES, DEO STEPHANIE\n• 2:00 PM - 5:00 PM: MAS 203a (BSM AS 2A) - MAGTULIS, MARYANN C\n• 5:00 PM - 8:00 PM: FEL 401 (BSM AS 4A) - GALVEZ, ARCEL F\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: MCS 103a (BSM CS 1A G1) - ANGELES, DEO STEPHANIE\n• 10:00 AM - 1:00 PM: MAS 204a (BSM AS 2B) - CLEMENTE, CARLA M\n• 2:00 PM - 5:00 PM: MAS 204a (BSM AS 2A) - CLEMENTE, CARLA M\n• 5:00 PM - 8:00 PM: MAS 103 (BSM AS 1A) - MAGTULIS, MARYANN C\n\n**Thursday:**\n• 7:00 AM - 8:30 AM: BSM CS 3A G1 - DELA CRUZ, AARHUS M M\n• 8:30 AM - 10:00 AM: MAT 305 (BSM CS 3B G1) - DELA CRUZ, AARHUS M M\n• 10:00 AM - 1:00 PM: MAS 305 (BSM AS 3A) - MANGARAN, ARMELE\n• 2:00 PM - 5:00 PM: MAS 305 (BSM AS 3B) - MANGARAN, ARMELE\n• 5:00 PM - 8:00 PM: MAS 103 (BSM AS 1B) - MAGTULIS, MARYANN C\n\n**Friday:**\n• 7:00 AM - 8:30 AM: BSM AS 3A - DELA CRUZ, AARHUS M M\n• 8:30 AM - 10:00 AM: MAT 305 (BSM AS 3B) - DELA CRUZ, AARHUS M M\n• 10:00 AM - 1:00 PM: MCS 103a (BSM CS 1A G2) - ANGELES, DEO STEPHANIE\n• 2:00 PM - 5:00 PM: MAS 306 (BSM AS 3A) - CLEMENTE, CARLA M\n• 5:00 PM - 8:00 PM: FEL 401 (BSM AS 4B) - GALVEZ, ARCEL F**\n\n**Saturday:**\n• 10:00 AM - 1:00 PM: MBA 306 (BSM BA 3A)- MANDAP, MARCO\n• 1:00 PM - 4:00 PM: MBA 306 (BSM BA 3B) - MANDAP, MARCO",
       keywords: [
         "fh207",
         "fh 207",
@@ -686,7 +720,7 @@ async function seedRoomSchedules() {
       category: "Room Schedules",
       question: "What is the schedule for FH 110 room?",
       answer:
-        "**FH 110 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: INV 204 (BSB 3A) - LEE, MARY YLANE S.\n• 10:00 AM - 1:00 PM: INV 204 (BSB 3B) - LEE, MARY YLANE S.\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n• 1:00 PM - 2:30 PM: CHE 301L - TUAZON\n• 2:30 PM - 4:00 PM: FedAAN H 101 - DE LEON, SHIELA MARIE\n• 4:00 PM - 5:30 PM: PID 101 - RAMOS, DANTE B.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: CHE 105/105L (BSFT 1B) - TUAZON, DEBBIE ANN S.\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3A) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: MIC 205 (BSB 2B) - DIZON, SARAH JOY\n• 1:00 PM - 4:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MIC 205L (BSB 2B) - DIZON, SARAH JOY\n• 2:00 PM - 8:00 PM: GEN 301 L - DIZON, SARAH JOY\n• 4:00 PM - 8:00 PM: GEN 301L",
+        "**FH 110 Schedule**\n\n**Monday:**\n• 7:00 AM - 10:00 AM: INV 204 (BSB 3A) - LEE, MARY YLANE S.\n• 10:00 AM - 1:00 PM: INV 204 (BSB 3B) - LEE, MARY YLANE S.\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n\n**Tuesday:**\n• 7:00 AM - 10:00 AM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 10:00 AM - 1:00 PM: ECB 405 (BSB 4A) - TADIOSA, EDWIN R.\n• 1:00 PM - 2:30 PM: CHE 301L - TUAZON\n• 2:30 PM - 4:00 PM: FedAAN H 101 - DE LEON, SHIELA MARIE\n• 4:00 PM - 5:30 PM: PID 101 - RAMOS, DANTE B.\n\n**Wednesday:**\n• 7:00 AM - 10:00 AM: STS 101 (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: PAR 404 (BSB 4A) - TAN, JUDITH CLARISSE\n• 1:00 PM - 4:00 PM: PAR 404 (BSB 4B) - TAN, JUDITH CLARISSE\n• 4:00 PM - 8:00 PM: CHE 105/105L (BSFT 1B) - TUAZON, DEBBIE ANN S.\n\n**Thursday:**\n• 7:00 AM - 10:00 AM: EVO 303 (BSB 3A) - CLEMENTE, RICHARD FRANC\n• 10:00 AM - 1:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 1:00 PM - 4:00 PM: ECO 105L (BSB 1B) - CARPIO, ALFREDO\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.\n\n**Friday:**\n• 7:00 AM - 10:00 AM: ECO 105L (BSB 1A) - CARPIO, ALFREDO\n• 10:00 AM - 1:00 PM: MIC 205 (BSB 2B) - DIZON, SARAH JOY\n• 1:00 PM - 4:00 PM: MIC 205L (BSB 2A) - VITUG, LAWRENCE V.\n• 5:00 PM - 8:00 PM: UTS 101 - CATACUTAN, PAULA ANGELICA H.**\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MIC 205L (BSB 2B) - DIZON, SARAH JOY\n• 2:00 PM - 8:00 PM: GEN 301 L - DIZON, SARAH JOY\n• 4:00 PM - 8:00 PM: GEN 301L",
       keywords: [
         "fh110",
         "fh 110",
@@ -794,7 +828,7 @@ Thursday
       category: "Faculty Schedules",
       question: "What is the schedule of Prof. Harris R. Dela Cruz?",
       answer:
-        "**Prof. DELA CRUZ, HARRIS R. - Schedule**\n\n**Wednesday:**\n• 8:30 AM - 10:00 AM: MAT 306 (BSM AS 3A) - FH 206\n\n**Thursday:**\n• 7:00 AM - 8:30 AM: BSM CS 3B - Federizo Hall\n• 8:30 AM - 11:30 AM: MAT 306 (BSM CS 3A G2) - Federizo Hall\n• 11:30 AM - 1:00 PM: MAT 306 (BSM AS 3B) - FH 206\n\n**Friday:**\n• 7:00 AM - 8:30 AM: BSM AS 3B - Federizo Hall\n• 8:30 AM - 10:00 AM: BSM AS 3A - FH 205\n• 10:00 AM - 11:30 AM: MAT 306 (BSM CS 3B G2) - AVR A\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MAT 306 (BSM BA 3A) - FH 206\n• 10:00 AM - 1:00 PM: MAT 206 (BSM BA 3B) - FH 206",
+        "**Prof. DELA CRUZ, HARRIS R. - Schedule**\n\n**Wednesday:**\n• 8:30 AM - 10:00 AM: MAT 306 (BSM AS 3A) - FH 206\n\n**Thursday:**\n• 7:00 AM - 8:30 AM: BSM CS 3B - Federizo Hall\n• 8:30 AM - 11:30 AM: MAT 306 (BSM CS 3A G2) - Federizo Hall\n• 11:30 AM - 1:00 PM: MAT 306 (BSM AS 3B) - FH 206\n\n**Friday:**\n• 7:00 AM - 8:30 AM: BSM AS 3B - Federizo Hall\n• 8:30 AM - 10:00 AM: BSM AS 3A - FH 205\n• 10:00 AM - 11:30 AM: MAT 306 (BSM CS 3B G2) - AVR A**\n\n**Saturday:**\n• 7:00 AM - 10:00 AM: MAT 306 (BSM BA 3A) - FH 206\n• 10:00 AM - 1:00 PM: MAT 206 (BSM BA 3B) - FH 206",
       keywords: [
         "dela cruz",
         "harris",
@@ -809,7 +843,7 @@ Thursday
       category: "Faculty Schedules",
       question: "What is the schedule of Ma'am Rainilyn L. Duque?",
       answer:
-        "**Ma'am. DUQUE, RAINILYN L. - Schedule**\n\n**Monday:**\n• 1:00 PM - 2:00 PM: MAT 405 (BSM CS 4B G1) - FH 206\n• 2:00 PM - 3:00 PM: MAT 405 (BSM CS 4B G2) - Federizo Hall\n• 3:00 PM - 4:00 PM: MAT 405 (BSM CS 4B G1) - FH 207\n• 5:00 PM - 8:00 PM: MAT 405 (BSM CS 4A G1) - Federizo Hall - CS RESEARCH & EXTENS\n\n**Tuesday:**\n• 8:30 AM - 10:00 AM: ES 201 (BPA 2A) - Mendoza Hall - APP 211\n• 10:00 AM - 11:30 AM: ES 201 (BPA 2B) - Mendoza Hall - APP 110\n\n**Friday:**\n• 10:00 AM - 11:30 AM: ES 201 (BPA 2B) - Mendoza Hall - APP 211\n• 1:00 PM - 2:30 PM: ES 201 (BPA 2A) - Mendoza Hall - APP 211",
+        "**Ma'am. DUQUE, RAINILYN L. - Schedule**\n\n**Monday:**\n• 1:00 PM - 2:00 PM: MAT 405 (BSM CS 4B G1) - FH 206\n• 2:00 PM - 3:00 PM: MAT 405 (BSM CS 4B G2) - Federizo Hall\n• 3:00 PM - 4:00 PM: MAT 405 (BSM CS 4B G1) - FH 207\n• 5:00 PM - 8:00 PM: MAT 405 (BSM CS 4A G1) - Federizo Hall - CS RESEARCH & EXTENS\n\n**Tuesday:**\n• 8:30 AM - 10:00 AM: ES 201 (BPA 2A) - Mendoza Hall - APP 211\n• 10:00 AM - 11:30 AM: ES 201 (BPA 2B) - Mendoza Hall - APP 110**\n\n**Friday:**\n• 10:00 AM - 11:30 AM: ES 201 (BPA 2B) - Mendoza Hall - APP 211\n• 1:00 PM - 2:30 PM: ES 201 (BPA 2A) - Mendoza Hall - APP 211",
       keywords: [
         "What is the schedule of maam Rain?",
         "Give me the schedule of maam Rain?",
@@ -1163,7 +1197,22 @@ Thursday
       category: "Faculty Schedules",
       question: "What is the schedule of Sir. Benedict M. Estrella?",
       answer:
-        "**Sir. ESTRELLA, BENEDICT M. - Schedule**\n\n**Monday:**\n• 10:00 AM - 11:30 AM: MAT 204a (BSM AS 2A) - FH 201 A\n• 11:30 AM - 1:00 PM: MAT 204a (BSM AS 2B) - FH 201 A\n• 2:00 PM - 3:30 PM: MAT 204a (BSM BA 2A) - FH 201 A\n• 3:30 PM - 5:00 PM: MAT 204a (BSM BA 2B) - FH 201 A\n• 5:00 PM - 6:30 PM: MAT 204a (BSM AS 2B) - FH 206\n\n**Tuesday:**\n• 5:00 PM - 6:30 PM: MAT 204a (BSM BA 2B) - FH 201 B\n\n**Wednesday:**\n• 5:00 PM - 6:30 PM: MAT 204a (BSM BA 2A) - FH 206\n\n**Thursday:**\n• 5:00 PM - 6:30 PM: MAT 204a (BSM AS 2A) - FH 206\n\n**Friday:**\n• 5:00 PM - 6:30 PM: MAT 204a (BSM AS 2A) - FH 206",
+       "Sir. ESTRELLA, BENEDICT M. - Schedule\n\n" +
+"MONDAY\n" +
+"10:00 AM – 11:30 AM | MAT 204a | BSM AS 2A | FH 201 A\n" +
+"11:30 AM – 1:00 PM  | MAT 204a | BSM AS 2B | FH 201 A\n" +
+"2:00 PM – 3:30 PM   | MAT 204a | BSM BA 2A | FH 201 A\n" +
+"3:30 PM – 5:00 PM   | MAT 204a | BSM BA 2B | FH 201 A\n" +
+"5:00 PM – 6:30 PM   | MAT 204a | BSM AS 2B | FH 206\n\n" +
+"TUESDAY\n" +
+"5:00 PM – 6:30 PM   | MAT 204a | BSM BA 2B | FH 201 B\n\n" +
+"WEDNESDAY\n" +
+"5:00 PM – 6:30 PM   | MAT 204a | BSM BA 2A | FH 206\n\n" +
+"THURSDAY\n" +
+"5:00 PM – 6:30 PM   | MAT 204a | BSM AS 2A | FH 206\n\n" +
+"FRIDAY\n" +
+"5:00 PM – 6:30 PM   | MAT 204a | BSM AS 2A | FH 206",
+
       keywords: [
         "What is the schedule of Sir ben",
         "What is the schedule of Sir Ben",

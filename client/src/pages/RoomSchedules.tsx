@@ -1,37 +1,22 @@
 // client/src/pages/RoomSchedules.tsx
-// Interactive Room & Schedule Simulation for College of Science
+// Room Schedules for College of Science
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useState } from 'react';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { 
   Building2, Search, Calendar, Clock, Users, MapPin, 
-  ChevronLeft, ChevronRight, CheckCircle, XCircle,
-  Wifi, Monitor, Projector, Zap, Eye, Activity, RefreshCw,
-  Grid3X3, List, ChevronDown, User, X, Radio, Sparkles, Download
+  ChevronLeft, ChevronRight, CheckCircle,
+  Activity,
+  Grid3X3, List, Download, School, DoorOpen, X
 } from 'lucide-react';
-import api from '../lib/api';
-import Room3DFloorPlan from '../components/Room3DFloorPlan';
-
 // ─── Types ───────────────────────────────────────────────
-interface Meeting {
-  id: string;
-  title: string;
-  description?: string;
-  startTime: string;
-  endTime: string;
-  Organizer: { id: string; firstName: string; lastName: string };
-}
-
-interface VirtualUser {
-  id: string;
-  name: string;
-  avatar: string;
-  x: number;
-  y: number;
-  color: string;
-  isMoving: boolean;
-  status: 'active' | 'idle' | 'away';
+interface ScheduleEntry {
+  day: string;
+  time: string;
+  courseCode: string;
+  courseTitle: string;
+  section: string;
+  instructor: string;
 }
 
 interface Room {
@@ -42,140 +27,488 @@ interface Room {
   capacity: number;
   type: string;
   facilities: string[];
-  isActive: boolean;
-  Meetings: Meeting[];
-  currentStatus: 'AVAILABLE' | 'OCCUPIED';
-  currentMeeting?: Meeting;
-  nextMeeting?: Meeting;
-  virtualUsers?: VirtualUser[];
-  onlineCount?: number;
+  schedules: ScheduleEntry[];
 }
 
+// ─── Static Room Data ───────────────────────────────────
+const ROOMS: Room[] = [
+  // FH 106
+  {
+    id: 'fh-106',
+    name: 'FH 106',
+    building: 'Federizo Hall',
+    floor: 1,
+    capacity: 50,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Whiteboard', 'Aircon'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'ECO 105', courseTitle: 'Economics', section: 'BSB 1A', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'ECO 105', courseTitle: 'Economics', section: 'BSB 1B', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'ECB 405', courseTitle: 'Environmental Biology', section: 'BSB 2B', instructor: 'JAVIER, RAYMUNDO' },
+      { day: 'Monday', time: '4:00PM-7:00PM', courseCode: 'ECB 405', courseTitle: 'Environmental Biology', section: 'BSB 2A', instructor: 'JAVIER, RAYMUNDO' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'STS 101', courseTitle: 'Science, Technology & Society', section: 'BSB 1B', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'ECO 105L', courseTitle: 'Economics Laboratory', section: 'BSB 1A', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'ECB 405L', courseTitle: 'Environmental Biology Lab', section: 'BSB 2A', instructor: 'JAVIER, RAYMUNDO' },
+      { day: 'Tuesday', time: '4:00PM-7:00PM', courseCode: 'ECB 405', courseTitle: 'Environmental Biology', section: 'BSB 2B', instructor: 'JAVIER, RAYMUNDO' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'ZOO 103L', courseTitle: 'Zoology Laboratory', section: 'ZOO 103Lab', instructor: 'VITUG, LAWRENCE V.' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'ECO 105L', courseTitle: 'Economics Laboratory', section: 'BSB 1C', instructor: 'ARRIETA, THELMA' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'ECO 105L', courseTitle: 'Economics Laboratory', section: 'BSB 1B', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Wednesday', time: '4:00PM-7:00PM', courseCode: 'ECB 405L', courseTitle: 'Environmental Biology Lab', section: 'BSB 2A', instructor: 'JAVIER, RAYMUNDO' },
+      { day: 'Thursday', time: '7:00AM-10:00AM', courseCode: 'ZOO 103L', courseTitle: 'Zoology Laboratory', section: 'ZOO 103Lab', instructor: 'VITUG, LAWRENCE V.' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'CB 405 L', courseTitle: 'Cell Biology', section: 'BSB 4B', instructor: 'TADIOSA, EDWIN R.' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'EVO 303 L', courseTitle: 'Evolution', section: 'BSB 3B', instructor: 'CLEMENTE, RICHARD FRANC' },
+      { day: 'Thursday', time: '4:00PM-7:00PM', courseCode: 'STS 101', courseTitle: 'Science, Technology & Society', section: 'BSB 1C', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'CHE 207/207L', courseTitle: 'Chemistry', section: 'BSFT 2B', instructor: 'BASILIO, ELEONOR' },
+      { day: 'Friday', time: '10:00AM-11:30AM', courseCode: 'AAH 101a', courseTitle: 'Art Appreciation', section: '', instructor: 'LEON, SHEILA MARIE' },
+      { day: 'Friday', time: '11:30AM-1:00PM', courseCode: 'RLW 101', courseTitle: 'Reading and Writing', section: '', instructor: 'MONTEMAYOR, LUZVIMINDA' },
+      { day: 'Friday', time: '1:00PM-4:00PM', courseCode: 'ECO 105L', courseTitle: 'Economics Laboratory', section: 'BSB 1C', instructor: 'ARRIETA, THELMA' },
+      { day: 'Saturday', time: '7:00AM-10:00AM', courseCode: 'NSTP 11', courseTitle: 'NSTP', section: 'BSB 1A', instructor: 'BERNARDO, EMIL' },
+      { day: 'Saturday', time: '10:00AM-1:00PM', courseCode: 'NSTP 11', courseTitle: 'NSTP', section: 'BSB 1B', instructor: 'DELA CRUZ, CHESALON' },
+    ]
+  },
+  // FH 107 (Physics lab)
+  {
+    id: 'fh-107',
+    name: 'FH 107 (Physics Lab)',
+    building: 'Federizo Hall',
+    floor: 1,
+    capacity: 40,
+    type: 'LABORATORY',
+    facilities: ['Microscopes', 'Lab Equipment', 'Projector'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'EVO 303', courseTitle: 'Evolution', section: 'BSB 3B', instructor: 'CLEMENTE, RICHARD FRANC' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'ECB 405', courseTitle: 'Environmental Biology', section: 'BSB 4B', instructor: 'TADIOSA, EDWIN R.' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM BA 2B', instructor: 'PEÑADO, ROSARIO' },
+      { day: 'Monday', time: '3:00PM-4:30PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: '', instructor: 'Rotaquio, Marionne' },
+      { day: 'Monday', time: '4:30PM-6:00PM', courseCode: 'BST 305', courseTitle: 'Business Statistics', section: '', instructor: 'Mandap, Marco' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM AS 2B', instructor: 'PEÑADO, ROSARIO' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'ErS 102L', courseTitle: 'Earth Science Lab', section: 'BSES 1A PCM', instructor: 'ARRIETA, THELMA' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM BA 2A', instructor: 'PEÑADO, ROSARIO' },
+      { day: 'Tuesday', time: '4:00PM-5:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: '', instructor: 'REYES, MA THERESA F.' },
+      { day: 'Tuesday', time: '5:00PM-8:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: '', instructor: 'REYES, MA THERESA F.' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'CHE 105/105L', courseTitle: 'Chemistry', section: 'BSFT 1A', instructor: 'TUAZON, DEBBIE ANN S.' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'ErS 102L', courseTitle: 'Earth Science Lab', section: 'BSES 1A CCDM', instructor: 'SANTOS, KARL KENNETH' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'GIS 201', courseTitle: 'Geographic Information Systems', section: 'BSES PCM 2A', instructor: 'SANTOS, KARL KENNETH' },
+      { day: 'Wednesday', time: '4:00PM-7:00PM', courseCode: 'GIS 201', courseTitle: 'Geographic Information Systems', section: 'BSES CCDM 2A', instructor: 'SANTOS, KARL KENNETH' },
+      { day: 'Thursday', time: '7:00AM-10:00AM', courseCode: 'CHE 306/306L', courseTitle: 'Chemistry', section: 'BSFT 2A', instructor: 'BARRE, ATHEENA CAMMARA T.' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'ErS 102L', courseTitle: 'Earth Science Lab', section: 'BSES 1A CCDM', instructor: 'SANTOS, KARL KENNETH' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'ErS 102L', courseTitle: 'Earth Science Lab', section: 'BSES 1A PCM', instructor: 'ARRIETA, THELMA' },
+      { day: 'Thursday', time: '4:00PM-7:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM AS 2A', instructor: 'REYES, MA THERESA F.' },
+      { day: 'Friday', time: '7:00AM-9:00AM', courseCode: 'MAT 103', courseTitle: 'Mathematics', section: '', instructor: 'REYES, JO ANN' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: '', instructor: 'PEÑADO, ROSARIO' },
+      { day: 'Friday', time: '1:00PM-4:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM BA 2B', instructor: 'PEÑADO, ROSARIO' },
+      { day: 'Friday', time: '4:00PM-7:00PM', courseCode: 'CHE 306/306L', courseTitle: 'Chemistry', section: 'BSFT 2B', instructor: 'BARRE, ATHEENA CAMMARA T.' },
+    ]
+  },
+  // FH 108
+  {
+    id: 'fh-108',
+    name: 'FH 108',
+    building: 'Federizo Hall',
+    floor: 1,
+    capacity: 45,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Whiteboard'],
+    schedules: [
+      { day: 'Monday', time: '8:00AM-10:00AM', courseCode: 'MAT 204', courseTitle: 'Mathematics', section: '', instructor: 'ARELLANO, MA C.' },
+      { day: 'Monday', time: '10:00AM-12:00PM', courseCode: 'MAT 204', courseTitle: 'Mathematics', section: '', instructor: 'ARELLANO, MA C.' },
+      { day: 'Monday', time: '10:00AM-12:00PM', courseCode: 'FST 408', courseTitle: 'Food Science', section: '', instructor: 'SALUNGA, ANNA DOMINIQUE' },
+      { day: 'Monday', time: '1:00PM-2:30PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: '', instructor: 'ANG, MARIA CELINA' },
+      { day: 'Monday', time: '3:00PM-5:00PM', courseCode: 'PHY 101', courseTitle: 'Physics', section: '', instructor: 'INGCO, FREYA G.' },
+      { day: 'Monday', time: '5:00PM-6:30PM', courseCode: 'FST 408', courseTitle: 'Food Science', section: '', instructor: 'NICOLAS, JOSIE' },
+      { day: 'Monday', time: '6:30PM-8:00PM', courseCode: 'FBT 405', courseTitle: 'Food Biotechnology', section: '', instructor: 'NICOLAS, JOSIE' },
+      { day: 'Tuesday', time: '8:30AM-10:00AM', courseCode: 'THE 301', courseTitle: 'Theology', section: '', instructor: 'TUAZON, DEBBIE ANN S.' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'FFP 310', courseTitle: 'Food Processing', section: '', instructor: 'SALUNGA' },
+      { day: 'Tuesday', time: '2:30PM-4:00PM', courseCode: 'SSP 101d', courseTitle: 'Social Science', section: '', instructor: 'JENNET, NATIVIDAD' },
+      { day: 'Tuesday', time: '5:00PM-6:30PM', courseCode: 'SSP 101c', courseTitle: 'Social Science', section: '', instructor: 'AGUSTIN, ALSON' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'FCH 208/208L', courseTitle: 'Food Chemistry', section: 'BSFT 2B', instructor: 'BARRE, ATHEENA CAMMARA T.' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'STS 101', courseTitle: 'Science, Technology & Society', section: '', instructor: 'DELA CRUZ, MARISSA D.' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'MAT 204', courseTitle: 'Mathematics', section: '', instructor: 'ARELLANO, MA C.' },
+      { day: 'Wednesday', time: '4:00PM-6:00PM', courseCode: 'STS 101', courseTitle: 'Science, Technology & Society', section: '', instructor: 'SANTIAGO, LEO' },
+      { day: 'Thursday', time: '8:30AM-10:00AM', courseCode: 'TCW 101', courseTitle: 'The Contemporary World', section: '', instructor: 'JOSE, DENMARK Q.' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'MAT 204', courseTitle: 'Mathematics', section: '', instructor: 'ARELLANO, MA C.' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'STS 101', courseTitle: 'Science, Technology & Society', section: '', instructor: 'DELA CRUZ, MARISSA D.' },
+      { day: 'Thursday', time: '6:30PM-8:00PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: '', instructor: 'ANG, MARIA CELINA' },
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'FES 408', courseTitle: 'Food Entrepreneurship', section: 'BSFT 4B', instructor: 'DE GUZMAN, MARICEL' },
+      { day: 'Friday', time: '10:00AM-12:00PM', courseCode: 'FES 408', courseTitle: 'Food Entrepreneurship', section: '', instructor: 'DE GUZMAN, MARICEL' },
+      { day: 'Friday', time: '1:00PM-2:30PM', courseCode: 'SSP 101d', courseTitle: 'Social Science', section: '', instructor: 'JENNET, NATIVIDAD' },
+      { day: 'Friday', time: '2:30PM-3:30PM', courseCode: 'PID 101', courseTitle: 'Personal Development', section: '', instructor: 'SOTIO, JAMIE M.' },
+    ]
+  },
+  // FH CS-AR
+  {
+    id: 'fh-csar',
+    name: 'FH CS-AR',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 60,
+    type: 'LECTURE_HALL',
+    facilities: ['Projector', 'Sound System', 'Aircon'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'BSM C 107', courseTitle: 'Computer Science', section: '', instructor: 'Michael Santos' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'BSM AS 1A', courseTitle: 'Applied Statistics', section: '', instructor: 'MARCELINO, LYCAD D.' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'MAT 107', courseTitle: 'Mathematics', section: '', instructor: 'Michael Santos' },
+      { day: 'Monday', time: '4:00PM-7:00PM', courseCode: 'BSM BA 2A', courseTitle: 'Business Applications', section: '', instructor: 'Ortiguero, Freddie' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'BSM BA 2A', courseTitle: 'Business Applications', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: '', instructor: 'Rotaquio, Marionne' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'BSM AS 2B', courseTitle: 'Applied Statistics', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'MAT 104', courseTitle: 'Mathematics', section: '', instructor: 'Regalado, Chereilyn' },
+      { day: 'Tuesday', time: '4:00PM-7:00PM', courseCode: 'NSTP 11', courseTitle: 'NSTP', section: 'BSM CS 1A G2', instructor: 'Marcelino, Jon Jon' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'MAT 302', courseTitle: 'Mathematics', section: 'Petition class', instructor: 'Geronimo, Paul' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'NSTP 11', courseTitle: 'NSTP', section: '', instructor: 'Dela Cruz, Julieta' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: '', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Wednesday', time: '4:00PM-7:00PM', courseCode: 'BSM BA 4B', courseTitle: 'Business Applications', section: '', instructor: 'YOLANDA C. ROBERTO' },
+      { day: 'Thursday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 3A', courseTitle: 'Applied Statistics', section: '', instructor: 'CARCOSIA, IMELDA' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'MAT 105', courseTitle: 'Mathematics', section: 'BSM AS 1A', instructor: 'CARCOSIA, IMELDA' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'MAT 104', courseTitle: 'Mathematics', section: '', instructor: 'Regalado, CHERIELYN' },
+      { day: 'Thursday', time: '4:00PM-7:00PM', courseCode: 'NSTP 11', courseTitle: 'NSTP', section: 'FSM 1C', instructor: 'Marcelino, Jon Jon' },
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'ELEC II', courseTitle: 'Elective', section: 'BSB 4B', instructor: 'CARCOSIA, IMELDA' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM AS 2A/2B', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Friday', time: '1:00PM-4:00PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Friday', time: '4:00PM-7:00PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: 'BSES 1A', instructor: 'Lodrigito, Mark Anthony' },
+    ]
+  },
+  // FS CS R&E
+  {
+    id: 'fs-csre',
+    name: 'FS CS R&E',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 40,
+    type: 'COMPUTER_LAB',
+    facilities: ['Desktop Computers', 'Projector', 'WiFi'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'PID 101', courseTitle: 'Personal Development', section: 'BSM AS 1B', instructor: 'RAMOS, DANTE B.' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'MAT 405', courseTitle: 'Mathematics', section: 'BSM AS 4B', instructor: 'CLEMENTE, CARLA M.' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'MAT 405', courseTitle: 'Mathematics', section: 'BSM AS 4A', instructor: 'CLEMENTE, CARLA M.' },
+      { day: 'Monday', time: '4:00PM-7:00PM', courseCode: 'BSM CS 4A - G2', courseTitle: 'Computer Science', section: '', instructor: 'DUQUE, RAINILYN' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'RPH 101', courseTitle: 'Reading in Philippine History', section: 'BSM BA 2B', instructor: 'ORTIGUERO, FREDDIE' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'MAT 405', courseTitle: 'Mathematics', section: 'BSM BA 4B', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'MBA 204', courseTitle: 'Business Administration', section: 'BSM BA 2B', instructor: 'AURE, BENEDICT' },
+      { day: 'Wednesday', time: '7:00AM-8:30AM', courseCode: 'BSM AS 2B', courseTitle: 'Applied Statistics', section: '', instructor: 'MACALISI NG, AARON' },
+      { day: 'Wednesday', time: '8:30AM-10:00AM', courseCode: 'RLW', courseTitle: 'Reading and Writing', section: 'BSES 3A 2S 25-26', instructor: 'CRUZ, TEODULO' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'BSM AS 2A', courseTitle: 'Applied Statistics', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM BA 2B', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Wednesday', time: '4:00PM-7:00PM', courseCode: 'BSM AS 1B', courseTitle: 'Applied Statistics', section: '', instructor: 'ROTAQUIO, MARIONNE' },
+      { day: 'Thursday', time: '7:00AM-10:00AM', courseCode: 'NSTP 11', courseTitle: 'NSTP', section: 'BSM AS 1A', instructor: 'CAMPITA, ELJAY' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM BA 2A', instructor: 'CAMARA, EVELYN' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'TCW 101', courseTitle: 'The Contemporary World', section: 'BSFT 3A', instructor: 'CERVANTES, NICOLE' },
+      { day: 'Thursday', time: '4:00PM-7:00PM', courseCode: 'FCS 401', courseTitle: 'Food Science', section: 'BSFT 1B', instructor: 'MARTINEZ, MARIBETH' },
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'GEN 301', courseTitle: 'Genetics', section: '', instructor: 'DIZON, SARAH JOY' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'BSFT 4A', courseTitle: 'Food Technology', section: '', instructor: 'CAMARA, EVELYN' },
+    ]
+  },
+  // FH 202
+  {
+    id: 'fh-202',
+    name: 'FH 202',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 45,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Whiteboard'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'MAT 201', courseTitle: 'Mathematics', section: 'BSES CCDM 2A', instructor: '' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'PAL 101', courseTitle: 'Philippine Literature', section: 'BSM CS 1A-G', instructor: '' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'PAL 101', courseTitle: 'Philippine Literature', section: 'BSM CS 1B-G', instructor: '' },
+      { day: 'Monday', time: '4:00PM-7:00PM', courseCode: 'STS 101', courseTitle: 'Science, Technology & Society', section: 'BSM CS 3B-G2', instructor: '' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'PAL 101', courseTitle: 'Philippine Literature', section: 'BSM CS 1B-G2', instructor: '' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'MST 101a', courseTitle: 'Mathematics in the Modern World', section: 'BSM CS 3A-G', instructor: '' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'PCM 101', courseTitle: 'Purposive Communication', section: 'BSM CS 1B-G', instructor: '' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'MAT 402', courseTitle: 'Mathematics', section: 'BSM CS 4B-G', instructor: '' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'SSP 101d', courseTitle: 'Social Science', section: 'BSM AS 4B', instructor: '' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'RLW 101', courseTitle: 'Reading and Writing', section: 'BSM BA 4B', instructor: '' },
+      { day: 'Wednesday', time: '4:00PM-7:00PM', courseCode: 'MST 101a', courseTitle: 'Mathematics in the Modern World', section: 'BSM BA 2A', instructor: '' },
+      { day: 'Thursday', time: '7:00AM-10:00AM', courseCode: 'MAT 101a', courseTitle: 'Mathematics', section: 'BSM AS 3B', instructor: '' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'MST 101a', courseTitle: 'Mathematics in the Modern World', section: 'BSM BA 3B', instructor: '' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'PAL 101', courseTitle: 'Philippine Literature', section: 'BSM CS 1B-G', instructor: '' },
+      { day: 'Thursday', time: '4:00PM-7:00PM', courseCode: 'MST 101a', courseTitle: 'Mathematics in the Modern World', section: 'BSM BA 2B', instructor: '' },
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'BSB 1B N', courseTitle: 'Biology', section: '', instructor: '' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'BSM CS 4A-G2 N', courseTitle: 'Computer Science', section: '', instructor: '' },
+      { day: 'Friday', time: '1:00PM-4:00PM', courseCode: 'BSM CS 1A-G2 N', courseTitle: 'Computer Science', section: '', instructor: '' },
+    ]
+  },
+  // FH AVR A
+  {
+    id: 'fh-avra',
+    name: 'FH AVR A',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 80,
+    type: 'LECTURE_HALL',
+    facilities: ['Projector', 'Sound System', 'Aircon', 'Microphone'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 2A', courseTitle: 'Applied Statistics', section: '', instructor: 'MACALASIANG, AARON' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'BSM BA 4A', courseTitle: 'Business Applications', section: '', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM AS 4B', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '4:00PM-8:00PM', courseCode: 'BSB A 1C', courseTitle: 'Biology', section: '', instructor: 'ANTONIO, ELYSSA' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 2B-G', courseTitle: 'Applied Statistics', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'BSM BA 2A', courseTitle: 'Business Applications', section: '', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: '', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Tuesday', time: '4:00PM-8:00PM', courseCode: 'BSM AS 2A', courseTitle: 'Applied Statistics', section: '', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 3B', courseTitle: 'Applied Statistics', section: '', instructor: 'MORALES, IMELDA' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'BSM BA 4A', courseTitle: 'Business Applications', section: '', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '4:00PM-8:00PM', courseCode: 'BSM CS 1A G2', courseTitle: 'Computer Science', section: '', instructor: 'MARCELINO, LYCAD D.' },
+      { day: 'Thursday', time: '7:30AM-8:30AM', courseCode: 'BSM AS 3B', courseTitle: 'Applied Statistics', section: '', instructor: 'MORALES, IMELDA' },
+      { day: 'Thursday', time: '8:30AM-10:00AM', courseCode: 'BSM CS 2A G2', courseTitle: 'Computer Science', section: '', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'BSM AS 2B', courseTitle: 'Applied Statistics', section: '', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'EFL 301', courseTitle: 'English as a Foreign Language', section: 'BSM BA 3B', instructor: 'DELA CRUZ, BERNADETTE' },
+      { day: 'Thursday', time: '5:00PM-6:30PM', courseCode: 'BSM BA 2B', courseTitle: 'Business Applications', section: '', instructor: 'DELA CRUZ, BERNADETTE' },
+      { day: 'Thursday', time: '6:30PM-8:00PM', courseCode: 'BSM BA 2A', courseTitle: 'Business Applications', section: '', instructor: 'DELA CRUZ, BERNADETTE' },
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'BSM CS 1B G2', courseTitle: 'Computer Science', section: '', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'BSM CS 3B G2', courseTitle: 'Computer Science', section: '', instructor: 'HARRIS DELA CRUZ' },
+      { day: 'Friday', time: '1:00PM-3:00PM', courseCode: 'BSM CS 2B G2', courseTitle: 'Computer Science', section: '', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Friday', time: '3:00PM-5:00PM', courseCode: 'MAS 307', courseTitle: 'Advanced Statistics', section: 'BSM AS 3B', instructor: 'GALVEZ, ARCEL F.' },
+    ]
+  },
+  // FH 205
+  {
+    id: 'fh-205',
+    name: 'FH 205',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 40,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Whiteboard'],
+    schedules: [
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2A G1', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2B G2', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Monday', time: '4:00PM-7:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2B G1', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 4B G', courseTitle: 'Applied Statistics', section: '', instructor: 'DELA CRUZ, AARHUS M.' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2A G2', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'MAS 304', courseTitle: 'Advanced Statistics', section: 'BSM AS 3B', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Tuesday', time: '4:00PM-7:00PM', courseCode: 'MAS 304', courseTitle: 'Advanced Statistics', section: 'BSM AS 3A', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'BSM CS 4B G2', courseTitle: 'Computer Science', section: '', instructor: 'DELA CRUZ, AARHUS' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2A G1', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'MAS 307', courseTitle: 'Advanced Statistics', section: 'BSM AS 3A', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Wednesday', time: '4:00PM-7:00PM', courseCode: 'MAS 307', courseTitle: 'Advanced Statistics', section: 'BSM AS 3B', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Thursday', time: '7:00AM-8:30AM', courseCode: 'BSM CS 3B', courseTitle: 'Computer Science', section: '', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Thursday', time: '8:30AM-11:30AM', courseCode: 'BSM CS 3A G2', courseTitle: 'Computer Science', section: '', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Thursday', time: '10:00AM-11:30AM', courseCode: 'BSM CS 3A', courseTitle: 'Computer Science', section: '', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Thursday', time: '11:30AM-1:00PM', courseCode: 'BSM AS 3B', courseTitle: 'Applied Statistics', section: '', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2B G1', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Thursday', time: '4:00PM-7:00PM', courseCode: 'MCS 206', courseTitle: 'Computer Science', section: 'BSM CS 2B G2', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Friday', time: '7:00AM-8:30AM', courseCode: 'BSM AS 3B', courseTitle: 'Applied Statistics', section: '', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'BSM AS 3A', courseTitle: 'Applied Statistics', section: '', instructor: 'CLEMENTE, CARLA M.' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'MAT 306', courseTitle: 'Mathematics', section: '', instructor: 'CLEMENTE, CARLA M.' },
+      { day: 'Friday', time: '2:00PM-5:00PM', courseCode: 'BST 305L', courseTitle: 'Business Statistics Lab', section: 'BSM 3B', instructor: 'MANDAP, MARCO' },
+      { day: 'Friday', time: '4:00PM-7:00PM', courseCode: 'MAS 203a', courseTitle: 'Statistics', section: 'BSM AS 2B', instructor: 'MAGTULIS Mary Ann C' },
+      { day: 'Saturday', time: '7:00AM-10:00AM', courseCode: 'MAT 306', courseTitle: 'Mathematics', section: 'BSM BA 3A', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Saturday', time: '10:00AM-1:00PM', courseCode: 'MAT 306', courseTitle: 'Mathematics', section: 'BSM BA 3B', instructor: 'DELA CRUZ, HARRIS' },
+    ]
+  },
+  // FH 206
+  {
+    id: 'fh-206',
+    name: 'FH 206',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 40,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Whiteboard'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-8:30AM', courseCode: 'BSM AS 4B', courseTitle: 'Applied Statistics', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Monday', time: '8:30AM-10:00AM', courseCode: 'AAH 101a', courseTitle: 'Art Appreciation', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Monday', time: '10:00AM-11:30AM', courseCode: 'BSM AS 4A', courseTitle: 'Applied Statistics', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Monday', time: '11:30AM-1:00PM', courseCode: 'BSM CS 4A G2', courseTitle: 'Computer Science', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Monday', time: '1:00PM-2:30PM', courseCode: 'BSM CS 4B', courseTitle: 'Computer Science', section: '', instructor: 'DUQUE, RAINILYN' },
+      { day: 'Monday', time: '2:30PM-4:00PM', courseCode: 'BSM BA 4B', courseTitle: 'Business Applications', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Monday', time: '4:00PM-5:30PM', courseCode: 'BSM CS 2A G2', courseTitle: 'Computer Science', section: '', instructor: 'Ellenita Manalaysay' },
+      { day: 'Tuesday', time: '8:30AM-10:00AM', courseCode: 'AAH 101a', courseTitle: 'Art Appreciation', section: '', instructor: 'DE LEON, SHIELA' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'BSM CS 2B', courseTitle: 'Computer Science', section: '', instructor: 'Manalaysay Ellenita' },
+      { day: 'Tuesday', time: '1:00PM-2:30PM', courseCode: 'MAS 307', courseTitle: 'Advanced Statistics', section: '', instructor: 'GALVEZ, ARCEL' },
+      { day: 'Tuesday', time: '2:30PM-4:00PM', courseCode: 'MAS 204a', courseTitle: 'Statistics', section: '', instructor: 'CLEMENTE, CARLA' },
+      { day: 'Tuesday', time: '4:00PM-5:30PM', courseCode: 'MAT 204a', courseTitle: 'Mathematics', section: '', instructor: 'ESTRELLA, BENEDICT' },
+      { day: 'Wednesday', time: '7:00AM-8:30AM', courseCode: 'BSM CS 2A', courseTitle: 'Computer Science', section: '', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '8:30AM-10:00AM', courseCode: 'MAT 306', courseTitle: 'Mathematics', section: '', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Wednesday', time: '11:30AM-1:00PM', courseCode: 'BSM CS 4A', courseTitle: 'Computer Science', section: '', instructor: 'Valeroso Joshua' },
+      { day: 'Wednesday', time: '1:00PM-2:30PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Wednesday', time: '2:30PM-4:00PM', courseCode: 'BSM BA 4A', courseTitle: 'Business Applications', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Wednesday', time: '4:00PM-5:30PM', courseCode: 'BSM AS 4A', courseTitle: 'Applied Statistics', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Wednesday', time: '5:30PM-8:00PM', courseCode: 'BSM AS 4B', courseTitle: 'Applied Statistics', section: '', instructor: 'VALEROSO, JOSHUA' },
+      { day: 'Thursday', time: '11:30AM-1:00PM', courseCode: 'BSM CS 3A', courseTitle: 'Computer Science', section: '', instructor: 'SANTOS, EDGARDO' },
+      { day: 'Thursday', time: '1:00PM-2:30PM', courseCode: 'ESM 206', courseTitle: 'Environmental Science', section: '', instructor: 'VITUG, LAWRENCE' },
+      { day: 'Thursday', time: '4:00PM-5:30PM', courseCode: 'MAT 204a', courseTitle: 'Mathematics', section: '', instructor: 'ESTRELLA, BENEDICT' },
+      { day: 'Friday', time: '10:00AM-11:30AM', courseCode: 'MAT 307', courseTitle: 'Mathematics', section: '', instructor: 'SANTOS, DR. EDGARDO' },
+      { day: 'Friday', time: '11:30AM-1:00PM', courseCode: 'CPE-3C', courseTitle: 'Computer Engineering', section: '', instructor: 'EUSEBIO, AGAPE' },
+      { day: 'Friday', time: '1:00PM-2:30PM', courseCode: 'MAT 307', courseTitle: 'Mathematics', section: '', instructor: 'ROBERTO, YOLANDA' },
+      { day: 'Friday', time: '2:30PM-4:00PM', courseCode: 'BSM CS 3B G2', courseTitle: 'Computer Science', section: '', instructor: 'ROBERTO, YOLANDA' },
+      { day: 'Friday', time: '4:00PM-5:30PM', courseCode: 'MAT 204a', courseTitle: 'Mathematics', section: '', instructor: 'ESTRELLA, BENEDICT' },
+    ]
+  },
+  // FH 207
+  {
+    id: 'fh-207',
+    name: 'FH 207',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 40,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Whiteboard'],
+    schedules: [
+      { day: 'Monday', time: '7:00AM-9:00AM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1A G2', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Monday', time: '9:00AM-11:00AM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1A G1', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Monday', time: '11:00AM-1:00PM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1B G1', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Monday', time: '1:00PM-3:00PM', courseCode: 'MAS 203a', courseTitle: 'Statistics', section: 'BSM AS 2B', instructor: 'MAGTULIS, MARYANN C' },
+      { day: 'Monday', time: '3:00PM-4:00PM', courseCode: 'MAT 405', courseTitle: 'Mathematics', section: 'BSM CS 4B G1', instructor: 'DUQUE, RAINILYN' },
+      { day: 'Monday', time: '4:00PM-6:00PM', courseCode: 'MAS 203a', courseTitle: 'Statistics', section: 'BSM AS 2A', instructor: 'MAGTULIS, MARYANN C' },
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1B G1', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1B G2', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Tuesday', time: '2:00PM-5:00PM', courseCode: 'MAS 203a', courseTitle: 'Statistics', section: 'BSM AS 2A', instructor: 'MAGTULIS, MARYANN C' },
+      { day: 'Tuesday', time: '5:00PM-8:00PM', courseCode: 'FEL 401', courseTitle: 'Elective', section: 'BSM AS 4A', instructor: 'GALVEZ, ARCEL F' },
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1A G1', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'MAS 204a', courseTitle: 'Statistics', section: 'BSM AS 2B', instructor: 'CLEMENTE, CARLA M' },
+      { day: 'Wednesday', time: '2:00PM-5:00PM', courseCode: 'MAS 204a', courseTitle: 'Statistics', section: 'BSM AS 2A', instructor: 'CLEMENTE, CARLA M' },
+      { day: 'Wednesday', time: '5:00PM-8:00PM', courseCode: 'MAS 103', courseTitle: 'Basic Statistics', section: 'BSM AS 1A', instructor: 'MAGTULIS, MARYANN C' },
+      { day: 'Thursday', time: '7:00AM-8:30AM', courseCode: 'BSM CS 3A G1', courseTitle: 'Computer Science', section: '', instructor: 'DELA CRUZ, AARHUS M M' },
+      { day: 'Thursday', time: '8:30AM-10:00AM', courseCode: 'MAT 305', courseTitle: 'Mathematics', section: 'BSM CS 3B G1', instructor: 'DELA CRUZ, AARHUS M M' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'MAS 305', courseTitle: 'Advanced Statistics', section: 'BSM AS 3A', instructor: 'MANGARAN, ARMELE' },
+      { day: 'Thursday', time: '2:00PM-5:00PM', courseCode: 'MAS 305', courseTitle: 'Advanced Statistics', section: 'BSM AS 3B', instructor: 'MANGARAN, ARMELE' },
+      { day: 'Thursday', time: '5:00PM-8:00PM', courseCode: 'MAS 103', courseTitle: 'Basic Statistics', section: 'BSM AS 1B', instructor: 'MAGTULIS, MARYANN C' },
+      { day: 'Friday', time: '7:00AM-8:30AM', courseCode: 'BSM AS 3A', courseTitle: 'Applied Statistics', section: '', instructor: 'DELA CRUZ, AARHUS M M' },
+      { day: 'Friday', time: '8:30AM-10:00AM', courseCode: 'MAT 305', courseTitle: 'Mathematics', section: 'BSM AS 3B', instructor: 'DELA CRUZ, AARHUS M M' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'MCS 103a', courseTitle: 'Computer Science', section: 'BSM CS 1A G2', instructor: 'ANGELES, DEO STEPHANIE' },
+      { day: 'Friday', time: '2:00PM-5:00PM', courseCode: 'MAS 306', courseTitle: 'Advanced Statistics', section: 'BSM AS 3A', instructor: 'CLEMENTE, CARLA M' },
+      { day: 'Friday', time: '5:00PM-8:00PM', courseCode: 'FEL 401', courseTitle: 'Elective', section: 'BSM AS 4B', instructor: 'GALVEZ, ARCEL F' },
+      { day: 'Saturday', time: '10:00AM-1:00PM', courseCode: 'MBA 306', courseTitle: 'Business Administration', section: 'BSM BA 3A', instructor: 'MANDAP, MARCO' },
+      { day: 'Saturday', time: '1:00PM-4:00PM', courseCode: 'MBA 306', courseTitle: 'Business Administration', section: 'BSM BA 3B', instructor: 'MANDAP, MARCO' },
+    ]
+  },
 
-// ─── Constants ───────────────────────────────────────────
-const ROOM_TYPE_LABELS: Record<string, string> = {
-  CLASSROOM: 'Classroom', LABORATORY: 'Laboratory', CONFERENCE: 'Conference Room',
-  LECTURE_HALL: 'Lecture Hall', COMPUTER_LAB: 'Computer Lab', LIBRARY: 'Library',
-  STUDY_ROOM: 'Study Room', AUDITORIUM: 'Auditorium',
-};
+];
 
-const ROOM_COLORS: Record<string, string> = {
-  CLASSROOM: 'from-blue-500 to-cyan-500', LABORATORY: 'from-green-500 to-emerald-500',
-  CONFERENCE: 'from-purple-500 to-pink-500', LECTURE_HALL: 'from-amber-500 to-orange-500',
-  COMPUTER_LAB: 'from-cyan-500 to-blue-500', LIBRARY: 'from-indigo-500 to-purple-500',
-  STUDY_ROOM: 'from-teal-500 to-green-500', AUDITORIUM: 'from-rose-500 to-red-500',
-};
+// Helper functions
+const DAYS_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const AVATAR_COLORS = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
-
-function generateVirtualUsers(roomId: string, count: number): VirtualUser[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `${roomId}-user-${i}`,
-    name: `Student ${i + 1}`,
-    avatar: `S${i + 1}`,
-    x: 50 + Math.random() * 500,
-    y: 80 + Math.random() * 280,
-    color: AVATAR_COLORS[i % AVATAR_COLORS.length],
-    isMoving: Math.random() > 0.6,
-    status: (Math.random() > 0.3 ? 'active' : Math.random() > 0.5 ? 'idle' : 'away') as VirtualUser['status']
-  }));
+// Replace the existing getTodaySchedule function
+function getTodaySchedule(room: Room, selectedDate: Date): ScheduleEntry[] {
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = dayNames[selectedDate.getDay()];
+  return room.schedules.filter(s => s.day === today).sort((a, b) => {
+    const timeA = timeToMinutes(a.time);
+    const timeB = timeToMinutes(b.time);
+    return timeA - timeB;
+  });
 }
 
-function formatTime(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true });
+// Replace the existing isRoomOccupied function
+function isRoomOccupied(room: Room, selectedDate: Date): boolean {
+  const todaySchedule = getTodaySchedule(room, selectedDate);
+  const currentMinutes = getCurrentTimeInMinutes();
+  
+  return todaySchedule.some(schedule => {
+    const [startStr, endStr] = schedule.time.split('-');
+    const startMinutes = timeToMinutes(startStr);
+    const endMinutes = timeToMinutes(endStr);
+    return isTimeInRange(currentMinutes, startMinutes, endMinutes);
+  });
 }
+
+// Replace the existing getCurrentMeeting function
+function getCurrentMeeting(room: Room, selectedDate: Date): ScheduleEntry | null {
+  const todaySchedule = getTodaySchedule(room, selectedDate);
+  const currentMinutes = getCurrentTimeInMinutes();
+  
+  return todaySchedule.find(schedule => {
+    const [startStr, endStr] = schedule.time.split('-');
+    const startMinutes = timeToMinutes(startStr);
+    const endMinutes = timeToMinutes(endStr);
+    return isTimeInRange(currentMinutes, startMinutes, endMinutes);
+  }) || null;
+}
+// Add these new helper functions
+function timeToMinutes(timeStr: string): number {
+  const startTime = timeStr.split('-')[0];
+  const match = startTime.match(/(\d+):(\d+)([AP]M)/i);
+  if (!match) return 0;
+  
+  let hour = parseInt(match[1]);
+  const minute = parseInt(match[2]);
+  const period = match[3].toUpperCase();
+  
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  
+  return hour * 60 + minute;
+}
+
+function isTimeInRange(currentMinutes: number, startMinutes: number, endMinutes: number): boolean {
+  if (startMinutes > endMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+  }
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
+
+function getCurrentTimeInMinutes(): number {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  return hours * 60 + minutes;
+}
+
+function getRoomStatusDetails(room: Room, selectedDate: Date): { status: string; message: string; color: string } {
+  const currentMeeting = getCurrentMeeting(room, selectedDate);
+  
+  if (currentMeeting) {
+    return {
+      status: 'occupied',
+      message: `Occupied: ${currentMeeting.courseCode} until ${currentMeeting.time.split('-')[1]}`,
+      color: 'red'
+    };
+  }
+  
+  const todaySchedule = getTodaySchedule(room, selectedDate);
+  const currentMinutes = getCurrentTimeInMinutes();
+  
+  const nextClass = todaySchedule.find(schedule => {
+    const startMinutes = timeToMinutes(schedule.time);
+    return startMinutes > currentMinutes;
+  });
+  
+  if (nextClass) {
+    const nextStart = nextClass.time.split('-')[0];
+    return {
+      status: 'available',
+      message: `Available until ${nextStart}`,
+      color: 'green'
+    };
+  }
+  
+  return {
+    status: 'available',
+    message: 'No more classes today',
+    color: 'green'
+  };
+}
+
 
 // ─── Main Page Component ─────────────────────────────────
 export default function RoomSchedules() {
-  const { user } = useAuth();
   const { settings } = useAccessibility();
   const fil = settings.language === 'fil';
 
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [buildings, setBuildings] = useState<string[]>([]);
-  const [roomTypes, setRoomTypes] = useState<string[]>([]);
-  const [programs, setPrograms] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBuilding, setFilterBuilding] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [filterProgram, setFilterProgram] = useState('');
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [simulationRoom, setSimulationRoom] = useState<Room | null>(null);
-  
-  // Debug: Log when simulationRoom changes
-  useEffect(() => {
-    console.log('🔄 simulationRoom state changed:', simulationRoom ? `${simulationRoom.name} (${simulationRoom.id})` : 'null');
-  }, [simulationRoom]);
-  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [error, setError] = useState<string | null>(null);
-  
-  // Debug: Log when expandedRoom changes
-  useEffect(() => {
-    console.log('📅 expandedRoom state changed:', expandedRoom);
-  }, [expandedRoom]);
 
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const buildings = Array.from(new Set(ROOMS.map(r => r.building)));
+  const roomTypes = Array.from(new Set(ROOMS.map(r => r.type)));
 
-  const fetchRooms = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params: Record<string, string> = { date: formatDate(selectedDate) };
-      if (filterBuilding) params.building = filterBuilding;
-      if (filterType) params.type = filterType;
-
-      const res = await api.get('/rooms/schedules', { params });
-      const data = (res.data || []).map((room: Room) => ({
-        ...room,
-        onlineCount: Math.floor(Math.random() * Math.min(room.capacity, 15)),
-        virtualUsers: generateVirtualUsers(room.id, Math.floor(Math.random() * 6) + 2)
-      }));
-      setRooms(data);
-      setLastRefresh(new Date());
-    } catch (err: any) {
-      console.error('Failed to fetch rooms:', err);
-      setError(err?.response?.data?.error || 'Failed to load rooms. Please try again.');
-    } finally {
-      setLoading(false);
+  const filteredRooms = ROOMS.filter(room => {
+    if (filterBuilding && room.building !== filterBuilding) return false;
+    if (filterType && room.type !== filterType) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return room.name.toLowerCase().includes(q) ||
+             room.building.toLowerCase().includes(q) ||
+             room.type.toLowerCase().includes(q);
     }
-  }, [selectedDate, filterBuilding, filterType]);
-
-  const fetchFilters = useCallback(async () => {
-    try {
-      const [bRes, tRes] = await Promise.all([api.get('/rooms/buildings'), api.get('/rooms/types')]);
-      const buildingList = bRes.data || [];
-      setBuildings(buildingList);
-      setRoomTypes(tRes.data || []);
-      
-      // Extract programs/departments from building names
-      const programSet = new Set<string>();
-      buildingList.forEach((b: string) => {
-        if (b.includes('Computer Science')) programSet.add('Computer Science');
-        else if (b.includes('Biology')) programSet.add('Biology');
-        else if (b.includes('Chemistry')) programSet.add('Chemistry');
-        else if (b.includes('Physics')) programSet.add('Physics');
-        else if (b.includes('Mathematics')) programSet.add('Mathematics');
-        else if (b.includes('Science Complex')) programSet.add('Science Complex');
-        else programSet.add(b.replace(' Building', ''));
-      });
-      setPrograms(Array.from(programSet).sort());
-    } catch (err) {
-      console.error('Failed to fetch filters:', err);
-    }
-  }, []);
-
-  useEffect(() => { fetchFilters(); }, [fetchFilters]);
-  useEffect(() => { fetchRooms(); }, [fetchRooms]);
-
-  useEffect(() => {
-    if (!isAutoRefresh) return;
-    const id = setInterval(fetchRooms, 30000);
-    return () => clearInterval(id);
-  }, [isAutoRefresh, fetchRooms]);
+    return true;
+  });
 
   const changeDate = (days: number) => {
     const d = new Date(selectedDate);
@@ -191,426 +524,508 @@ export default function RoomSchedules() {
     return date.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  const filteredRooms = rooms.filter(room => {
-    // Program filter
-    if (filterProgram) {
-      const buildingLower = room.building.toLowerCase();
-      const programLower = filterProgram.toLowerCase();
-      if (!buildingLower.includes(programLower)) return false;
-    }
-    
-    // Search filter
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return room.name.toLowerCase().includes(q) || room.building.toLowerCase().includes(q) ||
-      room.type.toLowerCase().includes(q) || (ROOM_TYPE_LABELS[room.type] || '').toLowerCase().includes(q);
-  });
-
-  const availableCount = filteredRooms.filter(r => r.currentStatus === 'AVAILABLE').length;
-  const occupiedCount = filteredRooms.filter(r => r.currentStatus === 'OCCUPIED').length;
-  const totalOnline = filteredRooms.reduce((sum, r) => sum + (r.onlineCount || 0), 0);
-
   const exportSchedules = () => {
-    const headers = ['Room', 'Building', 'Floor', 'Capacity', 'Type', 'Status', 'Current Meeting', 'Start Time', 'End Time', 'Organizer'];
-    const rows = filteredRooms.map(room => [
-      room.name,
-      room.building,
-      room.floor?.toString() || '-',
-      room.capacity.toString(),
-      ROOM_TYPE_LABELS[room.type] || room.type,
-      room.currentStatus,
-      room.currentMeeting?.title || '-',
-      room.currentMeeting ? formatTime(room.currentMeeting.startTime) : '-',
-      room.currentMeeting ? formatTime(room.currentMeeting.endTime) : '-',
-      room.currentMeeting?.Organizer ? `${room.currentMeeting.Organizer.firstName} ${room.currentMeeting.Organizer.lastName}` : '-'
-    ]);
+    const headers = ['Room', 'Building', 'Day', 'Time', 'Course Code', 'Course Title', 'Section', 'Instructor'];
+    const rows: string[][] = [];
+    
+    filteredRooms.forEach(room => {
+      room.schedules.forEach(schedule => {
+        rows.push([
+          room.name,
+          room.building,
+          schedule.day,
+          schedule.time,
+          schedule.courseCode,
+          schedule.courseTitle,
+          schedule.section,
+          schedule.instructor
+        ]);
+      });
+    });
 
     const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `room-schedules-${formatDate(selectedDate)}.csv`;
+    link.download = `room-schedules-${selectedDate.toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
   };
 
+  const getRoomTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      CLASSROOM: fil ? 'Silid-aralan' : 'Classroom',
+      LABORATORY: fil ? 'Laboratoryo' : 'Laboratory',
+      LECTURE_HALL: fil ? 'Lecture Hall' : 'Lecture Hall',
+      COMPUTER_LAB: fil ? 'Computer Lab' : 'Computer Lab',
+    };
+    return labels[type] || type;
+  };
+
   return (
-    <div className="min-h-screen py-6 px-4 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent flex items-center gap-3">
-              <Sparkles className="w-8 h-8 text-cyan-400" />
-              Virtual Room Hub
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-              {fil ? 'Interactive room simulation ng College of Science' : 'Interactive room simulation for College of Science'}
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                <Radio className="w-3 h-3 animate-pulse" /> LIVE
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/10">
-              <Activity className="w-4 h-4 text-green-400" />
-              <span className="text-sm text-slate-300">{totalOnline} students online</span>
-            </div>
-            <button
-              onClick={exportSchedules}
-              className="p-2 rounded-xl bg-white/5 text-slate-400 hover:bg-purple-500/20 hover:text-purple-400 transition-colors"
-              title={fil ? 'I-export ang schedules' : 'Export Schedules (CSV)'}
-            >
-              <Download className="w-5 h-5" />
+  <div className="min-h-screen py-6 px-4 lg:px-8  from-gray-50 via-white to-gray-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 dark:from-cyan-400 dark:via-blue-500 dark:to-purple-500 bg-clip-text text-transparent flex items-center gap-3">
+            <School className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+            {fil ? 'Room Schedules' : 'Room Schedules'}
+          </h1>
+          <p className="text-gray-600 dark:text-slate-400 mt-1">
+            {fil ? 'College of Science room schedules' : 'College of Science room schedules'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={exportSchedules}
+            className="p-2 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-400 hover:bg-purple-100 dark:hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            title={fil ? 'I-export ang schedules' : 'Export Schedules (CSV)'}
+          >
+            <Download className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-4 shadow-sm dark:shadow-none">
+        <div className="flex flex-col lg:flex-row gap-3">
+          {/* Date */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800/50 rounded-xl p-1">
+            <button onClick={() => changeDate(-1)} className="p-2.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors">
+              <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-slate-300" />
             </button>
-            <button
-              onClick={() => { setIsAutoRefresh(!isAutoRefresh); if (!isAutoRefresh) fetchRooms(); }}
-              className={`p-2 rounded-xl transition-colors ${isAutoRefresh ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/5 text-slate-400'}`}
-              title={isAutoRefresh ? 'Auto-refresh ON (30s)' : 'Auto-refresh OFF'}
-            >
-              <RefreshCw className={`w-5 h-5 ${isAutoRefresh ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: fil ? 'Kabuuang Silid' : 'Total Rooms', value: filteredRooms.length, icon: Building2, color: 'cyan' },
-            { label: 'Available', value: availableCount, icon: CheckCircle, color: 'green' },
-            { label: 'Occupied', value: occupiedCount, icon: XCircle, color: 'red' },
-            { label: fil ? 'Online Ngayon' : 'Online Now', value: totalOnline, icon: Users, color: 'purple' },
-          ].map(s => (
-            <div key={s.label} className={`relative overflow-hidden bg-gradient-to-br from-${s.color}-500/10 to-${s.color}-500/5 border border-${s.color}-500/20 rounded-2xl p-5`}>
-              <div className={`absolute top-0 right-0 w-20 h-20 bg-${s.color}-500/10 rounded-full blur-2xl`} />
-              <div className="relative flex items-center gap-3">
-                <div className={`p-3 bg-${s.color}-500/20 rounded-xl`}>
-                  <s.icon className={`w-6 h-6 text-${s.color}-400`} />
-                </div>
-                <div>
-                  <p className={`text-3xl font-bold ${s.color === 'cyan' ? 'text-white' : `text-${s.color}-400`}`}>{s.value}</p>
-                  <p className="text-sm text-slate-400">{s.label}</p>
-                </div>
-              </div>
+            <div className="px-4 py-2 min-w-[130px] text-center">
+              <p className="font-semibold text-gray-900 dark:text-white text-sm">{formatDateDisplay(selectedDate)}</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-500">{selectedDate.toLocaleDateString('en-PH')}</p>
             </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-          <div className="flex flex-col lg:flex-row gap-3">
-            {/* Date */}
-            <div className="flex items-center gap-1 bg-slate-800/50 rounded-xl p-1">
-              <button onClick={() => changeDate(-1)} className="p-2.5 hover:bg-white/10 rounded-lg transition-colors">
-                <ChevronLeft className="w-5 h-5 text-slate-300" />
-              </button>
-              <div className="px-4 py-2 min-w-[130px] text-center">
-                <p className="font-semibold text-white text-sm">{formatDateDisplay(selectedDate)}</p>
-                <p className="text-[10px] text-slate-500">{selectedDate.toLocaleDateString('en-PH')}</p>
-              </div>
-              <button onClick={() => changeDate(1)} className="p-2.5 hover:bg-white/10 rounded-lg transition-colors">
-                <ChevronRight className="w-5 h-5 text-slate-300" />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={fil ? 'Maghanap ng silid, building, o uri...' : 'Search rooms, buildings, or types...'}
-                className="w-full pl-12 pr-10 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors">
-                  <X className="w-4 h-4 text-slate-400" />
-                </button>
-              )}
-            </div>
-
-            {/* Program/Department */}
-            <div className="relative">
-              <select value={filterProgram} onChange={e => setFilterProgram(e.target.value)}
-                className="appearance-none  px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[140px] [&::-ms-expand]:hidden">
-                <option value="">{fil ? 'Lahat ng Programa' : 'All Programs'}</option>
-                {programs.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              
-            </div>
-
-            {/* Building */}
-            <div className="relative">
-              <select value={filterBuilding} onChange={e => setFilterBuilding(e.target.value)}
-                className="appearance-none px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[150px] [&::-ms-expand]:hidden">
-                <option value="">{fil ? 'Lahat ng Building' : 'All Buildings'}</option>
-                {buildings.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-              
-            </div>
-
-            {/* Type */}
-            <div className="relative">
-              <select value={filterType} onChange={e => setFilterType(e.target.value)}
-                className="appearance-none px-4 py-3 pr-8 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[130px] [&::-ms-expand]:hidden">
-                <option value="">{fil ? 'Lahat ng Uri' : 'All Types'}</option>
-                {roomTypes.map(t => <option key={t} value={t}>{ROOM_TYPE_LABELS[t] || t}</option>)}
-              </select>
-             
-            </div>
-
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 bg-slate-800/50 rounded-xl p-1">
-              <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:bg-white/10'}`} title="Grid">
-                <Grid3X3 className="w-5 h-5" />
-              </button>
-              <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:bg-white/10'}`} title="List">
-                <List className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Last updated: {lastRefresh.toLocaleTimeString()}</span>
-            {searchQuery && <span className="text-cyan-400">{filteredRooms.length} result{filteredRooms.length !== 1 ? 's' : ''} for "{searchQuery}"</span>}
-          </div>
-        </div>
-
-        {/* Content */}
-        {error ? (
-          <div className="text-center py-20 bg-red-500/10 border border-red-500/20 rounded-2xl">
-            <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-red-300 mb-2">{fil ? 'May problema' : 'Error Loading Rooms'}</h3>
-            <p className="text-slate-400 mb-4">{error}</p>
-            <button onClick={() => fetchRooms()} className="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-xl hover:bg-cyan-500/30 transition-colors">
-              {fil ? 'Subukan Muli' : 'Try Again'}
+            <button onClick={() => changeDate(1)} className="p-2.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors">
+              <ChevronRight className="w-5 h-5 text-gray-600 dark:text-slate-300" />
             </button>
           </div>
-        ) : loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-cyan-500/30 rounded-full animate-spin border-t-cyan-500" />
-              <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-cyan-400" />
-            </div>
-            <p className="mt-4 text-slate-400">Loading rooms...</p>
-          </div>
-        ) : filteredRooms.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
-            <Building2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-300 mb-2">{fil ? 'Walang nahanap na silid' : 'No rooms found'}</h3>
-            <p className="text-slate-500 mb-4">{searchQuery ? `No results for "${searchQuery}".` : 'No rooms match your filters.'}</p>
-            {(searchQuery || filterBuilding || filterType || filterProgram) && (
-              <button onClick={() => { setSearchQuery(''); setFilterBuilding(''); setFilterType(''); setFilterProgram(''); }}
-                className="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-xl hover:bg-cyan-500/30 transition-colors">
-                {fil ? 'I-clear lahat ng filter' : 'Clear all filters'}
+
+          {/* Search */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={fil ? 'Maghanap ng silid o building...' : 'Search rooms or buildings...'}
+              className="w-full pl-12 pr-10 py-3 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+                <X className="w-4 h-4 text-gray-400 dark:text-slate-400" />
               </button>
             )}
           </div>
-        ) : viewMode === 'list' ? (
-          /* ─── List View ─── */
-          <div className="space-y-2">
-            {filteredRooms.map(room => (
-              <div key={room.id} className="group flex items-center gap-4 p-4 bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl hover:border-cyan-500/40 transition-all">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${ROOM_COLORS[room.type] || 'from-cyan-500 to-blue-500'} flex items-center justify-center flex-shrink-0`}>
-                  <Building2 className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-white">{room.name}</h3>
-                  <p className="text-xs text-slate-500">{room.building} • {ROOM_TYPE_LABELS[room.type]}</p>
-                </div>
-                <span className="text-sm text-slate-400 flex items-center gap-1"><Users className="w-4 h-4" /> {room.capacity}</span>
-                <span className="text-sm text-cyan-400 flex items-center gap-1"><User className="w-4 h-4" /> {room.onlineCount || 0}</span>
-                <span className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${room.currentStatus === 'AVAILABLE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                  {room.currentStatus}
-                </span>
-                <button 
-                  type="button"
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    e.preventDefault(); 
-                    console.log('🚪 List Enter clicked:', room.name, room); 
-                    setSimulationRoom(room); 
-                  }} 
-                  className="px-4 py-2 bg-cyan-500 text-white rounded-xl text-sm font-medium hover:bg-cyan-600 transition-colors cursor-pointer active:scale-95 pointer-events-auto">
-                  Enter
-                </button>
-              </div>
-            ))}
+
+          {/* Building */}
+          <div className="relative">
+            <select value={filterBuilding} onChange={e => setFilterBuilding(e.target.value)}
+              className="appearance-none px-4 py-3 pr-8 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[150px]">
+              <option value="">{fil ? 'Lahat ng Building' : 'All Buildings'}</option>
+              {buildings.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            
           </div>
-        ) : (
-          /* ─── Grid View ─── */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredRooms.map(room => (
-              <div key={room.id} className="group relative bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10">
-                <div className={`absolute inset-0 bg-gradient-to-br ${ROOM_COLORS[room.type] || 'from-cyan-500 to-blue-500'} opacity-0 group-hover:opacity-5 transition-opacity`} />
 
-                {/* Header */}
-                <div className="p-4 border-b border-white/5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${ROOM_COLORS[room.type] || 'from-cyan-500 to-blue-500'} flex items-center justify-center shadow-lg`}>
-                        <Building2 className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-white group-hover:text-cyan-400 transition-colors">{room.name}</h3>
-                        <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3" />{room.building}{room.floor ? `, F${room.floor}` : ''}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1 ${
-                        room.currentStatus === 'AVAILABLE' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${room.currentStatus === 'AVAILABLE' ? 'bg-green-400' : 'bg-red-400'} animate-pulse`} />
-                        {room.currentStatus === 'AVAILABLE' ? 'Available' : 'Occupied'}
-                      </span>
-                      {(room.onlineCount || 0) > 0 && (
-                        <span className="text-[10px] text-cyan-400 flex items-center gap-1"><User className="w-3 h-3" /> {room.onlineCount} online</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          {/* Type */}
+          <div className="relative">
+            <select value={filterType} onChange={e => setFilterType(e.target.value)}
+              className="appearance-none px-4 py-3 pr-8 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-cyan-500 cursor-pointer min-w-[130px]">
+              <option value="">{fil ? 'Lahat ng Uri' : 'All Types'}</option>
+              {roomTypes.map(t => <option key={t} value={t}>{getRoomTypeLabel(t)}</option>)}
+            </select>
+            
+          </div>
 
-                {/* Info */}
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg text-slate-300"><Users className="w-4 h-4 text-slate-400" />{room.capacity}</span>
-                    <span className={`px-2 py-1 bg-gradient-to-r ${ROOM_COLORS[room.type] || 'from-cyan-500 to-blue-500'} bg-clip-text text-transparent text-xs font-medium border border-white/10 rounded-lg`}>
-                      {ROOM_TYPE_LABELS[room.type] || room.type}
-                    </span>
-                  </div>
-
-                  {room.facilities.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {room.facilities.slice(0, 3).map(f => (
-                        <span key={f} className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-500/10 text-cyan-400 rounded-lg text-[10px] border border-cyan-500/20">
-                          {f === 'WiFi' && <Wifi className="w-3 h-3" />}
-                          {f === 'Projector' && <Projector className="w-3 h-3" />}
-                          {f === 'Desktop Computers' && <Monitor className="w-3 h-3" />}
-                          {f}
-                        </span>
-                      ))}
-                      {room.facilities.length > 3 && <span className="px-2 py-1 bg-white/5 text-slate-400 rounded-lg text-[10px]">+{room.facilities.length - 3}</span>}
-                    </div>
-                  )}
-
-                  {room.currentMeeting && (
-                    <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20">
-                      <p className="text-[10px] font-semibold text-red-400 mb-1 flex items-center gap-1"><Activity className="w-3 h-3" /> IN SESSION</p>
-                      <p className="text-sm text-white font-medium truncate">{room.currentMeeting.title}</p>
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1"><Clock className="w-3 h-3" />{formatTime(room.currentMeeting.startTime)} - {formatTime(room.currentMeeting.endTime)}</p>
-                    </div>
-                  )}
-
-                  {!room.currentMeeting && room.nextMeeting && (
-                    <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                      <p className="text-[10px] font-semibold text-amber-400 mb-1">NEXT UP</p>
-                      <p className="text-sm text-white font-medium truncate">{room.nextMeeting.title}</p>
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1"><Clock className="w-3 h-3" />{formatTime(room.nextMeeting.startTime)}</p>
-                    </div>
-                  )}
-
-                  {!room.currentMeeting && !room.nextMeeting && room.Meetings.length === 0 && (
-                    <p className="text-sm text-green-400 font-medium flex items-center gap-2"><CheckCircle className="w-4 h-4" />{fil ? 'Walang booking ngayon' : 'No bookings today'}</p>
-                  )}
-
-                  {/* Mini Schedule Timeline */}
-                  {room.Meetings.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/5">
-                      <p className="text-[10px] font-semibold text-slate-400 mb-2 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {fil ? 'Iskedyul Ngayon' : "Today's Schedule"} ({room.Meetings.length})
-                      </p>
-                      <div className="space-y-1.5 max-h-24 overflow-y-auto">
-                        {room.Meetings.slice(0, 4).map(m => {
-                          const now = new Date();
-                          const start = new Date(m.startTime);
-                          const end = new Date(m.endTime);
-                          const isNow = start <= now && end >= now;
-                          const isPast = end < now;
-                          return (
-                            <div key={m.id} className={`flex items-center gap-2 p-1.5 rounded-lg text-[10px] ${isNow ? 'bg-red-500/20 border border-red-500/30' : isPast ? 'bg-white/5 opacity-50' : 'bg-white/5'}`}>
-                              <span className={`font-mono ${isNow ? 'text-red-400' : 'text-cyan-400'}`}>{formatTime(m.startTime)}</span>
-                              <span className="text-white truncate flex-1">{m.title}</span>
-                              {isNow && <span className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[8px] font-bold">LIVE</span>}
-                            </div>
-                          );
-                        })}
-                        {room.Meetings.length > 4 && (
-                          <p className="text-[10px] text-slate-500 text-center">+{room.Meetings.length - 4} more</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="p-4 pt-0 flex gap-2 relative z-10">
-                  <button 
-                    type="button"
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      e.preventDefault(); 
-                      console.log('🚪 Enter room clicked:', room.name, room); 
-                      setSimulationRoom(room); 
-                    }}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-medium text-sm hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 pointer-events-auto">
-                    <Eye className="w-4 h-4" /> Enter Room
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      e.preventDefault(); 
-                      console.log('📅 Calendar clicked:', room.name, 'Current expanded:', expandedRoom); 
-                      setExpandedRoom(expandedRoom === room.id ? null : room.id); 
-                    }}
-                    className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer active:scale-95 pointer-events-auto" 
-                    title="View Schedule">
-                    <Calendar className="w-4 h-4 text-slate-400" />
-                  </button>
-                </div>
-
-                {/* Schedule Expand */}
-                {expandedRoom === room.id && (
-                  <div className="border-t border-white/5 p-4 bg-slate-900/50">
-                    <h4 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2"><Calendar className="w-4 h-4 text-cyan-400" />{fil ? 'Iskedyul Ngayon' : "Today's Schedule"}</h4>
-                    {room.Meetings.length > 0 ? (
-                      <div className="space-y-2">
-                        {room.Meetings.map(m => (
-                          <div key={m.id} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                            <div className="text-xs text-cyan-400 w-16 font-mono">{formatTime(m.startTime)}</div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{m.title}</p>
-                              <p className="text-[10px] text-slate-500">{m.Organizer.firstName} {m.Organizer.lastName}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-500 text-center py-4">No scheduled meetings</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800/50 rounded-xl p-1">
+            <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-cyan-500 text-white' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/10'}`}>
+              <Grid3X3 className="w-5 h-5" />
+            </button>
+            <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-cyan-500 text-white' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/10'}`}>
+              <List className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        {searchQuery && (
+          <div className="mt-2 text-[10px] text-cyan-600 dark:text-cyan-400">
+            {filteredRooms.length} result{filteredRooms.length !== 1 ? 's' : ''} found
           </div>
         )}
       </div>
 
-      {/* 3D Floor Plan Room Simulation */}
-      {simulationRoom && (
-        <Room3DFloorPlan
-          key={simulationRoom.id}
-          room={simulationRoom}
-          virtualUsers={simulationRoom.virtualUsers || []}
-          userName={user?.firstName || 'You'}
-          userInitial={user?.firstName?.[0] || 'U'}
-          isAdmin={user?.role === 'ADMIN'}
-          onClose={() => {
-            console.log('Closing room simulation');
-            setSimulationRoom(null);
-          }}
-        />
+      {/* Content */}
+      {filteredRooms.length === 0 ? (
+        <div className="text-center py-20 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm">
+          <Building2 className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-200 mb-2">{fil ? 'Walang nahanap na silid' : 'No rooms found'}</h3>
+          <button onClick={() => { setSearchQuery(''); setFilterBuilding(''); setFilterType(''); }}
+            className="px-4 py-2 bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-500/30 transition-colors font-medium">
+            {fil ? 'I-clear lahat ng filter' : 'Clear all filters'}
+          </button>
+        </div>
+      ) : viewMode === 'list' ? (
+        /* List View */
+        <div className="space-y-3">
+          {filteredRooms.map(room => {
+            const todaySchedule = getTodaySchedule(room, selectedDate);
+            const isOccupied = isRoomOccupied(room, selectedDate);
+            const currentMeeting = getCurrentMeeting(room, selectedDate);
+            
+            // Sort schedules by time (earliest first)
+            const sortedTodaySchedule = [...todaySchedule].sort((a, b) => {
+              const getTimeValue = (timeStr: string) => {
+                const [start] = timeStr.split('-');
+                const [hour, minute, period] = start.match(/(\d+):(\d+)([AP]M)/)?.slice(1) || [];
+                let hourNum = parseInt(hour);
+                if (period === 'PM' && hourNum !== 12) hourNum += 12;
+                if (period === 'AM' && hourNum === 12) hourNum = 0;
+                return hourNum * 60 + (parseInt(minute) || 0);
+              };
+              return getTimeValue(a.time) - getTimeValue(b.time);
+            });
+            
+            // Sort full schedules by day order and time
+            const sortedFullSchedules = [...room.schedules].sort((a, b) => {
+              const dayOrder = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
+              const dayDiff = (dayOrder[a.day as keyof typeof dayOrder] || 0) - (dayOrder[b.day as keyof typeof dayOrder] || 0);
+              if (dayDiff !== 0) return dayDiff;
+              
+              const getTimeValue = (timeStr: string) => {
+                const [start] = timeStr.split('-');
+                const [hour, minute, period] = start.match(/(\d+):(\d+)([AP]M)/)?.slice(1) || [];
+                let hourNum = parseInt(hour);
+                if (period === 'PM' && hourNum !== 12) hourNum += 12;
+                if (period === 'AM' && hourNum === 12) hourNum = 0;
+                return hourNum * 60 + (parseInt(minute) || 0);
+              };
+              return getTimeValue(a.time) - getTimeValue(b.time);
+            });
+            
+            return (
+              <div key={room.id} className="group flex flex-wrap items-center gap-4 p-5 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-lg transition-all shadow-sm">
+                {/* Room Info - Larger */}
+                <div className="flex items-center gap-4 flex-1 min-w-[240px]">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <DoorOpen className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">{room.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-slate-400 flex items-center gap-1 mt-1">
+                      <MapPin className="w-4 h-4" />{room.building} • Floor {room.floor} • {getRoomTypeLabel(room.type)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Status and Actions - Larger */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl">
+                      <Users className="w-5 h-5 text-gray-600 dark:text-slate-400" />
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{room.capacity}</span>
+                    </span>
+                    <span className={`px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 ${
+                      isOccupied 
+                        ? 'bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30' 
+                        : 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${isOccupied ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                      {isOccupied ? (fil ? 'Occupied' : 'Occupied') : (fil ? 'Available' : 'Available')}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setExpandedRoom(expandedRoom === room.id ? null : room.id)}
+                    className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    {expandedRoom === room.id ? (fil ? 'Isara' : 'Close') : (fil ? 'Tingnan Schedule' : 'View Schedule')}
+                  </button>
+                </div>
+                
+                {/* Expanded Schedule - Larger with sorting */}
+                {expandedRoom === room.id && (
+                  <div className="w-full mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    {/* Today's Schedule */}
+                    <h4 className="text-base font-semibold text-gray-800 dark:text-slate-300 mb-3 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                      {formatDateDisplay(selectedDate)} Schedule
+                      <span className="text-xs text-cyan-600 dark:text-cyan-400">({sortedTodaySchedule.length})</span>
+                    </h4>
+                    
+                    {sortedTodaySchedule.length > 0 ? (
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto mb-6">
+                        {sortedTodaySchedule.map((schedule, idx) => (
+                          <div key={idx} className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
+                            <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
+                              <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
+                              {schedule.section && (
+                                <p className="text-xs text-gray-500 dark:text-slate-500 mt-0.5">Section: {schedule.section}</p>
+                              )}
+                            </div>
+                            {currentMeeting?.time === schedule.time && (
+                              <span className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-bold animate-pulse shadow-md">NOW</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 mb-6 bg-gray-50 dark:bg-slate-800/30 rounded-xl">
+                        <p className="text-base text-gray-500 dark:text-slate-400">No classes scheduled for this day</p>
+                      </div>
+                    )}
+                    
+                    {/* Full Schedule Button */}
+                    <button
+                      onClick={() => {
+                        const fullScheduleEl = document.getElementById(`full-schedule-${room.id}`);
+                        if (fullScheduleEl) {
+                          fullScheduleEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center gap-2 mb-4"
+                    >
+                      <Calendar className="w-5 h-5" />
+                      {fil ? 'Tingnan Buong Weekly Schedule' : 'View Full Weekly Schedule'}
+                    </button>
+                    
+                    {/* Full Weekly Schedule */}
+                    <div id={`full-schedule-${room.id}`} className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                      <h4 className="text-lg font-semibold text-gray-800 dark:text-slate-300 mb-4 flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                        {fil ? 'Buong Weekly Schedule' : 'Full Weekly Schedule'}
+                      </h4>
+                      {sortedFullSchedules.length > 0 ? (
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                          {DAYS_ORDER.map(day => {
+                            const daySchedules = sortedFullSchedules.filter(s => s.day === day);
+                            if (daySchedules.length === 0) return null;
+                            return (
+                              <div key={day} className="mb-4">
+                                <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 mb-2 pb-1 border-b border-cyan-200 dark:border-cyan-500/30">{day}</p>
+                                <div className="space-y-2">
+                                  {daySchedules.map((schedule, idx) => (
+                                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
+                                      <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
+                                      <div className="flex-1">
+                                        <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
+                                        <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
+                                      </div>
+                                      {schedule.section && (
+                                        <span className="text-xs px-2 py-1 bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded-lg whitespace-nowrap font-medium">
+                                          {schedule.section}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-base text-gray-500 dark:text-slate-500 text-center py-6">No schedules available</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Grid View */
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredRooms.map(room => {
+            const todaySchedule = getTodaySchedule(room, selectedDate);
+            
+            const currentMeeting = getCurrentMeeting(room, selectedDate);
+            
+            // Sort schedules by time (earliest first)
+            const sortedTodaySchedule = [...todaySchedule].sort((a, b) => {
+              const getTimeValue = (timeStr: string) => {
+                const [start] = timeStr.split('-');
+                const [hour, minute, period] = start.match(/(\d+):(\d+)([AP]M)/)?.slice(1) || [];
+                let hourNum = parseInt(hour);
+                if (period === 'PM' && hourNum !== 12) hourNum += 12;
+                if (period === 'AM' && hourNum === 12) hourNum = 0;
+                return hourNum * 60 + (parseInt(minute) || 0);
+              };
+              return getTimeValue(a.time) - getTimeValue(b.time);
+            });
+            
+            // Sort full schedules by day order and time
+            const sortedFullSchedules = [...room.schedules].sort((a, b) => {
+              const dayOrder = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
+              const dayDiff = (dayOrder[a.day as keyof typeof dayOrder] || 0) - (dayOrder[b.day as keyof typeof dayOrder] || 0);
+              if (dayDiff !== 0) return dayDiff;
+              
+              const getTimeValue = (timeStr: string) => {
+                const [start] = timeStr.split('-');
+                const [hour, minute, period] = start.match(/(\d+):(\d+)([AP]M)/)?.slice(1) || [];
+                let hourNum = parseInt(hour);
+                if (period === 'PM' && hourNum !== 12) hourNum += 12;
+                if (period === 'AM' && hourNum === 12) hourNum = 0;
+                return hourNum * 60 + (parseInt(minute) || 0);
+              };
+              return getTimeValue(a.time) - getTimeValue(b.time);
+            });
+            
+            return (
+              <div key={room.id} className="group relative bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl overflow-hidden transition-all duration-300 hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-xl hover:-translate-y-1 shadow-sm">
+                {/* Header - Larger */}
+                <div className="p-5 border-b border-gray-100 dark:border-slate-700">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-md">
+                        <DoorOpen className="w-7 h-7 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">{room.name}</h3>
+                        <p className="text-sm text-gray-600 dark:text-slate-400 flex items-center gap-1 mt-1"><MapPin className="w-4 h-4" />{room.building} • Floor {room.floor}</p>
+                      </div>
+                    </div>
+                    {(() => {
+                      const statusDetails = getRoomStatusDetails(room, selectedDate);
+                      return (
+                        <span className={`px-3 py-1.5 text-sm font-semibold rounded-xl flex flex-col ${
+                          statusDetails.status === 'occupied' 
+                            ? 'bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30' 
+                            : 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${statusDetails.status === 'occupied' ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                            {statusDetails.status === 'occupied' ? (fil ? 'Occupied' : 'Occupied') : (fil ? 'Available' : 'Available')}
+                          </div>
+                          <span className="text-xs mt-1 opacity-75">{statusDetails.message}</span>
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Info Section - Larger */}
+                <div className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 rounded-xl text-gray-700 dark:text-slate-300">
+                      <Users className="w-5 h-5 text-gray-600 dark:text-slate-400" />
+                      <span className="font-semibold">{room.capacity}</span>
+                      <span className="text-xs text-gray-500 dark:text-slate-500">capacity</span>
+                    </span>
+                    <span className="px-3 py-1.5 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 rounded-xl text-sm font-medium border border-cyan-200 dark:border-cyan-500/20">
+                      {getRoomTypeLabel(room.type)}
+                    </span>
+                  </div>
+
+                  {/* Current Meeting - Larger */}
+                  {currentMeeting && (
+                    <div className="p-4 bg-red-50 dark:bg-red-500/10 rounded-xl border border-red-200 dark:border-red-500/20 mb-4">
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
+                        <Activity className="w-4 h-4" /> IN SESSION NOW
+                      </p>
+                      <p className="text-base font-semibold text-gray-900 dark:text-white">{currentMeeting.courseCode} - {currentMeeting.courseTitle}</p>
+                      <p className="text-sm text-gray-700 dark:text-slate-300 mt-1">{currentMeeting.instructor}</p>
+                      <p className="text-xs text-gray-600 dark:text-slate-400 flex items-center gap-1 mt-2"><Clock className="w-3.5 h-3.5" />{currentMeeting.time}</p>
+                    </div>
+                  )}
+
+                  {/* Today's Schedule - Sorted by time (earliest first) */}
+                  {sortedTodaySchedule.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-700">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> 
+                        {fil ? 'Schedule Ngayon' : "Today's Schedule"} 
+                        <span className="text-xs text-cyan-600 dark:text-cyan-400">({sortedTodaySchedule.length})</span>
+                      </p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {sortedTodaySchedule.slice(0, 4).map((schedule, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
+                            <span className="font-mono text-sm text-cyan-600 dark:text-cyan-400 min-w-[90px] font-semibold">{schedule.time}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{schedule.courseCode}</p>
+                              <p className="text-xs text-gray-600 dark:text-slate-400 truncate">{schedule.courseTitle}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {sortedTodaySchedule.length > 4 && (
+                          <p className="text-xs text-gray-500 dark:text-slate-500 text-center py-1">+{sortedTodaySchedule.length - 4} more schedules</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {sortedTodaySchedule.length === 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-700">
+                      <p className="text-base text-green-600 dark:text-green-400 font-medium flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5" />
+                        {fil ? 'Walang klase ngayong araw' : 'No classes today'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Button - Larger */}
+                <div className="p-5 pt-0">
+                  <button
+                    onClick={() => setExpandedRoom(expandedRoom === room.id ? null : room.id)}
+                    className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    {expandedRoom === room.id ? (fil ? 'Isara' : 'Close') : (fil ? 'Buong Schedule' : 'Full Schedule')}
+                  </button>
+                </div>
+
+                {/* Expanded Full Schedule - Sorted by day and time */}
+                {expandedRoom === room.id && (
+                  <div className="border-t border-gray-100 dark:border-slate-700 p-5 bg-gray-50 dark:bg-slate-900/30">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-slate-300 mb-4 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                      {fil ? 'Buong Schedule' : 'Full Schedule'}
+                    </h4>
+                    {sortedFullSchedules.length > 0 ? (
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                        {DAYS_ORDER.map(day => {
+                          const daySchedules = sortedFullSchedules.filter(s => s.day === day);
+                          if (daySchedules.length === 0) return null;
+                          return (
+                            <div key={day} className="mb-4">
+                              <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 mb-2 pb-1 border-b border-cyan-200 dark:border-cyan-500/30">{day}</p>
+                              <div className="space-y-2">
+                                {daySchedules.map((schedule, idx) => (
+                                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white dark:bg-slate-800/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
+                                    <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
+                                    <div className="flex-1">
+                                      <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
+                                      <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
+                                    </div>
+                                    {schedule.section && (
+                                      <span className="text-xs px-2 py-1 bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded-lg whitespace-nowrap font-medium">
+                                        {schedule.section}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-base text-gray-500 dark:text-slate-500 text-center py-6">No schedules available</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
-  );
+  </div>
+);
 }
