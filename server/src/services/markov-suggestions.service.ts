@@ -14,7 +14,6 @@ const SUGGESTION_PATTERNS: SuggestionPattern[] = [
     keywords: ['programs', 'courses', 'degrees', 'offerings', 'college of science'],
     suggestions: [
       'What programs does College of Science offer?',
-      'What is Computer Science program about?',
       'Tell me about Biology program',
       'What is Food Technology?'
     ],
