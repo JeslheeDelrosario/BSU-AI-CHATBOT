@@ -153,8 +153,8 @@ Return only the titles, one per line.`;
       const titles = response.text()
         .trim()
         .split('\n')
-        .map(t => t.replace(/^\d+\.\s*/, '').trim())
-        .filter(t => t.length > 0)
+        .map((t: string) => t.replace(/^\d+\.\s*/, '').trim())
+        .filter((t: string) => t.length > 0)
         .slice(0, 5);
       
       console.log(`[Gemini] Generated ${titles.length} title suggestions`);

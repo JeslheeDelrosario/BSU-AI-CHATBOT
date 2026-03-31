@@ -320,6 +320,9 @@ export const authenticateWithGoogleToken = async (req: Request, res: Response) =
         },
         include: {
           AccessibilitySettings: true,
+          SSOLinks: {
+            where: { provider: 'google' }
+          }
         }
       });
     }
