@@ -1,7 +1,7 @@
 // server/src/controllers/consultation.controller.ts
 // Production-grade consultation booking controller
 // Implements comprehensive validation, slot locking, and analytics
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ConsultationStatus } from '@prisma/client';
@@ -429,6 +429,39 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
     console.error('Cancel booking error:', error);
     return res.status(500).json({ 
       error: 'Failed to cancel booking',
+      details: error.message 
+    });
+  }
+};
+
+// ─── Clear all cancelled bookings (hard delete) ──────────────────────────────────────────
+export const clearCancelledBookings = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const role = req.user!.role;
+
+    // Only students can clear their own cancelled bookings
+    if (role !== 'STUDENT') {
+      return res.status(403).json({ error: 'Only students can clear their cancelled bookings' });
+    }
+
+    // Delete all cancelled bookings for this student
+    const deletedBookings = await prisma.consultationBooking.deleteMany({
+      where: {
+        studentId: userId,
+        status: 'CANCELLED'
+      }
+    });
+
+    return res.json({ 
+      message: `Cleared ${deletedBookings.count} cancelled booking${deletedBookings.count !== 1 ? 's' : ''}`,
+      count: deletedBookings.count
+    });
+
+  } catch (error: any) {
+    console.error('Clear cancelled bookings error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to clear cancelled bookings',
       details: error.message 
     });
   }
@@ -901,5 +934,129 @@ export const getBookingRulesEndpoint = async (_req: AuthRequest, res: Response) 
   } catch (error) {
     console.error('Get booking rules error:', error);
     return res.status(500).json({ error: 'Failed to fetch booking rules' });
+  }
+};
+
+// server/src/controllers/consultation.controller.ts
+
+// At the end of your controller file, make sure you export the function
+export const getFacultyAvailability = async (req: Request, res: Response) => {
+  try {
+    const { facultyId } = req.params;
+    
+    if (!facultyId) {
+      return res.status(400).json({ error: 'Faculty ID is required' });
+    }
+    
+    // First check if faculty exists
+    const faculty = await prisma.faculty.findUnique({
+      where: { id: facultyId },
+      select: { id: true, firstName: true, lastName: true }
+    });
+    
+    if (!faculty) {
+      return res.status(404).json({ error: 'Faculty not found' });
+    }
+    
+    // Get current date - start of day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get date 14 days from now
+    const twoWeeksLater = new Date(today);
+    twoWeeksLater.setDate(today.getDate() + 14);
+    twoWeeksLater.setHours(23, 59, 59, 999);
+    
+    // Fetch future, active bookings (PENDING or CONFIRMED only)
+    const bookings = await prisma.consultationBooking.findMany({
+      where: {
+        facultyId: facultyId,
+        status: {
+          in: ['PENDING', 'CONFIRMED']
+        },
+        date: {
+          gte: today,      // From today onwards
+          lte: twoWeeksLater // Up to 14 days from now
+        }
+      },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        topic: true,
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' }
+      ],
+      take: 20
+    });
+    
+    // Format the response - convert DateTime to string
+    const formattedBookings = bookings.map(booking => ({
+      id: booking.id,
+      date: booking.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      status: booking.status,
+      topic: booking.topic
+    }));
+    
+    return res.json(formattedBookings);
+  } catch (error) {
+    console.error('Error in getFacultyAvailability:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
+    }
+    return res.status(500).json({ 
+      error: 'Failed to fetch faculty availability',
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : 'Unknown error') : undefined
+    });
+  }
+};
+
+// GET /api/consultations/faculty/availability/batch?ids=id1,id2,id3
+export const getBatchFacultyAvailability = async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.query;
+    const facultyIds = (ids as string).split(',');
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const bookings = await prisma.consultationBooking.findMany({
+      where: {
+        facultyId: { in: facultyIds },
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        date: { gte: today }
+      },
+      select: {
+        facultyId: true,
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        topic: true,
+      },
+      orderBy: { date: 'asc' }
+    });
+    
+    // Group by facultyId
+    const grouped = bookings.reduce((acc, booking) => {
+      if (!acc[booking.facultyId]) acc[booking.facultyId] = [];
+      acc[booking.facultyId].push(booking);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    res.json(grouped);
+  } catch (error) {
+    console.error('Error in batch availability:', error);
+    res.status(500).json({ error: 'Failed to fetch batch availability' });
   }
 };

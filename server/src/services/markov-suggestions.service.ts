@@ -13,9 +13,9 @@ const SUGGESTION_PATTERNS: SuggestionPattern[] = [
   {
     keywords: ['programs', 'courses', 'degrees', 'offerings', 'college of science'],
     suggestions: [
-      'What programs does College of Science offer?',
-      'Tell me about Biology program',
-      'What is Food Technology?'
+      'Give 3 programs College of Science offer?',
+      'Give the Biology Curriculum',
+      'Give the Food Technology Curriculum'
     ],
     category: 'programs'
   },
@@ -378,18 +378,18 @@ export async function generateSmartSuggestions(
  */
 export function getDefaultSuggestions(language: string = 'en'): string[] {
   const conversationStartersEn = [
-    'What programs does College of Science offer?',
+    'Give 3 programs College of Science offer',
     'Show me Computer Science curriculum',
-    'Tell me about Biology program',
+    'Show me Biology curriculum',
     'What are the admission requirements?',
-    'What is Food Technology?',
-    'Show me 1st year subjects',
-    'Who are the faculty members?',
+    'Show me Food Technology curriculum',
+    'Give me the Computer Science 1st year subjects',
+    'Who is the Dean?',
     'What careers can I pursue with Computer Science?',
-    'What are the prerequisites for Thesis?',
+    'What are the prerequisites for Thesis 1?',
     'When is enrollment period?',
     'What is the schedule for FH 107?',
-    'Who is the Dean of College of Science?',
+    'Who is the Associate Dean of College of Science?',
     'What scholarships are available?',
     'What are the graduation requirements?'
   ];

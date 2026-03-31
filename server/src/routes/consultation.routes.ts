@@ -7,6 +7,7 @@ import {
   getFacultyBookings,
   updateBookingStatus,
   cancelBooking,
+  clearCancelledBookings,
   getAvailableSlots,
   updateMySchedule,
   getMyFacultyProfile,
@@ -19,6 +20,7 @@ import {
   getBookingHistoryEndpoint,
   getAnalyticsEndpoint,
   getBookingRulesEndpoint,
+  getFacultyAvailability,
 } from '../controllers/consultation.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -30,6 +32,7 @@ router.use(authenticateToken);
 router.post('/book', bookConsultation);
 router.get('/my-bookings', getMyBookings);
 router.delete('/:id/cancel', cancelBooking);
+router.delete('/clear-cancelled', clearCancelledBookings);
 
 // ─── Faculty Self-Management Routes ────────────────────────────────────────────
 router.get('/my-profile', getMyFacultyProfile);
@@ -40,6 +43,7 @@ router.get('/calendar', getFacultyCalendar);
 router.get('/available-slots', getAvailableSlots);
 router.get('/faculty-list', getFacultyWithConsultation);
 router.get('/rules', getBookingRulesEndpoint);
+router.get('/faculty/:facultyId/availability', getFacultyAvailability);
 
 // ─── Admin/Faculty: Slot Locking ───────────────────────────────────────────────
 router.post('/slots/lock', lockConsultationSlot);

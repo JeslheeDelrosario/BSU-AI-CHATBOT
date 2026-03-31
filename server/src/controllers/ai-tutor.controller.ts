@@ -3326,117 +3326,256 @@ You can ask me:
       }
     }
 
-    /// STEP 0.8: Check if user is asking about schedules
-
+    // STEP 0.8: Check if user is asking about schedules
     const isRoomScheduleQuery =
-      /(?:schedule|room)\s+(?:of|for)?\s*(?:fh|fs|room|lab)\s*\d+/i.test(
-        message,
-      ) ||
-      /(?:fh|fs|room|lab)\s*\d+\s+(?:schedule|room)/i.test(message) ||
-      (message.toLowerCase().includes("room") &&
-        message.toLowerCase().includes("schedule")) ||
-      /what(?:\s+is)?\s+(?:the\s+)?(?:room|schedule)\s+(?:for|of)?\s+(?:fh|fs|room|lab)\s*\d+/i.test(
-        message,
-      );
+      /(?:schedule|room)\s+(?:of|for)?\s*(?:fh|fs|room|lab|avr|cs|physics|chemistry|biology|computer|science)\s*[a-z0-9\-\&\s]+/i.test(message) ||
+      /(?:fh|fs|room|lab|avr)\s*[a-z0-9\-\&\s]+\s+(?:schedule|room)/i.test(message) ||
+      (message.toLowerCase().includes("schedule") && 
+      (message.toLowerCase().includes("room") || 
+        message.toLowerCase().includes("fh") || 
+        message.toLowerCase().includes("fs") || 
+        message.toLowerCase().includes("avr"))) ||
+      /\b(avr\s+[a-z]|\d+)\b/i.test(message);
 
     if (isRoomScheduleQuery) {
       console.log(`[DEBUG] Room schedule query detected: "${message}"`);
 
       try {
-        // Extract room number
-        let roomNumber: string | null = null;
-        const roomMatch =
-          message.match(/\b(?:fh|fs|room|lab)\s*(\d+[a-z]?)\b/i) ||
-          message.match(/\b(\d+)\s*(?:fh|fs|room|lab)\b/i);
-
-        if (roomMatch) {
-          // Get the room identifier (FH, FS, etc.) and number
-          const fullMatch = roomMatch[0];
-          const numberPart = roomMatch[1];
-
-          // Extract the prefix (FH, FS, etc.)
-          const prefixMatch = fullMatch.match(/\b(fh|fs|room|lab)/i);
-          const prefix = prefixMatch ? prefixMatch[1].toUpperCase() : "";
-
-          roomNumber = `${prefix} ${numberPart}`.trim();
-          console.log(`[Room Schedule] Extracted room: "${roomNumber}"`);
+      // ============================================================
+      // STEP 0: Check if user is asking for a LIST of all rooms
+      // ============================================================
+      const isListAllRoomsQuery =
+        /(?:what|which|list|show|tell|other|available|all)\s+(?:other\s+)?(?:rooms|schedules|room schedules)/i.test(message) &&
+        !/\d+/.test(message) && // No room number
+        !/\b(fh|fs|avr)\s+[a-z0-9]/i.test(message); // No specific room pattern
+      
+      if (isListAllRoomsQuery) {
+        console.log(`[Room Schedule] List all rooms query detected`);
+        
+        // Fetch all room schedules
+        const allRoomSchedules = await prisma.fAQ.findMany({
+          where: {
+            isPublished: true,
+            category: "Room Schedules",
+          },
+          select: { question: true },
+          orderBy: { order: "asc" },
+          take: 100,
+        });
+        
+        // Extract and format room names from questions
+        const availableRooms: string[] = [];
+        for (const schedule of allRoomSchedules) {
+          const match = schedule.question.match(/\b(FH|FS|AVR)\s+([A-Z0-9\-\&\s]+)/i);
+          if (match) {
+            let roomName = `${match[1]} ${match[2].trim()}`;
+            // Clean up "room" suffix if present
+            roomName = roomName.replace(/\s+room$/i, '');
+            availableRooms.push(roomName);
+          }
         }
+        
+        // Remove duplicates and sort
+        const uniqueRooms = [...new Set(availableRooms)].sort();
+        
+        // Format response
+        const roomListResponse = `📋 **Available Rooms with Schedules**\n\n${uniqueRooms.map(r => `• ${r}`).join("\n")}\n\n---\n\nWould you like to see the schedule for any of these rooms? Just ask me like "What is the schedule for FH 205?"`;
+        
+        const interaction = await prisma.aIInteraction.create({
+          data: {
+            userId,
+            type: AIInteractionType.QUESTION,
+            context: "room_schedule_list",
+            userMessage: message,
+            aiResponse: roomListResponse,
+          },
+        });
+        
+        return res.json({
+          response: roomListResponse,
+          suggestions: [
+            "Show me FH 205 schedule",
+            "What's the schedule for AVR A?",
+            "Show me all room schedules",
+          ],
+          interactionId: interaction.id,
+          timestamp: interaction.createdAt,
+          intent: "room_schedule_list",
+        });
+      }
 
-        if (!roomNumber) {
-          console.log(
-            `[Room Schedule] Could not extract room number, falling through`,
-          );
-          // Fall through to normal flow
-        } else {
-          // Search ONLY in Room Schedules category
-          const roomSchedules = await prisma.fAQ.findMany({
+        // ============================================================
+        // STEP 1: Extract potential room identifier from ANY message
+        // ============================================================
+        let roomIdentifier: string | null = null;
+        let roomType: string | null = null;
+        let specificRoomCode: string | null = null;
+        
+        // Try ALL possible patterns to extract room info
+        
+        // Pattern 1: AVR A, AVR B, AVR 1, AVR 2
+        const avrMatch = message.match(/\bavr\s+([A-Z]|\d+)\b/i);
+        if (avrMatch) {
+          const roomLetter = avrMatch[1].toUpperCase();
+          specificRoomCode = roomLetter;
+          roomIdentifier = `AVR ${roomLetter}`;
+          roomType = "avr";
+          console.log(`[Room Schedule] Extracted AVR room: "${roomIdentifier}"`);
+        }
+        
+        // Pattern 2: FH 205, FS 202 (with numbers)
+        const buildingNumberMatch = message.match(/\b(fh|fs)\s+(\d+)\b/i);
+        if (buildingNumberMatch && !roomIdentifier) {
+          roomIdentifier = `${buildingNumberMatch[1].toUpperCase()} ${buildingNumberMatch[2]}`;
+          roomType = buildingNumberMatch[1].toLowerCase();
+          specificRoomCode = buildingNumberMatch[2];
+          console.log(`[Room Schedule] Extracted numbered room: "${roomIdentifier}"`);
+        }
+        
+        // Pattern 3: FH CS-AR, FS CS R&E (with special codes)
+        const specialRoomMatch = message.match(/\b(fh|fs)\s+([a-z][a-z0-9\-\&\s]+?)(?:\s+(?:room|schedule|for|of|in)?|$)/i);
+        if (specialRoomMatch && !roomIdentifier) {
+          let specialCode = specialRoomMatch[2].trim().toUpperCase();
+          roomIdentifier = `${specialRoomMatch[1].toUpperCase()} ${specialCode}`;
+          roomType = specialRoomMatch[1].toLowerCase();
+          specificRoomCode = specialCode;
+          console.log(`[Room Schedule] Extracted special room: "${roomIdentifier}"`);
+        }
+        
+        // Pattern 4: Just a number (like "205", "107")
+        const justNumberMatch = message.match(/\b(\d{3})\b/);
+        if (justNumberMatch && !roomIdentifier) {
+          // Try to determine building from context
+          const hasFH = message.toLowerCase().includes("fh");
+          const hasFS = message.toLowerCase().includes("fs");
+          const building = hasFH ? "FH" : (hasFS ? "FS" : "FH");
+          roomIdentifier = `${building} ${justNumberMatch[1]}`;
+          roomType = building.toLowerCase();
+          specificRoomCode = justNumberMatch[1];
+          console.log(`[Room Schedule] Extracted number-only room: "${roomIdentifier}"`);
+        }
+        
+        // Pattern 5: CS-AR, CS R&E (without building prefix)
+        const csRoomMatch = message.match(/\b(cs[\-\&]?ar|cs\s+r&e|c\s*s\s*ar|c\s*s\s*r&e)\b/i);
+        if (csRoomMatch && !roomIdentifier) {
+          const hasFH = message.toLowerCase().includes("fh");
+          const hasFS = message.toLowerCase().includes("fs");
+          const building = hasFH ? "FH" : (hasFS ? "FS" : "FH");
+          roomIdentifier = `${building} ${csRoomMatch[1].toUpperCase()}`;
+          roomType = building.toLowerCase();
+          specificRoomCode = csRoomMatch[1].toUpperCase();
+          console.log(`[Room Schedule] Extracted CS room: "${roomIdentifier}"`);
+        }
+        
+        // ============================================================
+        // STEP 2: If we extracted a room, search for it
+        // ============================================================
+        if (roomIdentifier) {
+          // Build search terms with multiple variations
+          const searchTerms: string[] = [
+            roomIdentifier,
+            roomIdentifier.replace(/\s+/g, ""),
+            roomIdentifier.replace(/\s+/g, "-"),
+            roomIdentifier.toLowerCase(),
+            specificRoomCode || "",
+            roomType || "",
+            "schedule",
+            "room"
+          ].filter(Boolean);
+          
+          const uniqueSearchTerms = [...new Set(searchTerms)];
+          console.log(`[Room Schedule] Searching with terms: ${uniqueSearchTerms.join(", ")}`);
+          
+          // Search in Room Schedules category
+          let roomSchedules = await prisma.fAQ.findMany({
             where: {
               isPublished: true,
               category: "Room Schedules",
               OR: [
-                {
-                  question: {
-                    contains: roomNumber,
-                    mode: "insensitive" as const,
-                  },
-                },
-                {
-                  question: {
-                    contains: roomNumber.replace(/\s/g, ""),
-                    mode: "insensitive" as const,
-                  },
-                },
-                {
-                  answer: {
-                    contains: roomNumber,
-                    mode: "insensitive" as const,
-                  },
-                },
-                {
-                  keywords: {
-                    hasSome: [
-                      roomNumber.toLowerCase(),
-                      roomNumber.replace(/\s/g, "").toLowerCase(),
-                    ],
-                  },
-                },
+                { question: { contains: roomIdentifier, mode: "insensitive" as const } },
+                { question: { contains: specificRoomCode || "", mode: "insensitive" as const } },
+                { answer: { contains: roomIdentifier, mode: "insensitive" as const } },
+                { keywords: { hasSome: uniqueSearchTerms.map(t => t.toLowerCase()) } },
               ],
             },
             orderBy: { helpful: "desc" },
-            take: 2,
+            take: 10,
           });
-
-          console.log(
-            `[Room Schedule] Found ${roomSchedules.length} results for room ${roomNumber}`,
-          );
-
+          
+          console.log(`[Room Schedule] Found ${roomSchedules.length} results before filtering`);
+          roomSchedules.forEach(s => console.log(`  - ${s.question}`));
+          
+          // ============================================================
+          // STEP 3: Smart filtering to find the BEST match
+          // ============================================================
           if (roomSchedules.length > 0) {
-            let scheduleResponse = "";
-
-            if (roomSchedules.length === 1) {
-              scheduleResponse = `📅 **${roomSchedules[0].question}**\n\n${roomSchedules[0].answer}`;
-            } else {
-              scheduleResponse = `📅 **Room Schedules Found for ${roomNumber.toUpperCase()}**\n\n`;
-              for (const schedule of roomSchedules) {
-                scheduleResponse += `**${schedule.question}**\n${schedule.answer}\n\n`;
+            // Score each schedule based on relevance
+            const scoredSchedules = roomSchedules.map(schedule => {
+              let score = 0;
+              const question = schedule.question.toLowerCase();
+              const answer = schedule.answer.toLowerCase();
+              
+              // Exact room number match (highest priority)
+              if (specificRoomCode && question.includes(specificRoomCode.toLowerCase())) {
+                score += 100;
               }
+              // Exact room identifier match
+              if (question.includes(roomIdentifier.toLowerCase())) {
+                score += 50;
+              }
+              // Building type match (FH, FS, AVR)
+              if (roomType && question.includes(roomType)) {
+                score += 20;
+              }
+              // Partial number match
+              if (specificRoomCode && question.includes(specificRoomCode.substring(0, 2))) {
+                score += 5;
+              }
+              // Answer contains the room info
+              if (answer.includes(roomIdentifier.toLowerCase())) {
+                score += 10;
+              }
+              
+              return { schedule, score };
+            });
+            
+            // Sort by score and take the best match
+            const bestMatch = scoredSchedules.sort((a, b) => b.score - a.score)[0];
+            
+            if (bestMatch.score > 0) {
+              roomSchedules = [bestMatch.schedule];
+              console.log(`[Room Schedule] Selected best match with score ${bestMatch.score}: ${bestMatch.schedule.question}`);
+            } else {
+              // If no good match, take the first one but warn
+              console.log(`[Room Schedule] No high-confidence match, using first result`);
+              roomSchedules = [roomSchedules[0]];
             }
-
-            scheduleResponse += `\n---\n\nDo you have any other questions about room schedules?`;
-
+          }
+          
+          // ============================================================
+          // STEP 4: Return the schedule or show available rooms
+          // ============================================================
+          if (roomSchedules.length > 0) {
+            const schedule = roomSchedules[0];
+            
+            // Extract just the room name from the question (e.g., "FH 202" from "What is the schedule for FH 202 room?")
+            let roomDisplayName = roomIdentifier?.toUpperCase() || "Room Schedule";
+            
+            // Try to extract a cleaner room name from the question
+            const questionMatch = schedule.question.match(/\b(FH|FS|AVR)\s+([A-Z0-9\-\&\s]+)/i);
+            if (questionMatch) {
+              roomDisplayName = `${questionMatch[1]} ${questionMatch[2].trim()}`;
+            }
+            
+            // Format the response with clean header (no question text)
+            let scheduleResponse = `${schedule.answer}\n\n---\n\nDo you have any other questions about room schedules?`;
+            
             // Update view count
-            Promise.all(
-              roomSchedules.map((schedule) =>
-                prisma.fAQ
-                  .update({
-                    where: { id: schedule.id },
-                    data: { viewCount: { increment: 1 } },
-                  })
-                  .catch(() => {}),
-              ),
-            ).catch(() => {});
-
-            // Save interaction
+            await prisma.fAQ.update({
+              where: { id: schedule.id },
+              data: { viewCount: { increment: 1 } },
+            }).catch(() => {});
+            
             const interaction = await prisma.aIInteraction.create({
               data: {
                 userId,
@@ -3446,44 +3585,70 @@ You can ask me:
                 aiResponse: scheduleResponse,
               },
             });
-
+            
             return res.json({
               response: scheduleResponse,
               suggestions: [
                 "What other rooms have schedules?",
-                "Show me FH 106 schedule",
-                "What are the lab schedules?",
+                "Show me AVR A schedule",
+                "What's the schedule for FH 107?",
               ],
               interactionId: interaction.id,
               timestamp: interaction.createdAt,
               intent: "room_schedule_query",
             });
-          } else {
-            // No room schedule found
-            const notFoundResponse = `I couldn't find a schedule for room ${roomNumber.toUpperCase()}. Please check the room number or try:\n\n• "What is the schedule for FH 107?"\n• "Show me FH 106 room schedule"\n• "What are the room schedules in Federizo Hall?"`;
-
-            const interaction = await prisma.aIInteraction.create({
-              data: {
-                userId,
-                type: AIInteractionType.QUESTION,
-                context: "room_schedule_not_found",
-                userMessage: message,
-                aiResponse: notFoundResponse,
-              },
-            });
-
-            return res.json({
-              response: notFoundResponse,
-              suggestions: [
-                "Show me all room schedules",
-                "What rooms are available?",
-              ],
-              interactionId: interaction.id,
-              timestamp: interaction.createdAt,
-              intent: "room_schedule_not_found",
-            });
           }
         }
+        
+        // ============================================================
+        // STEP 5: If we couldn't find the room, show ALL available rooms
+        // ============================================================
+        const allRoomSchedules = await prisma.fAQ.findMany({
+          where: {
+            isPublished: true,
+            category: "Room Schedules",
+          },
+          select: { question: true },
+          orderBy: { order: "asc" },
+          take: 50,
+        });
+        
+        // Extract and format room names from questions
+        const availableRooms: string[] = [];
+        for (const schedule of allRoomSchedules) {
+          const match = schedule.question.match(/\b(FH|FS|AVR)\s+([A-Z0-9\-\&\s]+)/i);
+          if (match) {
+            availableRooms.push(`${match[1]} ${match[2].trim()}`);
+          }
+        }
+        
+        const uniqueRooms = [...new Set(availableRooms)];
+        
+        const notFoundResponse = `I couldn't find a schedule for ${roomIdentifier || "that room"} in my database.\n\n**Available rooms with schedules:**\n${uniqueRooms.slice(0, 15).map(r => `• ${r}`).join("\n")}\n\n**To add a schedule:**\nPlease contact the administrator to add this room's schedule to the system.`;
+        
+        const interaction = await prisma.aIInteraction.create({
+          data: {
+            userId,
+            type: AIInteractionType.QUESTION,
+            context: "room_schedule_not_found",
+            userMessage: message,
+            aiResponse: notFoundResponse,
+          },
+        });
+        
+        return res.json({
+          response: notFoundResponse,
+          suggestions: [
+            "Show me all room schedules",
+            "What rooms are available?",
+            "AVR A schedule",
+            "FH 107 schedule",
+          ],
+          interactionId: interaction.id,
+          timestamp: interaction.createdAt,
+          intent: "room_schedule_not_found",
+        });
+        
       } catch (error) {
         console.error("Room schedule query error:", error);
         // Fall through to normal AI response
@@ -3790,12 +3955,12 @@ You can ask me:
               suggestions:
                 userLanguage === "fil"
                   ? [
-                      "Book consultation",
+                      
                       "Tingnan ibang faculty",
                       "Sino ang Dean?",
                     ]
                   : [
-                      "Book consultation",
+                      
                       "View other faculty",
                       "Who is the Dean?",
                     ],

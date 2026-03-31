@@ -54,6 +54,13 @@ function minutesToTime(mins: number): string {
   return `${h}:${m}`;
 }
 
+function convertTo12Hour(time24: string): string {
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
 export default function Consultations() {
   const { user } = useAuth();
   const { settings } = useAccessibility();
@@ -81,6 +88,17 @@ export default function Consultations() {
     topic: '',
     notes: ''
   });
+
+  // Available slots state
+  const [availableSlots, setAvailableSlots] = useState<{
+    available: boolean;
+    consultationStart?: string;
+    consultationEnd?: string;
+    bookedSlots: { startTime: string; endTime: string }[];
+  }>({ available: false, bookedSlots: [] });
+
+  // Faculty bookings with time slots state
+  const [facultyBookingsWithSlots, setFacultyBookingsWithSlots] = useState<Record<string, ConsultationBooking[]>>({});
 
   useEffect(() => {
     fetchFaculty();
@@ -110,6 +128,16 @@ export default function Consultations() {
     }
   };
 
+  useEffect(() => {
+    if (faculty.length > 0) {
+      // Load bookings for all faculty members
+      faculty.forEach(f => {
+        fetchFacultyBookingsWithSlots(f.id);
+      });
+    }
+  }, [faculty]);
+
+
   const fetchMyBookings = async () => {
     try {
       const res = await api.get('/consultations/my-bookings');
@@ -118,6 +146,54 @@ export default function Consultations() {
       console.error('Failed to fetch bookings:', error);
     }
   };
+
+  const fetchAvailableSlots = async (facultyId: string, date: string) => {
+    try {
+      const res = await api.get(`/consultations/available-slots?facultyId=${facultyId}&date=${date}`);
+      setAvailableSlots(res.data);
+    } catch (error) {
+      console.error('Failed to fetch available slots:', error);
+      setAvailableSlots({ available: false, bookedSlots: [] });
+    }
+  };
+
+  const fetchFacultyBookingsWithSlots = async (facultyId: string) => {
+  try {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    const res = await api.get(`/consultations/faculty/${facultyId}/availability`);
+    const bookings = Array.isArray(res.data) ? res.data : [];
+    
+    const upcomingBookings = bookings.filter((booking: ConsultationBooking) => {
+      const bookingDate = new Date(booking.date);
+      return bookingDate >= today && 
+             bookingDate <= nextWeek && 
+             (booking.status === 'PENDING' || booking.status === 'CONFIRMED');
+    }).slice(0, 5);
+    
+    // Only log when there are actual bookings
+    if (upcomingBookings.length > 0) {
+      console.log(`Loaded ${upcomingBookings.length} bookings for faculty ${facultyId}`);
+    }
+    
+    setFacultyBookingsWithSlots(prev => ({
+      ...prev,
+      [facultyId]: upcomingBookings
+    }));
+  } catch (error) {
+    // Silent fail - don't log 404s or empty responses
+    if (error instanceof Error && !error.message.includes('404')) {
+      console.error('Failed to fetch faculty bookings:', error);
+    }
+    setFacultyBookingsWithSlots(prev => ({
+      ...prev,
+      [facultyId]: []
+    }));
+  }
+};
+
 
   const filteredFaculty = faculty.filter(f => {
     const matchesSearch = searchQuery === '' || 
@@ -135,6 +211,9 @@ export default function Consultations() {
     setSelectedFaculty(fac);
     setShowBookingModal(true);
     setTimeError(null);
+    setAvailableSlots({ available: false, bookedSlots: [] }); // Reset available slots
+    // Fetch faculty bookings when opening modal
+    fetchFacultyBookingsWithSlots(fac.id);
     // Auto-set end time = start + 15 min
     const start = fac.consultationStart || '';
     const autoEnd = start ? minutesToTime(timeToMinutes(start) + MAX_CONSULTATION_MINUTES) : '';
@@ -167,6 +246,25 @@ export default function Consultations() {
     const autoEnd = minutesToTime(endMins);
     setBookingForm(f => ({ ...f, startTime: val, endTime: autoEnd }));
     setTimeError(null);
+    
+    // Check for conflicts with existing bookings
+    if (availableSlots.bookedSlots.length > 0) {
+      const newStartMins = timeToMinutes(val);
+      const newEndMins = endMins;
+      
+      const hasConflict = availableSlots.bookedSlots.some(slot => {
+        const slotStartMins = timeToMinutes(slot.startTime);
+        const slotEndMins = timeToMinutes(slot.endTime);
+        // Check if new booking overlaps with existing slot
+        return (newStartMins < slotEndMins && newEndMins > slotStartMins);
+      });
+      
+      if (hasConflict) {
+        setTimeError(settings.language === 'fil' 
+          ? 'Ang oras na ito ay may conflict sa ibang booking. Pakiusap pumili ng ibang oras.' 
+          : 'This time conflicts with an existing booking. Please choose a different time.');
+      }
+    }
   };
 
   const validateTime = (): string | null => {
@@ -180,7 +278,7 @@ export default function Consultations() {
       const facStart = timeToMinutes(selectedFaculty.consultationStart);
       const facEnd = timeToMinutes(selectedFaculty.consultationEnd);
       if (startMins < facStart || endMins > facEnd) {
-        return `Faculty is only available ${selectedFaculty.consultationStart} – ${selectedFaculty.consultationEnd}`;
+       return `Faculty is only available ${convertTo12Hour(selectedFaculty.consultationStart)} - ${convertTo12Hour(selectedFaculty.consultationEnd)}`;
       }
     }
     return null;
@@ -244,6 +342,41 @@ export default function Consultations() {
       fetchMyBookings();
     } catch (error: any) {
       setToast({ message: error.response?.data?.error || 'Failed to cancel', type: 'error' });
+    }
+  };
+
+  const handleClearAllCancelledBookings = async () => {
+    try {
+      // Check if there are any cancelled bookings
+      const cancelledBookings = bookings.filter(b => b.status === 'CANCELLED');
+      
+      if (cancelledBookings.length === 0) {
+        setToast({ 
+          message: settings.language === 'fil' ? 'Walang kanseladong booking' : 'No cancelled bookings', 
+          type: 'info' 
+        });
+        return;
+      }
+
+      // Call the API to clear all cancelled bookings
+      const response = await api.delete('/consultations/clear-cancelled');
+      
+      setToast({ 
+        message: settings.language === 'fil' 
+          ? `Na-clear ang ${response.data.count} kanseladong booking${response.data.count > 1 ? 's' : ''}` 
+          : `Cleared ${response.data.count} cancelled booking${response.data.count > 1 ? 's' : ''}`, 
+        type: 'success' 
+      });
+      
+      // Refresh the bookings list
+      fetchMyBookings();
+      
+    } catch (error: any) {
+      setToast({ 
+        message: error.response?.data?.error || 
+          (settings.language === 'fil' ? 'Nabigong i-clear ang mga booking' : 'Failed to clear bookings'), 
+        type: 'error' 
+      });
     }
   };
 
@@ -375,6 +508,12 @@ export default function Consultations() {
                   onClick={() => {
                     if (user?.role === 'ADMIN') openFacultyBookingsModal(f);
                   }}
+                  onMouseEnter={() => {
+                    // Fetch bookings when hovering over faculty card
+                    if (!facultyBookingsWithSlots[f.id]) {
+                      fetchFacultyBookingsWithSlots(f.id);
+                    }
+                  }}
                 >
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
                     <div className="flex items-start gap-4">
@@ -421,10 +560,64 @@ export default function Consultations() {
                     {f.consultationStart && f.consultationEnd && (
                       <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                         <Clock className="w-4 h-4 flex-shrink-0" />
-                        <span>{f.consultationStart} - {f.consultationEnd}</span>
+                        <span>{convertTo12Hour(f.consultationStart)} - {convertTo12Hour(f.consultationEnd)}</span>
                       </div>
                     )}
                   </div>
+                  
+                  {/* Booked Times Display */}
+{facultyBookingsWithSlots[f.id] && facultyBookingsWithSlots[f.id].length > 0 && (
+  <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded-xl">
+    <div className="flex items-center gap-2 mb-3">
+      <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+      <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+        {settings.language === 'fil' ? 'Mga Nakaiskedyul na Konsultasyon:' : 'Upcoming Scheduled Consultations:'}
+      </p>
+    </div>
+    <div className="space-y-2">
+      {facultyBookingsWithSlots[f.id].map((booking, index) => {
+        const bookingDate = new Date(booking.date);
+        const dayName = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const formattedDate = bookingDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        
+        return (
+          <div key={index} className="text-xs border-b border-orange-200 dark:border-orange-500/20 pb-2 last:border-0 last:pb-0">
+            <div className="flex items-start gap-2">
+              <div className="min-w-[85px]">
+                <span className="font-semibold text-orange-700 dark:text-orange-300">{dayName}</span>
+              </div>
+              <div className="flex-1">
+                <div className="text-orange-600 dark:text-orange-400">
+                  {formattedDate}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <Clock className="w-3 h-3 text-orange-500" />
+                  <span className="text-orange-600 dark:text-orange-400">
+                    {convertTo12Hour(booking.startTime)} - {convertTo12Hour(booking.endTime)}
+                  </span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${
+                    booking.status === 'PENDING' 
+                      ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' 
+                      : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  }`}>
+                    {booking.status === 'PENDING' 
+                      ? (settings.language === 'fil' ? 'Nakabinbin' : 'Pending') 
+                      : (settings.language === 'fil' ? 'Nakumpirma' : 'Confirmed')}
+                  </span>
+                </div>
+                {booking.topic && (
+                  <div className="mt-1 text-orange-500/70 dark:text-orange-400/70 text-[11px]">
+                    📚 {booking.topic.length > 40 ? booking.topic.substring(0, 40) + '...' : booking.topic}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
                 </div>
               ))
             )}
@@ -455,6 +648,19 @@ export default function Consultations() {
                 </button>
               ))}
             </div>
+
+            {/* Clear cancelled bookings button */}
+            {bookings.some(b => b.status === 'CANCELLED') && (
+              <div className="mb-4">
+                <button
+                  onClick={handleClearAllCancelledBookings}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center gap-1.5"
+                >
+                  <XCircle className="w-3 h-3" />
+                  {settings.language === 'fil' ? 'I-clear ang Kanselado' : 'Clear Cancelled'}
+                </button>
+              </div>
+            )}
 
             <div className="space-y-3 max-h-[550px] overflow-y-auto">
               {filteredBookings.length === 0 ? (
@@ -490,14 +696,18 @@ export default function Consultations() {
                         {booking.Faculty.firstName} {booking.Faculty.lastName}
                       </p>
                     )}
-                    <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <Calendar className="w-4 h-4 text-cyan-500" />
+                        {new Date(booking.date).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
-                        {booking.startTime} - {booking.endTime}
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <Clock className="w-4 h-4 text-purple-500" />
+                        {convertTo12Hour(booking.startTime)} - {convertTo12Hour(booking.endTime)}
                       </div>
                     </div>
                   </div>
@@ -536,7 +746,7 @@ export default function Consultations() {
             {selectedFaculty.consultationDays.length > 0 && (
               <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl text-sm text-blue-700 dark:text-blue-300">
                 <strong>{settings.language === 'fil' ? 'Available:' : 'Available:'}</strong> {selectedFaculty.consultationDays.join(', ')}
-                {selectedFaculty.consultationStart && ` (${selectedFaculty.consultationStart} - ${selectedFaculty.consultationEnd})`}
+                {selectedFaculty.consultationStart && ` (${convertTo12Hour(selectedFaculty.consultationStart)} - ${convertTo12Hour(selectedFaculty.consultationEnd)})`}
               </div>
             )}
 
@@ -549,13 +759,58 @@ export default function Consultations() {
                   type="date"
                   value={bookingForm.date}
                   min={new Date().toISOString().split('T')[0]}
-                  onChange={e => setBookingForm({ ...bookingForm, date: e.target.value })}
+                  onChange={e => {
+                    const newDate = e.target.value;
+                    setBookingForm({ ...bookingForm, date: newDate });
+                    if (newDate && selectedFaculty) {
+                      fetchAvailableSlots(selectedFaculty.id, newDate);
+                    }
+                  }}
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30"
                 />
                 {bookingForm.date && !isDateAvailable(bookingForm.date, selectedFaculty) && (
                   <p className="mt-2 text-sm text-red-500">
                     {settings.language === 'fil' ? 'Hindi available ang faculty sa araw na ito' : 'Faculty not available on this day'}
                   </p>
+                )}
+                
+                {/* Booked slots display */}
+                {bookingForm.date && selectedFaculty && availableSlots.bookedSlots.length > 0 && (
+                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">
+                      {settings.language === 'fil' ? 'Na-book na oras:' : 'Booked time slots:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableSlots.bookedSlots.map((slot, index) => (
+                        <span key={index} className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs rounded-lg">
+                          {convertTo12Hour(slot.startTime)} - {convertTo12Hour(slot.endTime)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Faculty upcoming bookings display */}
+                {selectedFaculty && facultyBookingsWithSlots[selectedFaculty.id] && facultyBookingsWithSlots[selectedFaculty.id].length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        {settings.language === 'fil' ? 'Mga paparating na booking:' : 'Upcoming bookings:'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      {facultyBookingsWithSlots[selectedFaculty.id].map((booking, index) => (
+                        <div key={index} className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                          <span className="w-16">{new Date(booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          <span className="w-20">{convertTo12Hour(booking.startTime)} - {convertTo12Hour(booking.endTime)}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                            {booking.status === 'PENDING' ? (settings.language === 'fil' ? 'Nakabinbin' : 'Pending') : (settings.language === 'fil' ? 'Nakumpirma' : 'Confirmed')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -576,7 +831,11 @@ export default function Consultations() {
                     type="time"
                     value={bookingForm.startTime}
                     onChange={e => handleStartTimeChange(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30"
+                    className={`w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 ${
+                      timeError && timeError.includes('conflict') 
+                        ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-500/30' 
+                        : 'border-slate-200 dark:border-white/10 focus:border-cyan-500 focus:ring-cyan-500/30'
+                    }`}
                   />
                 </div>
                 <div>
@@ -681,35 +940,35 @@ export default function Consultations() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {facultyBookings.map(booking => (
-                  <div key={booking.id} className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(booking.status)}`}>
-                        {getStatusIcon(booking.status)}
-                        {booking.status}
-                      </div>
-                      <span className="text-xs text-slate-400">
-                        {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
+             <div className="space-y-3">
+              {facultyBookings.map(booking => (
+                <div key={booking.id} className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(booking.status)}`}>
+                      {getStatusIcon(booking.status)}
+                      {booking.status}
                     </div>
-                    <p className="font-semibold text-slate-900 dark:text-white text-sm mb-1">{booking.topic}</p>
-                    {(booking as any).Student && (
-                      <p className="text-xs text-cyan-600 dark:text-cyan-400 mb-1">
-                        👤 {(booking as any).Student.firstName} {(booking as any).Student.lastName}
-                        {(booking as any).Student.email && <span className="text-slate-400 ml-1">· {(booking as any).Student.email}</span>}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <Clock className="w-3 h-3" />
-                      {booking.startTime} – {booking.endTime}
-                    </div>
-                    {booking.notes && (
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic">{booking.notes}</p>
-                    )}
+                    <span className="text-xs text-slate-400">
+                      {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <p className="font-semibold text-slate-900 dark:text-white text-sm mb-1">{booking.topic}</p>
+                  {(booking as any).Student && (
+                    <p className="text-xs text-cyan-600 dark:text-cyan-400 mb-1">
+                      👤 {(booking as any).Student.firstName} {(booking as any).Student.lastName}
+                      {(booking as any).Student.email && <span className="text-slate-400 ml-1">· {(booking as any).Student.email}</span>}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <Clock className="w-3 h-3" />
+                    {convertTo12Hour(booking.startTime)} - {convertTo12Hour(booking.endTime)}
+                  </div>
+                  {booking.notes && (
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic">{booking.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
             )}
           </div>
         </div>

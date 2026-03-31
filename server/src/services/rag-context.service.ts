@@ -1307,64 +1307,118 @@ async function fetchFAQs(msg: string): Promise<FAQContext[]> {
     }));
   }
 
-  // CASE 2: ROOM SCHEDULE QUERY
-  if (isRoomScheduleQuery) {
-    console.log(`[FAQ Retrieval] Room schedule query detected`);
+ // CASE 2: ROOM SCHEDULE QUERY
+if (isRoomScheduleQuery) {
+  console.log(`[FAQ Retrieval] Room schedule query detected`);
 
-    // Extract room number if present
-    const roomMatch =
-      lowerMsg.match(/(?:fh|fs|room|lab)\s*(\d+[a-z]?)/i) ||
-      lowerMsg.match(/(?:room|classroom)\s+([a-z0-9]+)/i);
+  // Extract room identifier with better precision
+  let roomIdentifier: string | null = null;
+  let roomType: string | null = null;
 
-    let keywords: string[] = [];
-
-    if (roomMatch && roomMatch[1]) {
-      const roomNumber = roomMatch[1].toLowerCase();
-      keywords.push(roomNumber);
-      console.log(`[FAQ Retrieval] Extracted room number: "${roomNumber}"`);
-    }
-
-    // Add common room keywords
-    keywords.push("room", "schedule");
-
-    // Also extract any room location like "FH", "FS"
-    const locationMatch = lowerMsg.match(/\b(fh|fs|avr)\b/i);
-    if (locationMatch) {
-      keywords.push(locationMatch[1].toLowerCase());
-    }
-
-    console.log(
-      `[FAQ Retrieval] Searching Room Schedules with keywords: ${keywords.join(", ")}`,
-    );
-
-    // ONLY fetch from "Room Schedules" category
-    const roomSchedules = await FAQCacheService.searchFAQs(keywords, [
-      "Room Schedules",
-    ]);
-
-    console.log(
-      `[FAQ Retrieval] Room schedule query - Found: ${roomSchedules.length} FAQs`,
-    );
-
-    if (roomSchedules.length > 0) {
-      Promise.all(
-        roomSchedules.map((faq) =>
-          prisma.fAQ
-            .update({
-              where: { id: faq.id },
-              data: { viewCount: { increment: 1 } },
-            })
-            .catch(() => {}),
-        ),
-      ).catch(() => {});
-    }
-
-    return roomSchedules.map((f) => ({
-      category: f.category,
-      question: f.question,
-      answer: f.answer,
-    }));
+  // Pattern 1: Match AVR A, AVR B, AVR 1, AVR 2, etc.
+  const avrMatch = lowerMsg.match(/\bavr\s+([A-Z]|\d+)\b/i);
+  if (avrMatch) {
+    roomIdentifier = `AVR ${avrMatch[1]}`.toUpperCase();
+    roomType = "avr";
+    console.log(`[FAQ Retrieval] Extracted AVR room: "${roomIdentifier}"`);
   }
+  
+  // Pattern 2: Match FH 101, FS 202, etc.
+  const buildingMatch = lowerMsg.match(/\b(fh|fs)\s+(\d+[a-z]?)\b/i);
+  if (buildingMatch && !roomIdentifier) {
+    roomIdentifier = `${buildingMatch[1].toUpperCase()} ${buildingMatch[2]}`;
+    roomType = buildingMatch[1].toLowerCase();
+    console.log(`[FAQ Retrieval] Extracted building room: "${roomIdentifier}"`);
+  }
+  
+  // Pattern 3: Match Room 101, Classroom 202, etc.
+  const roomMatch = lowerMsg.match(/\b(?:room|classroom)\s+([a-z0-9]+)\b/i);
+  if (roomMatch && !roomIdentifier) {
+    roomIdentifier = `Room ${roomMatch[1]}`;
+    roomType = "room";
+    console.log(`[FAQ Retrieval] Extracted room: "${roomIdentifier}"`);
+  }
+  
+  // Pattern 4: Match standalone "AVR A" or "AVR B"
+  const standaloneAvrMatch = lowerMsg.match(/\b(avr\s+[a-z]|\d+)\b/i);
+  if (standaloneAvrMatch && !roomIdentifier) {
+    roomIdentifier = standaloneAvrMatch[1].toUpperCase();
+    roomType = "avr";
+    console.log(`[FAQ Retrieval] Extracted standalone AVR: "${roomIdentifier}"`);
+  }
+
+  // Build precise search keywords
+  const keywords: string[] = [];
+  
+  if (roomIdentifier) {
+    // Use the exact room identifier for precise matching
+    keywords.push(roomIdentifier);
+    // Also add the individual parts for broader matching
+    const parts = roomIdentifier.split(/\s+/);
+    keywords.push(...parts);
+  }
+  
+  if (roomType) {
+    keywords.push(roomType);
+  }
+  
+  // Add general schedule keywords
+  keywords.push("schedule", "room");
+  
+  // Remove duplicates
+  const uniqueKeywords = [...new Set(keywords)];
+  
+  console.log(
+    `[FAQ Retrieval] Searching Room Schedules with keywords: ${uniqueKeywords.join(", ")}`,
+  );
+
+  // ONLY fetch from "Room Schedules" category
+  let roomSchedules = await FAQCacheService.searchFAQs(uniqueKeywords, [
+    "Room Schedules",
+  ]);
+  
+  // Filter results to only include the specific room asked about
+  if (roomIdentifier) {
+    const exactRoomPattern = new RegExp(
+      roomIdentifier.replace(/\s+/, '\\s+').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+      'i'
+    );
+    
+    roomSchedules = roomSchedules.filter(faq => {
+      const question = faq.question.toLowerCase();
+      const answer = faq.answer.toLowerCase();
+      const matchesExact = exactRoomPattern.test(question) || exactRoomPattern.test(answer);
+      
+      if (!matchesExact) {
+        console.log(`[FAQ Retrieval] Filtered out FAQ not matching ${roomIdentifier}: ${faq.question.substring(0, 50)}`);
+      }
+      return matchesExact;
+    });
+  }
+
+  console.log(
+    `[FAQ Retrieval] Room schedule query - Found: ${roomSchedules.length} FAQs after filtering`,
+  );
+
+  if (roomSchedules.length > 0) {
+    Promise.all(
+      roomSchedules.map((faq) =>
+        prisma.fAQ
+          .update({
+            where: { id: faq.id },
+            data: { viewCount: { increment: 1 } },
+          })
+          .catch(() => {}),
+      ),
+    ).catch(() => {});
+  }
+
+  return roomSchedules.map((f) => ({
+    category: f.category,
+    question: f.question,
+    answer: f.answer,
+  }));
+}
 
   // CASE 3: GENERAL QUERY - search all categories
   console.log(

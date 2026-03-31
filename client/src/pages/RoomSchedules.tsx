@@ -135,6 +135,52 @@ const ROOMS: Room[] = [
       { day: 'Friday', time: '2:30PM-3:30PM', courseCode: 'PID 101', courseTitle: 'Personal Development', section: '', instructor: 'SOTIO, JAMIE M.' },
     ]
   },
+  {
+    id: 'fh-110',
+    name: 'FH 110',
+    building: 'Federizo Hall',
+    floor: 1,
+    capacity: 50,
+    type: 'CLASSROOM',
+    facilities: ['Projector', 'Aircon', 'Whiteboard'],
+    schedules: [
+      // Monday
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'INV 204', courseTitle: 'Investment Management', section: 'BSB 3A', instructor: 'LEE, MARY YLANE S.' },
+      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'INV 204', courseTitle: 'Investment Management', section: 'BSB 3B', instructor: 'LEE, MARY YLANE S.' },
+      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'PAR 404', courseTitle: 'Parasitology', section: 'BSB 4B', instructor: 'TAN, JUDITH CLARISSE' },
+      { day: 'Monday', time: '4:00PM-8:00PM', courseCode: 'ECB 405', courseTitle: 'Economic Botany', section: 'BSB 4A', instructor: 'TADIOSA, EDWIN R.' },
+      
+      // Tuesday
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'PAR 404', courseTitle: 'Parasitology', section: 'BSB 4A', instructor: 'TAN, JUDITH CLARISSE' },
+      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'ECB 405', courseTitle: 'Economic Botany', section: 'BSB 4A', instructor: 'TADIOSA, EDWIN R.' },
+      { day: 'Tuesday', time: '1:00PM-2:30PM', courseCode: 'CHE 301L', courseTitle: 'Chemistry Laboratory', section: '', instructor: 'TUAZON, DEBBIE ANN S.' },
+      { day: 'Tuesday', time: '2:30PM-4:00PM', courseCode: 'FedAAN H 101', courseTitle: 'Food and Nutrition', section: '', instructor: 'DE LEON, SHIELA MARIE' },
+      { day: 'Tuesday', time: '4:00PM-5:30PM', courseCode: 'PID 101', courseTitle: 'Principles of Infectious Diseases', section: '', instructor: 'RAMOS, DANTE B.' },
+      
+      // Wednesday
+      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'STS 101', courseTitle: 'Science, Technology and Society', section: 'BSB 1A', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'PAR 404', courseTitle: 'Parasitology', section: 'BSB 4A', instructor: 'TAN, JUDITH CLARISSE' },
+      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'PAR 404', courseTitle: 'Parasitology', section: 'BSB 4B', instructor: 'TAN, JUDITH CLARISSE' },
+      { day: 'Wednesday', time: '4:00PM-8:00PM', courseCode: 'CHE 105/105L', courseTitle: 'General Chemistry', section: 'BSFT 1B', instructor: 'TUAZON, DEBBIE ANN S.' },
+      
+      // Thursday
+      { day: 'Thursday', time: '7:00AM-10:00AM', courseCode: 'EVO 303', courseTitle: 'Evolutionary Biology', section: 'BSB 3A', instructor: 'CLEMENTE, RICHARD FRANC' },
+      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'MIC 205L', courseTitle: 'Microbiology Laboratory', section: 'BSB 2A', instructor: 'VITUG, LAWRENCE V.' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'ECO 105L', courseTitle: 'Ecology Laboratory', section: 'BSB 1B', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Thursday', time: '5:00PM-8:00PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: '', instructor: 'CATACUTAN, PAULA ANGELICA H.' },
+      
+      // Friday
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'ECO 105L', courseTitle: 'Ecology Laboratory', section: 'BSB 1A', instructor: 'CARPIO, ALFREDO' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'MIC 205', courseTitle: 'Microbiology', section: 'BSB 2B', instructor: 'DIZON, SARAH JOY' },
+      { day: 'Friday', time: '1:00PM-4:00PM', courseCode: 'MIC 205L', courseTitle: 'Microbiology Laboratory', section: 'BSB 2A', instructor: 'VITUG, LAWRENCE V.' },
+      { day: 'Friday', time: '5:00PM-8:00PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: '', instructor: 'CATACUTAN, PAULA ANGELICA H.' },
+      
+      // Saturday
+      { day: 'Saturday', time: '7:00AM-10:00AM', courseCode: 'MIC 205L', courseTitle: 'Microbiology Laboratory', section: 'BSB 2B', instructor: 'DIZON, SARAH JOY' },
+      { day: 'Saturday', time: '2:00PM-8:00PM', courseCode: 'GEN 301 L', courseTitle: 'Genetics Laboratory', section: '', instructor: 'DIZON, SARAH JOY' },
+      { day: 'Saturday', time: '4:00PM-8:00PM', courseCode: 'GEN 301L', courseTitle: 'Genetics Laboratory', section: '', instructor: '' }
+    ]
+  },
   // FH CS-AR
   {
     id: 'fh-csar',
@@ -238,28 +284,103 @@ const ROOMS: Room[] = [
     type: 'LECTURE_HALL',
     facilities: ['Projector', 'Sound System', 'Aircon', 'Microphone'],
     schedules: [
-      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 2A', courseTitle: 'Applied Statistics', section: '', instructor: 'MACALASIANG, AARON' },
-      { day: 'Monday', time: '10:00AM-1:00PM', courseCode: 'BSM BA 4A', courseTitle: 'Business Applications', section: '', instructor: 'ROBERTO, YOLANDA C.' },
-      { day: 'Monday', time: '1:00PM-4:00PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM AS 4B', instructor: 'ROBERTO, YOLANDA C.' },
-      { day: 'Monday', time: '4:00PM-8:00PM', courseCode: 'BSB A 1C', courseTitle: 'Biology', section: '', instructor: 'ANTONIO, ELYSSA' },
-      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 2B-G', courseTitle: 'Applied Statistics', section: '', instructor: 'CAMARA, EVELYN' },
-      { day: 'Tuesday', time: '10:00AM-1:00PM', courseCode: 'BSM BA 2A', courseTitle: 'Business Applications', section: '', instructor: 'VIOLA, JOSELITO' },
-      { day: 'Tuesday', time: '1:00PM-4:00PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: '', instructor: 'VIOLA, JOSELITO' },
-      { day: 'Tuesday', time: '4:00PM-8:00PM', courseCode: 'BSM AS 2A', courseTitle: 'Applied Statistics', section: '', instructor: 'ROBERTO, YOLANDA C.' },
-      { day: 'Wednesday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 3B', courseTitle: 'Applied Statistics', section: '', instructor: 'MORALES, IMELDA' },
-      { day: 'Wednesday', time: '10:00AM-1:00PM', courseCode: 'BSM BA 4A', courseTitle: 'Business Applications', section: '', instructor: 'ROBERTO, YOLANDA C.' },
-      { day: 'Wednesday', time: '1:00PM-4:00PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: '', instructor: 'CAMARA, EVELYN' },
-      { day: 'Wednesday', time: '4:00PM-8:00PM', courseCode: 'BSM CS 1A G2', courseTitle: 'Computer Science', section: '', instructor: 'MARCELINO, LYCAD D.' },
-      { day: 'Thursday', time: '7:30AM-8:30AM', courseCode: 'BSM AS 3B', courseTitle: 'Applied Statistics', section: '', instructor: 'MORALES, IMELDA' },
-      { day: 'Thursday', time: '8:30AM-10:00AM', courseCode: 'BSM CS 2A G2', courseTitle: 'Computer Science', section: '', instructor: 'VIOLA, JOSELITO' },
-      { day: 'Thursday', time: '10:00AM-1:00PM', courseCode: 'BSM AS 2B', courseTitle: 'Applied Statistics', section: '', instructor: 'VIOLA, JOSELITO' },
-      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'EFL 301', courseTitle: 'English as a Foreign Language', section: 'BSM BA 3B', instructor: 'DELA CRUZ, BERNADETTE' },
-      { day: 'Thursday', time: '5:00PM-6:30PM', courseCode: 'BSM BA 2B', courseTitle: 'Business Applications', section: '', instructor: 'DELA CRUZ, BERNADETTE' },
-      { day: 'Thursday', time: '6:30PM-8:00PM', courseCode: 'BSM BA 2A', courseTitle: 'Business Applications', section: '', instructor: 'DELA CRUZ, BERNADETTE' },
-      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'BSM CS 1B G2', courseTitle: 'Computer Science', section: '', instructor: 'VIOLA, JOSELITO' },
-      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'BSM CS 3B G2', courseTitle: 'Computer Science', section: '', instructor: 'HARRIS DELA CRUZ' },
-      { day: 'Friday', time: '1:00PM-3:00PM', courseCode: 'BSM CS 2B G2', courseTitle: 'Computer Science', section: '', instructor: 'VIOLA, JOSELITO' },
+      // Monday
+      { day: 'Monday', time: '7:00AM-10:00AM', courseCode: 'BSM AS 2A', courseTitle: 'Applied Statistics', section: 'No info', instructor: 'MACALASIANG, AARON' },
+      { day: 'Monday', time: '8:30AM-10:00AM', courseCode: 'MAT 307', courseTitle: 'Mathematics', section: 'BSM AS 3B', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '10:00AM-11:30AM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM BA 4A', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '11:30AM-1:00PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM AS 4A', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '2:00PM-3:30PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM AS 4B', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '3:30PM-5:00PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM BA 4B', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Monday', time: '5:30PM-6:30PM', courseCode: 'STS 101', courseTitle: 'Science, Technology and Society', section: 'BSBA 1C', instructor: 'ANTONIO, ELYSSA GRACE A.' },
+      
+      // Tuesday
+      { day: 'Tuesday', time: '8:30AM-10:00AM', courseCode: 'RPH 101', courseTitle: 'Readings in Philippine History', section: 'BSM BA 3B', instructor: 'MANAHAN, INAH MARIFAYE B.' },
+      { day: 'Tuesday', time: '10:00AM-11:30AM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM BA 2A', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Tuesday', time: '11:30AM-1:00PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM BA 2B', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Tuesday', time: '2:00PM-3:30PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM CS 2A G1', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Tuesday', time: '2:00PM-3:30PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM CS 2A G2', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Tuesday', time: '3:30PM-5:00PM', courseCode: 'MAT 307', courseTitle: 'Mathematics', section: 'BSM AS 3A', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Tuesday', time: '5:00PM-6:30PM', courseCode: 'MAT 307', courseTitle: 'Mathematics', section: 'BSM AS 3B', instructor: 'ROBERTO, YOLANDA C.' },
+      
+      // Wednesday
+      { day: 'Wednesday', time: '7:00AM-8:30AM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM CS 2B G1', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '7:00AM-8:30AM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM CS 2B G2', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '8:30AM-10:00AM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM CS 2A G1', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '8:30AM-10:00AM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM CS 2A G2', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '10:00AM-11:30AM', courseCode: 'MAT 307', courseTitle: 'Mathematics', section: 'BSM AS 3A', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Wednesday', time: '11:30AM-1:00PM', courseCode: 'MAT 403', courseTitle: 'Mathematics', section: 'BSM BA 4A', instructor: 'ROBERTO, YOLANDA C.' },
+      { day: 'Wednesday', time: '2:00PM-3:30PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM BA 2A', instructor: 'CAMARA, EVELYN' },
+      { day: 'Wednesday', time: '3:30PM-5:00PM', courseCode: 'MAT 107', courseTitle: 'Mathematics', section: 'BSM CS 1A G1', instructor: 'MARCELINO, LYCA D.' },
+      { day: 'Wednesday', time: '3:30PM-5:00PM', courseCode: 'MAT 107', courseTitle: 'Mathematics', section: 'BSM CS 1A G2', instructor: 'MARCELINO, LYCA D.' },
+      { day: 'Wednesday', time: '5:00PM-7:00PM', courseCode: 'MAT 105', courseTitle: 'Mathematics', section: 'BSM AS 1B', instructor: 'MARCELINO, LYCA D.' },
+      
+      // Thursday
+      { day: 'Thursday', time: '7:30AM-8:30AM', courseCode: 'No info', courseTitle: 'No info', section: 'BSM AS 3B', instructor: 'MANAHAN, INAH MARIFAYE B.' },
+      { day: 'Thursday', time: '8:30AM-10:00AM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM CS 2A G1', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Thursday', time: '8:30AM-10:00AM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM CS 2A G2', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Thursday', time: '10:00AM-11:30AM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM AS 2B', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Thursday', time: '11:30AM-1:00PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM AS 2A', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Thursday', time: '1:00PM-4:00PM', courseCode: 'FEL 301', courseTitle: 'English as a Foreign Language', section: 'BSM BA 3B', instructor: 'DELA CRUZ, BERNADETTE' },
+      { day: 'Thursday', time: '5:00PM-6:30PM', courseCode: 'MBA 207', courseTitle: 'Business Administration', section: 'BSM BA 2B', instructor: 'DELA CRUZ, BERNADETTE' },
+      { day: 'Thursday', time: '6:30PM-8:00PM', courseCode: 'MBA 207', courseTitle: 'Business Administration', section: 'BSM BA 2A', instructor: 'DELA CRUZ, BERNADETTE' },
+      
+      // Friday
+      { day: 'Friday', time: '7:00AM-9:00AM', courseCode: 'MAT 105', courseTitle: 'Mathematics', section: 'BSM CS 1B G1', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Friday', time: '7:00AM-9:00AM', courseCode: 'MAT 105', courseTitle: 'Mathematics', section: 'BSM CS 1B G2', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Friday', time: '10:00AM-11:30AM', courseCode: 'MAT 306', courseTitle: 'Mathematics', section: 'BSM CS 3B G1', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Friday', time: '10:00AM-11:30AM', courseCode: 'MAT 306', courseTitle: 'Mathematics', section: 'BSM CS 3B G2', instructor: 'DELA CRUZ, HARRIS' },
+      { day: 'Friday', time: '11:30AM-1:00PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM CS 2B G1', instructor: 'CAMARA, EVELYN' },
+      { day: 'Friday', time: '11:30AM-1:00PM', courseCode: 'MAT 206', courseTitle: 'Mathematics', section: 'BSM CS 2B G2', instructor: 'CAMARA, EVELYN' },
+      { day: 'Friday', time: '1:00PM-2:30PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM CS 2B G1', instructor: 'VIOLA, JOSELITO' },
+      { day: 'Friday', time: '1:00PM-2:30PM', courseCode: 'MAT 205', courseTitle: 'Mathematics', section: 'BSM CS 2B G2', instructor: 'VIOLA, JOSELITO' },
       { day: 'Friday', time: '3:00PM-5:00PM', courseCode: 'MAS 307', courseTitle: 'Advanced Statistics', section: 'BSM AS 3B', instructor: 'GALVEZ, ARCEL F.' },
+      { day: 'Friday', time: '5:00PM-8:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM CS 2A G1', instructor: 'POÑADO, ROSARIO' },
+      { day: 'Friday', time: '5:00PM-8:00PM', courseCode: 'PHY 202a', courseTitle: 'Physics', section: 'BSM CS 2A G2', instructor: 'POÑADO, ROSARIO' }
+    ]
+  },
+  {
+    id: 'fh-avrb',
+    name: 'FH AVR B',
+    building: 'Federizo Hall',
+    floor: 2,
+    capacity: 80,
+    type: 'LECTURE_HALL',
+    facilities: ['Projector', 'Sound System', 'Aircon', 'Microphone'],
+    schedules: [
+      // Monday
+      { day: 'Monday', time: '7:00AM-9:00AM', courseCode: 'MLSAP 402', courseTitle: 'Medical Laboratory Science Aptitude', section: 'BSMT 4A', instructor: 'SANTOS, MARIA SALOME C.' },
+      { day: 'Monday', time: '9:00AM-12:00PM', courseCode: 'MLSS 402', courseTitle: 'Medical Laboratory Science Skills', section: 'BSMT 4A', instructor: 'SANTOS, MARIA SALOME C.' },
+      { day: 'Monday', time: '1:00PM-3:00PM', courseCode: 'MLSAP 402', courseTitle: 'Medical Laboratory Science Aptitude', section: 'BSMT 4B', instructor: 'SANTOS, MARIA SALOME C.' },
+      { day: 'Monday', time: '3:00PM-6:00PM', courseCode: 'MLSS 402', courseTitle: 'Medical Laboratory Science Skills', section: 'BSMT 4B', instructor: 'SANTOS, MARIA SALOME C.' },
+      
+      // Tuesday
+      { day: 'Tuesday', time: '7:00AM-10:00AM', courseCode: 'AAP 101', courseTitle: 'Anatomy and Physiology', section: 'BSMT 2', instructor: 'DE JESUS, BENEDICT' },
+      { day: 'Tuesday', time: '10:00AM-12:00PM', courseCode: 'MLSCPH 201', courseTitle: 'Clinical Parasitology', section: 'BSMT 2', instructor: 'TOBIAS, JOHN RHIL D.' },
+      { day: 'Tuesday', time: '12:00PM-1:30PM', courseCode: 'ESC 302', courseTitle: 'Environmental Science', section: 'BSES 3A 2S 25-26', instructor: 'BASILIO, ELEONOR' },
+      { day: 'Tuesday', time: '2:00PM-5:00PM', courseCode: 'MLSCH 103', courseTitle: 'Clinical Chemistry', section: 'BSMT 1A', instructor: 'RONQUILLO, EDEN' },
+      { day: 'Tuesday', time: '5:00PM-6:30PM', courseCode: 'ESM 302', courseTitle: 'Environmental Science Management', section: 'BSES 3B 2S 25-26', instructor: 'VITUG, LAWRENCE V.' },
+      
+      // Wednesday
+      { day: 'Wednesday', time: '7:30AM-9:00AM', courseCode: 'MLSMTL 201', courseTitle: 'Medical Technology Laws', section: 'BSMT 2', instructor: 'SINGIAN, ELOISA Q.' },
+      { day: 'Wednesday', time: '9:00AM-10:00AM', courseCode: 'MLSPST 201', courseTitle: 'Professional Skills Training', section: 'BSMT 2', instructor: 'SINGIAN, ELOISA Q.' },
+      { day: 'Wednesday', time: '10:00AM-11:00AM', courseCode: 'MLSMBD 301', courseTitle: 'Medical Bacteriology', section: 'BSMT 3', instructor: 'SINGIAN, ELOISA Q.' },
+      { day: 'Wednesday', time: '12:30PM-2:00PM', courseCode: 'MLSHEMA 302', courseTitle: 'Hematology', section: 'BSMT 3', instructor: 'SOTTO, JAMIE M.' },
+      { day: 'Wednesday', time: '2:00PM-5:00PM', courseCode: 'PID 101', courseTitle: 'Principles of Infectious Diseases', section: 'BSMT 2', instructor: 'NEO, MERYDAY' },
+      { day: 'Wednesday', time: '5:00PM-8:00PM', courseCode: 'ECS 404', courseTitle: 'Environmental Chemistry', section: 'BSES 4A 2S 25-26', instructor: 'ARRIETA, THELMA' },
+      
+      // Thursday
+      { day: 'Thursday', time: '7:30AM-9:00AM', courseCode: 'MLSMTL 201', courseTitle: 'Medical Technology Laws', section: 'BSMT 2', instructor: 'SINGIAN, ELOISA Q.' },
+      { day: 'Thursday', time: '9:00AM-10:00AM', courseCode: 'MLSPST 201', courseTitle: 'Professional Skills Training', section: 'BSMT 2', instructor: 'SINGIAN, ELOISA Q.' },
+      { day: 'Thursday', time: '10:00AM-11:00AM', courseCode: 'MLSMBD 301', courseTitle: 'Medical Bacteriology', section: 'BSMT 3', instructor: 'SINGIAN, ELOISA Q.' },
+      { day: 'Thursday', time: '11:00AM-12:00PM', courseCode: 'MLSHEMA 302', courseTitle: 'Hematology', section: 'BSMT 3', instructor: 'CRUZ, MERLYN C.' },
+      { day: 'Thursday', time: '2:00PM-5:00PM', courseCode: 'MAT 305', courseTitle: 'Mathematics', section: 'BSFT 2A', instructor: 'DUENAS, REYMOND B.' },
+      { day: 'Thursday', time: '5:00PM-8:00PM', courseCode: 'UTS 101', courseTitle: 'Understanding the Self', section: 'BSES 1A CCDM 2S 25-26', instructor: 'LODRIGITO, MARK ANTHONY' },
+      
+      // Friday
+      { day: 'Friday', time: '7:00AM-10:00AM', courseCode: 'NSTP 11', courseTitle: 'National Service Training Program', section: 'BSMT 1B', instructor: 'TABASURAEZ, GLIEZA' },
+      { day: 'Friday', time: '10:00AM-1:00PM', courseCode: 'NSTP 11', courseTitle: 'National Service Training Program', section: 'BSMT 1A', instructor: 'TABASURAEZ, GLIEZA' },
+      { day: 'Friday', time: '1:00PM-2:00PM', courseCode: 'FES 408', courseTitle: 'Food Entrepreneurship', section: 'BSFT 4A', instructor: 'DE GUZMAN, MARICEL' },
+      { day: 'Friday', time: '2:00PM-5:00PM', courseCode: 'FCS 401', courseTitle: 'Food Chemistry', section: 'BSFT 1A', instructor: 'DE GUZMAN, MARICEL' }
     ]
   },
   // FH 205
@@ -492,11 +613,28 @@ export default function RoomSchedules() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBuilding, setFilterBuilding] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
+  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const buildings = Array.from(new Set(ROOMS.map(r => r.building)));
   const roomTypes = Array.from(new Set(ROOMS.map(r => r.type)));
+
+  const toggleExpanded = (roomId: string) => {
+    setExpandedRooms(prev => {
+      const newSet = new Set(prev);
+      
+      if (newSet.has(roomId)) {
+        // Close this room
+        newSet.delete(roomId);
+      } else {
+        // Close all others and open this one (exclusive behavior)
+        newSet.clear();
+        newSet.add(roomId);
+      }
+      
+      return newSet;
+    });
+  };
 
   const filteredRooms = ROOMS.filter(room => {
     if (filterBuilding && room.building !== filterBuilding) return false;
@@ -721,126 +859,116 @@ export default function RoomSchedules() {
                   </div>
                 </div>
                 
-                {/* Status and Actions - Larger */}
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl">
-                      <Users className="w-5 h-5 text-gray-600 dark:text-slate-400" />
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{room.capacity}</span>
-                    </span>
-                    <span className={`px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 ${
-                      isOccupied 
-                        ? 'bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30' 
-                        : 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full ${isOccupied ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
-                      {isOccupied ? (fil ? 'Occupied' : 'Occupied') : (fil ? 'Available' : 'Available')}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setExpandedRoom(expandedRoom === room.id ? null : room.id)}
-                    className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
-                  >
-                    <Calendar className="w-5 h-5" />
-                    {expandedRoom === room.id ? (fil ? 'Isara' : 'Close') : (fil ? 'Tingnan Schedule' : 'View Schedule')}
-                  </button>
-                </div>
-                
-                {/* Expanded Schedule - Larger with sorting */}
-                {expandedRoom === room.id && (
-                  <div className="w-full mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                    {/* Today's Schedule */}
-                    <h4 className="text-base font-semibold text-gray-800 dark:text-slate-300 mb-3 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-                      {formatDateDisplay(selectedDate)} Schedule
-                      <span className="text-xs text-cyan-600 dark:text-cyan-400">({sortedTodaySchedule.length})</span>
-                    </h4>
-                    
-                    {sortedTodaySchedule.length > 0 ? (
-                      <div className="space-y-3 max-h-[400px] overflow-y-auto mb-6">
-                        {sortedTodaySchedule.map((schedule, idx) => (
-                          <div key={idx} className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
-                            <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
-                              <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
-                              {schedule.section && (
-                                <p className="text-xs text-gray-500 dark:text-slate-500 mt-0.5">Section: {schedule.section}</p>
-                              )}
-                            </div>
-                            {currentMeeting?.time === schedule.time && (
-                              <span className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-bold animate-pulse shadow-md">NOW</span>
-                            )}
-                          </div>
-                        ))}
+              {/* Status and Actions */}
+<div className="flex items-center gap-3">
+  <div className="flex items-center gap-2">
+    <span className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl">
+      <Users className="w-5 h-5 text-gray-600 dark:text-slate-400" />
+      <span className="text-sm font-semibold text-gray-900 dark:text-white">{room.capacity}</span>
+    </span>
+    <span className={`px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 ${
+      isOccupied
+        ? 'bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30'
+        : 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30'
+    }`}>
+      <span className={`w-2 h-2 rounded-full ${isOccupied ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+      {isOccupied ? (fil ? 'Occupied' : 'Occupied') : (fil ? 'Available' : 'Available')}
+    </span>
+  </div>
+
+  <button
+    onClick={() => toggleExpanded(room.id)}
+    className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
+  >
+    <Calendar className="w-5 h-5" />
+    {expandedRooms.has(room.id) 
+      ? (fil ? 'Isara' : 'Close') 
+      : (fil ? 'Tingnan Schedule' : 'View Schedule')
+    }
+  </button>
+</div>
+
+{/* Expanded Schedule - List View */}
+{expandedRooms.has(room.id) && (
+  <div className="w-full mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+    {/* Today's Schedule */}
+    <h4 className="text-base font-semibold text-gray-800 dark:text-slate-300 mb-3 flex items-center gap-2">
+      <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+      {formatDateDisplay(selectedDate)} Schedule
+      <span className="text-xs text-cyan-600 dark:text-cyan-400">({sortedTodaySchedule.length})</span>
+    </h4>
+    
+    {sortedTodaySchedule.length > 0 ? (
+      <div className="space-y-3 max-h-[400px] overflow-y-auto mb-6">
+        {sortedTodaySchedule.map((schedule, idx) => (
+          <div key={idx} className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
+            <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
+              {schedule.section && (
+                <p className="text-xs text-gray-500 dark:text-slate-500 mt-0.5">Section: {schedule.section}</p>
+              )}
+            </div>
+            {currentMeeting?.time === schedule.time && (
+              <span className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-bold animate-pulse shadow-md">NOW</span>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-6 mb-6 bg-gray-50 dark:bg-slate-800/30 rounded-xl">
+        <p className="text-base text-gray-500 dark:text-slate-400">No classes scheduled for this day</p>
+      </div>
+    )}
+
+    {/* Full Weekly Schedule */}
+    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+      <h4 className="text-lg font-semibold text-gray-800 dark:text-slate-300 mb-4 flex items-center gap-2">
+        <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+        {fil ? 'Buong Weekly Schedule' : 'Full Weekly Schedule'}
+      </h4>
+      {sortedFullSchedules.length > 0 ? (
+        <div className="space-y-4 max-h-[500px] overflow-y-auto">
+          {DAYS_ORDER.map(day => {
+            const daySchedules = sortedFullSchedules.filter(s => s.day === day);
+            if (daySchedules.length === 0) return null;
+            return (
+              <div key={day} className="mb-4">
+                <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 mb-2 pb-1 border-b border-cyan-200 dark:border-cyan-500/30">{day}</p>
+                <div className="space-y-2">
+                  {daySchedules.map((schedule, idx) => (
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
+                      <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
+                      <div className="flex-1">
+                        <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
+                        <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
                       </div>
-                    ) : (
-                      <div className="text-center py-6 mb-6 bg-gray-50 dark:bg-slate-800/30 rounded-xl">
-                        <p className="text-base text-gray-500 dark:text-slate-400">No classes scheduled for this day</p>
-                      </div>
-                    )}
-                    
-                    {/* Full Schedule Button */}
-                    <button
-                      onClick={() => {
-                        const fullScheduleEl = document.getElementById(`full-schedule-${room.id}`);
-                        if (fullScheduleEl) {
-                          fullScheduleEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }}
-                      className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center gap-2 mb-4"
-                    >
-                      <Calendar className="w-5 h-5" />
-                      {fil ? 'Tingnan Buong Weekly Schedule' : 'View Full Weekly Schedule'}
-                    </button>
-                    
-                    {/* Full Weekly Schedule */}
-                    <div id={`full-schedule-${room.id}`} className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                      <h4 className="text-lg font-semibold text-gray-800 dark:text-slate-300 mb-4 flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-                        {fil ? 'Buong Weekly Schedule' : 'Full Weekly Schedule'}
-                      </h4>
-                      {sortedFullSchedules.length > 0 ? (
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto">
-                          {DAYS_ORDER.map(day => {
-                            const daySchedules = sortedFullSchedules.filter(s => s.day === day);
-                            if (daySchedules.length === 0) return null;
-                            return (
-                              <div key={day} className="mb-4">
-                                <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 mb-2 pb-1 border-b border-cyan-200 dark:border-cyan-500/30">{day}</p>
-                                <div className="space-y-2">
-                                  {daySchedules.map((schedule, idx) => (
-                                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
-                                      <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
-                                      <div className="flex-1">
-                                        <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
-                                        <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
-                                      </div>
-                                      {schedule.section && (
-                                        <span className="text-xs px-2 py-1 bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded-lg whitespace-nowrap font-medium">
-                                          {schedule.section}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-base text-gray-500 dark:text-slate-500 text-center py-6">No schedules available</p>
+                      {schedule.section && (
+                        <span className="text-xs px-2 py-1 bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded-lg whitespace-nowrap font-medium">
+                          {schedule.section}
+                        </span>
                       )}
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-base text-gray-500 dark:text-slate-500 text-center py-6">No schedules available</p>
+      )}
+    </div>
+  </div>
+)}
               </div>
             );
           })}
         </div>
       ) : (
         /* Grid View */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
           {filteredRooms.map(room => {
             const todaySchedule = getTodaySchedule(room, selectedDate);
             
@@ -877,7 +1005,7 @@ export default function RoomSchedules() {
             });
             
             return (
-              <div key={room.id} className="group relative bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl overflow-hidden transition-all duration-300 hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-xl hover:-translate-y-1 shadow-sm">
+              <div key={room.id} className="group relative self-start bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl overflow-hidden transition-all duration-300 hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-xl hover:-translate-y-1 shadow-sm">
                 {/* Header - Larger */}
                 <div className="p-5 border-b border-gray-100 dark:border-slate-700">
                   <div className="flex items-start justify-between">
@@ -891,18 +1019,15 @@ export default function RoomSchedules() {
                       </div>
                     </div>
                     {(() => {
-                      const statusDetails = getRoomStatusDetails(room, selectedDate);
+                      const isOccupied = isRoomOccupied(room, selectedDate);
                       return (
-                        <span className={`px-3 py-1.5 text-sm font-semibold rounded-xl flex flex-col ${
-                          statusDetails.status === 'occupied' 
-                            ? 'bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30' 
-                            : 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30'
+                        <span className={`px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 border ${
+                          isOccupied
+                            ? 'bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30'
+                            : 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/30'
                         }`}>
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${statusDetails.status === 'occupied' ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
-                            {statusDetails.status === 'occupied' ? (fil ? 'Occupied' : 'Occupied') : (fil ? 'Available' : 'Available')}
-                          </div>
-                          <span className="text-xs mt-1 opacity-75">{statusDetails.message}</span>
+                          <span className={`w-2.5 h-2.5 rounded-full ${isOccupied ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                          {isOccupied ? (fil ? 'Occupied' : 'Occupied') : (fil ? 'Available' : 'Available')}
                         </span>
                       );
                     })()}
@@ -969,24 +1094,29 @@ export default function RoomSchedules() {
                   )}
                 </div>
 
-                {/* Button - Larger */}
+                
+                {/* Button */}
                 <div className="p-5 pt-0">
                   <button
-                    onClick={() => setExpandedRoom(expandedRoom === room.id ? null : room.id)}
+                    onClick={() => toggleExpanded(room.id)}
                     className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center gap-2"
                   >
                     <Calendar className="w-5 h-5" />
-                    {expandedRoom === room.id ? (fil ? 'Isara' : 'Close') : (fil ? 'Buong Schedule' : 'Full Schedule')}
+                    {expandedRooms.has(room.id) 
+                      ? (fil ? 'Isara' : 'Close') 
+                      : (fil ? 'Buong Schedule' : 'Full Schedule')
+                    }
                   </button>
                 </div>
 
-                {/* Expanded Full Schedule - Sorted by day and time */}
-                {expandedRoom === room.id && (
+                {/* Expanded Full Schedule */}
+                {expandedRooms.has(room.id) && (
                   <div className="border-t border-gray-100 dark:border-slate-700 p-5 bg-gray-50 dark:bg-slate-900/30">
                     <h4 className="text-lg font-semibold text-gray-800 dark:text-slate-300 mb-4 flex items-center gap-2">
                       <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
                       {fil ? 'Buong Schedule' : 'Full Schedule'}
                     </h4>
+                    
                     {sortedFullSchedules.length > 0 ? (
                       <div className="space-y-3 max-h-[500px] overflow-y-auto">
                         {DAYS_ORDER.map(day => {
@@ -994,14 +1124,25 @@ export default function RoomSchedules() {
                           if (daySchedules.length === 0) return null;
                           return (
                             <div key={day} className="mb-4">
-                              <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 mb-2 pb-1 border-b border-cyan-200 dark:border-cyan-500/30">{day}</p>
+                              <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 mb-2 pb-1 border-b border-cyan-200 dark:border-cyan-500/30">
+                                {day}
+                              </p>
                               <div className="space-y-2">
                                 {daySchedules.map((schedule, idx) => (
-                                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white dark:bg-slate-800/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
-                                    <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">{schedule.time}</span>
+                                  <div 
+                                    key={idx} 
+                                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white dark:bg-slate-800/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors"
+                                  >
+                                    <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400 min-w-[100px] font-semibold">
+                                      {schedule.time}
+                                    </span>
                                     <div className="flex-1">
-                                      <p className="text-base font-semibold text-gray-900 dark:text-white">{schedule.courseCode} - {schedule.courseTitle}</p>
-                                      <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">Instructor: {schedule.instructor || 'TBA'}</p>
+                                      <p className="text-base font-semibold text-gray-900 dark:text-white">
+                                        {schedule.courseCode} - {schedule.courseTitle}
+                                      </p>
+                                      <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">
+                                        Instructor: {schedule.instructor || 'TBA'}
+                                      </p>
                                     </div>
                                     {schedule.section && (
                                       <span className="text-xs px-2 py-1 bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded-lg whitespace-nowrap font-medium">
@@ -1016,7 +1157,9 @@ export default function RoomSchedules() {
                         })}
                       </div>
                     ) : (
-                      <p className="text-base text-gray-500 dark:text-slate-500 text-center py-6">No schedules available</p>
+                      <p className="text-base text-gray-500 dark:text-slate-500 text-center py-6">
+                        No schedules available
+                      </p>
                     )}
                   </div>
                 )}
